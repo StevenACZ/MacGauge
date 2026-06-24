@@ -29,6 +29,7 @@ struct MenuBarPopoverView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(AppFormatters.temperaturePrecise(monitor.snapshot.temperatureCelsius, unit: settings.temperatureUnit))
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .foregroundStyle(temperatureColor)
                 Spacer()
                 Text(AppFormatters.rpm(monitor.snapshot.fan?.currentRPM))
                     .font(.system(.title3, design: .rounded, weight: .medium))
@@ -92,6 +93,7 @@ struct MenuBarPopoverView: View {
             }
 
             Slider(value: $settings.manualPercent, in: settings.dangerousRangesUnlocked ? 0...100 : 20...90, step: 1)
+                .opacity(model.isManualControlActive ? 1 : 0.58)
 
             HStack {
                 Button {
@@ -103,7 +105,7 @@ struct MenuBarPopoverView: View {
 
                 Spacer()
 
-                Text(model.isWriting ? "Applying..." : "Auto-apply")
+                Text(manualStatusText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -167,5 +169,21 @@ struct MenuBarPopoverView: View {
                 .monospacedDigit()
         }
         .font(.callout)
+    }
+
+    private var manualStatusText: String {
+        if model.isWriting { return "Applying..." }
+        return model.isManualControlActive ? "Auto-apply" : "Automatic"
+    }
+
+    private var temperatureColor: Color {
+        switch settings.visualRules.band(for: monitor.snapshot.temperatureCelsius) {
+        case .normal:
+            return Color(hexString: settings.normalColorHex)
+        case .medium:
+            return Color(hexString: settings.mediumColorHex)
+        case .hot:
+            return Color(hexString: settings.hotColorHex)
+        }
     }
 }

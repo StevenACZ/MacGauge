@@ -12,12 +12,14 @@ final class AppModel: ObservableObject {
 
     @Published var isWriting = false
     @Published var lastActionMessage = "Ready"
+    @Published var isManualControlActive = false
 
     private let debounceWindow = DebounceWindow(delay: 0.55)
     private var cancellables = Set<AnyCancellable>()
     private var manualApplyTask: Task<Void, Never>?
     private var curveTask: Task<Void, Never>?
     private var didRunLiveControl = false
+    private var suppressManualApply = false
 
     init() {
         settings = AppSettingsStore()
@@ -29,6 +31,17 @@ final class AppModel: ObservableObject {
 
     var manualTargetRPM: Double? {
         targetRPM(percent: settings.manualPercent)
+    }
+
+    var minimumFanPercent: Double {
+        guard let fan = monitor.snapshot.fan,
+              let minRPM = fan.minRPM,
+              let maxRPM = fan.maxRPM,
+              maxRPM > 0
+        else {
+            return settings.dangerousRangesUnlocked ? 0 : 20
+        }
+        return max(settings.dangerousRangesUnlocked ? 0 : 20, min(100, minRPM / maxRPM * 100))
     }
 
     var curveTargetPercent: Double? {
@@ -77,6 +90,7 @@ final class AppModel: ObservableObject {
                 lastActionMessage = try await helperService.restoreAutomatic()
                 didRunLiveControl = false
                 monitor.refresh()
+                resetManualSliderToAutomatic()
             } catch {
                 lastActionMessage = error.localizedDescription
             }
@@ -152,7 +166,9 @@ final class AppModel: ObservableObject {
     }
 
     private func scheduleManualApply(percent: Double) {
+        guard !suppressManualApply else { return }
         guard settings.controlMode == .manual else { return }
+        isManualControlActive = true
         manualApplyTask?.cancel()
         let fireDate = debounceWindow.fireDate(after: Date())
         lastActionMessage = "Applying after slider settles..."
@@ -184,5 +200,13 @@ final class AppModel: ObservableObject {
             }
             isWriting = false
         }
+    }
+
+    private func resetManualSliderToAutomatic() {
+        manualApplyTask?.cancel()
+        suppressManualApply = true
+        settings.manualPercent = minimumFanPercent
+        suppressManualApply = false
+        isManualControlActive = false
     }
 }

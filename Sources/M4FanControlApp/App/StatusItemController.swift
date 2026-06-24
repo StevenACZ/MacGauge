@@ -27,6 +27,7 @@ final class StatusItemController: NSObject {
             button.target = self
             button.action = #selector(togglePopover)
             button.imagePosition = .imageLeading
+            button.imageScaling = .scaleProportionallyDown
         }
 
         model.monitor.$snapshot
@@ -63,8 +64,10 @@ final class StatusItemController: NSObject {
             .foregroundColor: color,
             .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
         ]
-        statusItem.button?.attributedTitle = NSAttributedString(string: " \(temperature)", attributes: attributes)
+        let title = NSAttributedString(string: temperature, attributes: attributes)
+        statusItem.button?.attributedTitle = title
         statusItem.button?.image = FanIconRenderer.image(color: color, rotation: rotation)
+        statusItem.length = min(max(48, ceil(title.size().width) + 28), 66)
         updateAnimation(snapshot: snapshot)
     }
 
