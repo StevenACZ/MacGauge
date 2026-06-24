@@ -2,6 +2,7 @@ import AppKit
 
 enum FanIconRenderer {
     static func image(color: NSColor, rotation: CGFloat) -> NSImage? {
+        let drawColor = color.usingColorSpace(.sRGB) ?? color
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size)
         image.lockFocus()
@@ -20,12 +21,13 @@ enum FanIconRenderer {
         let rect = NSRect(x: 1, y: 1, width: 16, height: 16)
         if let symbol = configuredSymbol() {
             symbol.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+            drawColor.setFill()
+            rect.fill(using: .sourceAtop)
         } else {
-            drawFallbackFan(in: rect)
+            drawFallbackFan(in: rect, color: drawColor)
         }
 
-        _ = color
-        image.isTemplate = true
+        image.isTemplate = false
         return image
     }
 
@@ -37,8 +39,8 @@ enum FanIconRenderer {
             .first
     }
 
-    private static func drawFallbackFan(in rect: NSRect) {
-        NSColor.black.setFill()
+    private static func drawFallbackFan(in rect: NSRect, color: NSColor) {
+        color.setFill()
         let center = NSPoint(x: rect.midX, y: rect.midY)
 
         for index in 0..<4 {

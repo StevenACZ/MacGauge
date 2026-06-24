@@ -68,7 +68,7 @@ final class StatusItemController: NSObject {
         let title = NSAttributedString(string: " \(temperature)", attributes: attributes)
         if let button = statusItem.button {
             button.attributedTitle = title
-            button.contentTintColor = color
+            button.contentTintColor = nil
             button.image = FanIconRenderer.image(color: color, rotation: rotation)
         }
         statusItem.length = min(max(60, ceil(title.size().width) + 38), 84)
@@ -87,7 +87,7 @@ final class StatusItemController: NSObject {
         guard let interval else {
             rotation = 0
             let color = statusColor(for: snapshot.temperatureCelsius)
-            statusItem.button?.contentTintColor = color
+            statusItem.button?.contentTintColor = nil
             statusItem.button?.image = FanIconRenderer.image(color: color, rotation: rotation)
             return
         }
@@ -97,7 +97,7 @@ final class StatusItemController: NSObject {
                 guard let self else { return }
                 self.rotation = (self.rotation + 45).truncatingRemainder(dividingBy: 360)
                 let color = self.statusColor(for: self.model.monitor.snapshot.temperatureCelsius)
-                self.statusItem.button?.contentTintColor = color
+                self.statusItem.button?.contentTintColor = nil
                 self.statusItem.button?.image = FanIconRenderer.image(
                     color: color,
                     rotation: self.rotation
@@ -111,11 +111,30 @@ final class StatusItemController: NSObject {
     private func statusColor(for temperature: Double?) -> NSColor {
         switch model.settings.visualRules.band(for: temperature) {
         case .normal:
-            return NSColor(hexString: model.settings.normalColorHex) ?? .labelColor
+            return readableMenuBarColor(NSColor(hexString: model.settings.normalColorHex), fallback: .white)
         case .medium:
-            return NSColor(hexString: model.settings.mediumColorHex) ?? .systemOrange
+            return readableMenuBarColor(NSColor(hexString: model.settings.mediumColorHex), fallback: .systemOrange)
         case .hot:
-            return NSColor(hexString: model.settings.hotColorHex) ?? .systemRed
+            return readableMenuBarColor(NSColor(hexString: model.settings.hotColorHex), fallback: .systemRed)
         }
+    }
+
+    private func readableMenuBarColor(_ color: NSColor?, fallback: NSColor) -> NSColor {
+        let source = (color ?? fallback).usingColorSpace(.sRGB) ?? fallback
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var brightness: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        source.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+
+        let liftedBrightness = max(brightness, 0.82)
+        let liftedSaturation = saturation > 0.05 ? max(saturation, 0.58) : saturation
+        return NSColor(
+            calibratedHue: hue,
+            saturation: liftedSaturation,
+            brightness: liftedBrightness,
+            alpha: alpha > 0 ? alpha : 1
+        ).usingColorSpace(.sRGB) ?? fallback
     }
 }
