@@ -13,7 +13,7 @@ This is private/local software, not a public universal app. It defaults to read-
 - Targets below reported minimum, above reported maximum, <=10%, or >=95% require `--allow-dangerous`.
 - `curve` restores automatic mode on normal exit where possible unless `--no-restore-auto` is provided.
 - No launch daemon, login item, or restart persistence is installed in this demo.
-- The menu bar app delegates live writes to the bundled `m4fan` CLI through macOS administrator approval. A signed privileged helper is the next step for seamless persistent control.
+- The menu bar app installs a narrow local LaunchDaemon helper after one macOS administrator approval. It does not store passwords.
 
 Fan control can damage hardware or interfere with macOS thermal management. Keep Activity Monitor or another temperature monitor visible during manual tests and return to automatic control after testing.
 
@@ -63,7 +63,12 @@ Install a copy to `~/Applications` and open it:
 ./script/build_and_run.sh --install
 ```
 
-The app bundle includes the `m4fan` CLI at `Contents/Resources/m4fan`. Manual and curve writes from the GUI prompt for administrator approval and run that bundled CLI.
+The app bundle includes:
+
+- `Contents/Resources/m4fan` for CLI compatibility.
+- `Contents/Resources/M4FanHelper` for one-time local helper installation.
+
+The first live control action may prompt for administrator approval to install the helper. After that, slider/curve changes use the helper and should not prompt repeatedly across app restarts.
 
 ## Read-only commands
 
@@ -126,16 +131,28 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 ## Menu bar app features
 
 - Compact status item showing representative temperature and current fan RPM.
+- Compact status item showing representative temperature only, with colored fan icon/text.
 - Popover with monitor, manual, and curve modes.
-- Settings window with Celsius/Fahrenheit, start at login, restore on quit, manual target, editable curve points, run duration, and safety toggle for edge ranges.
+- Manual slider auto-applies after a short debounce; `Auto` remains explicit.
+- Settings window with Celsius/Fahrenheit, start at login, restore on quit, manual target, editable curve points, run duration, color thresholds, icon animation, helper authorization, and safety toggle for edge ranges.
 - Start at login uses `SMAppService.mainApp`; macOS may require approval in System Settings.
 - No Accessibility permission is requested.
 
 ## Limitations
 
 - Sensor names on Apple Silicon are not fully mapped. The CLI discovers plausible temperature keys and reports a representative average.
-- No privileged helper is installed, so GUI writes rely on admin prompts and the bundled CLI.
-- Continuous curve control from the GUI starts a time-limited privileged CLI run. Seamless always-on curve control needs a proper signed privileged helper.
+- The helper uses a private local command-file protocol in Steven's Application Support folder. A production app should migrate this to a signed XPC helper.
+- Continuous curve control is driven by the app and sends time-limited helper commands.
 - `thermalmonitord` and firmware behavior can vary by M4 Pro/Max/base model and macOS release.
 - Reported `F0Mn`/`F0Mx` values are guidelines, not guaranteed physical limits.
 - Live write paths are experimental and intentionally noisy about permission and safety failures.
+
+## Helper management
+
+Authorize/install helper from the app Settings > Safety tab, or let the first manual slider change prompt for approval.
+
+Manual uninstall:
+
+```sh
+sudo /Users/steven/Applications/M4FanControl.app/Contents/Resources/M4FanHelper --uninstall-daemon
+```

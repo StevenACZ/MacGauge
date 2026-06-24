@@ -11,6 +11,12 @@ final class AppSettingsStore: ObservableObject {
         static let restoreAutomaticOnQuit = "restoreAutomaticOnQuit"
         static let dangerousRangesUnlocked = "dangerousRangesUnlocked"
         static let curveRunMinutes = "curveRunMinutes"
+        static let normalUpperCelsius = "normalUpperCelsius"
+        static let hotLowerCelsius = "hotLowerCelsius"
+        static let normalColorHex = "normalColorHex"
+        static let mediumColorHex = "mediumColorHex"
+        static let hotColorHex = "hotColorHex"
+        static let animateFanIcon = "animateFanIcon"
     }
 
     private let defaults: UserDefaults
@@ -43,6 +49,30 @@ final class AppSettingsStore: ObservableObject {
         didSet { defaults.set(curveRunMinutes, forKey: Key.curveRunMinutes) }
     }
 
+    @Published var normalUpperCelsius: Double {
+        didSet { defaults.set(normalUpperCelsius, forKey: Key.normalUpperCelsius) }
+    }
+
+    @Published var hotLowerCelsius: Double {
+        didSet { defaults.set(hotLowerCelsius, forKey: Key.hotLowerCelsius) }
+    }
+
+    @Published var normalColorHex: String {
+        didSet { defaults.set(normalColorHex, forKey: Key.normalColorHex) }
+    }
+
+    @Published var mediumColorHex: String {
+        didSet { defaults.set(mediumColorHex, forKey: Key.mediumColorHex) }
+    }
+
+    @Published var hotColorHex: String {
+        didSet { defaults.set(hotColorHex, forKey: Key.hotColorHex) }
+    }
+
+    @Published var animateFanIcon: Bool {
+        didSet { defaults.set(animateFanIcon, forKey: Key.animateFanIcon) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -64,6 +94,18 @@ final class AppSettingsStore: ObservableObject {
 
         let storedMinutes = defaults.object(forKey: Key.curveRunMinutes) as? Double
         curveRunMinutes = storedMinutes ?? 10
+
+        normalUpperCelsius = defaults.object(forKey: Key.normalUpperCelsius) as? Double ?? 45
+        hotLowerCelsius = defaults.object(forKey: Key.hotLowerCelsius) as? Double ?? 70
+        normalColorHex = defaults.string(forKey: Key.normalColorHex) ?? "#FFFFFF"
+        mediumColorHex = defaults.string(forKey: Key.mediumColorHex) ?? "#FF9500"
+        hotColorHex = defaults.string(forKey: Key.hotColorHex) ?? "#FF453A"
+
+        if defaults.object(forKey: Key.animateFanIcon) == nil {
+            animateFanIcon = true
+        } else {
+            animateFanIcon = defaults.bool(forKey: Key.animateFanIcon)
+        }
     }
 
     var curveCommandPoints: String {
@@ -77,6 +119,10 @@ final class AppSettingsStore: ObservableObject {
 
     var curve: FanCurve? {
         try? FanCurve(points: curvePoints.map { ($0.temperatureCelsius, $0.percent) })
+    }
+
+    var visualRules: TemperatureVisualRules {
+        TemperatureVisualRules(normalUpperCelsius: normalUpperCelsius, hotLowerCelsius: hotLowerCelsius)
     }
 
     func addCurvePoint() {

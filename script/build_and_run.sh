@@ -4,6 +4,7 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="M4FanControl"
 CLI_NAME="m4fan"
+HELPER_NAME="M4FanHelper"
 BUNDLE_ID="com.stevenacz.M4FanControl"
 MIN_SYSTEM_VERSION="13.0"
 
@@ -29,6 +30,7 @@ kill_existing() {
 stage_bundle() {
   swift build --product "$APP_NAME"
   swift build --product "$CLI_NAME"
+  swift build --product "$HELPER_NAME"
 
   local build_dir
   build_dir="$(swift build --show-bin-path)"
@@ -38,7 +40,8 @@ stage_bundle() {
 
   cp "$build_dir/$APP_NAME" "$APP_BINARY"
   cp "$build_dir/$CLI_NAME" "$APP_RESOURCES/$CLI_NAME"
-  chmod +x "$APP_BINARY" "$APP_RESOURCES/$CLI_NAME"
+  cp "$build_dir/$HELPER_NAME" "$APP_RESOURCES/$HELPER_NAME"
+  chmod +x "$APP_BINARY" "$APP_RESOURCES/$CLI_NAME" "$APP_RESOURCES/$HELPER_NAME"
 
   cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

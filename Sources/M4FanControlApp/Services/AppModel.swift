@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import M4FanCore
 
@@ -7,17 +8,23 @@ final class AppModel: ObservableObject {
     let settings: AppSettingsStore
     let monitor: FanMonitor
     let loginManager: LaunchAtLoginManager
+    let helperService: HelperCommandService
 
     @Published var isWriting = false
     @Published var lastActionMessage = "Ready"
 
-    private let cliService = PrivilegedCLIService()
+    private let debounceWindow = DebounceWindow(delay: 0.55)
+    private var cancellables = Set<AnyCancellable>()
+    private var manualApplyTask: Task<Void, Never>?
+    private var curveTask: Task<Void, Never>?
     private var didRunLiveControl = false
 
     init() {
         settings = AppSettingsStore()
         monitor = FanMonitor()
         loginManager = LaunchAtLoginManager()
+        helperService = HelperCommandService()
+        bindManualSlider()
     }
 
     var manualTargetRPM: Double? {
@@ -40,31 +47,70 @@ final class AppModel: ObservableObject {
 
     func start() {
         monitor.start()
+        Task { await helperService.refreshState() }
     }
 
-    func applyManualPercent() {
+    func authorizeHelper() {
+        isWriting = true
+        lastActionMessage = "Awaiting admin approval..."
+        Task {
+            do {
+                try await helperService.authorizeHelper()
+                lastActionMessage = "Helper authorized"
+            } catch {
+                lastActionMessage = error.localizedDescription
+            }
+            isWriting = false
+        }
+    }
+
+    func applyManualPercentNow() {
         let percent = settings.manualPercent
-        runPrivileged(arguments: setArguments(percent: percent), successMessage: "Manual target applied")
+        applyManualPercent(percent: percent, message: "Manual target applied")
     }
 
     func restoreAutomatic() {
-        runPrivileged(arguments: ["auto", "--live", "--i-understand"], successMessage: "Automatic control restored")
+        isWriting = true
+        lastActionMessage = "Restoring automatic..."
+        Task {
+            do {
+                lastActionMessage = try await helperService.restoreAutomatic()
+                didRunLiveControl = false
+                monitor.refresh()
+            } catch {
+                lastActionMessage = error.localizedDescription
+            }
+            isWriting = false
+        }
     }
 
     func startCurveRun() {
-        let duration = max(60, Int(settings.curveRunMinutes.rounded() * 60))
-        var arguments = [
-            "curve",
-            "--fan", "0",
-            "--points", settings.curveCommandPoints,
-            "--duration", "\(duration)",
-            "--live",
-            "--i-understand"
-        ]
-        if settings.dangerousRangesUnlocked {
-            arguments.append("--allow-dangerous")
+        if curveTask != nil {
+            curveTask?.cancel()
+            curveTask = nil
+            lastActionMessage = "Curve stopped"
+            return
         }
-        runPrivileged(arguments: arguments, background: true, successMessage: "Curve run started")
+
+        let durationSeconds = max(60, settings.curveRunMinutes * 60)
+        let startedAt = Date()
+        lastActionMessage = "Curve running"
+        curveTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                if Date().timeIntervalSince(startedAt) >= durationSeconds { break }
+                await MainActor.run {
+                    if let percent = self.curveTargetPercent {
+                        self.applyManualPercent(percent: percent, message: "Curve target applied")
+                    }
+                }
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+            }
+            await MainActor.run {
+                self?.curveTask = nil
+                self?.lastActionMessage = "Curve finished"
+            }
+        }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -88,7 +134,7 @@ final class AppModel: ObservableObject {
 
     func restoreAutomaticOnQuitIfNeeded() {
         guard settings.restoreAutomaticOnQuit, didRunLiveControl else { return }
-        _ = try? cliService.runPrivilegedSync(arguments: ["auto", "--live", "--i-understand"])
+        Task { try? await helperService.restoreAutomatic() }
     }
 
     private func targetRPM(percent: Double) -> Double? {
@@ -96,32 +142,43 @@ final class AppModel: ObservableObject {
         return max(0, min(100, percent)) / 100.0 * maxRPM
     }
 
-    private func setArguments(percent: Double) -> [String] {
-        var arguments = [
-            "set",
-            "--fan", "0",
-            "--percent", "\(Int(percent.rounded()))",
-            "--live",
-            "--i-understand"
-        ]
-        if settings.dangerousRangesUnlocked || percent <= 10 || percent >= 95 {
-            arguments.append("--allow-dangerous")
-        }
-        if percent == 0 {
-            arguments.append("--allow-zero")
-        }
-        return arguments
+    private func bindManualSlider() {
+        settings.$manualPercent
+            .dropFirst()
+            .sink { [weak self] percent in
+                self?.scheduleManualApply(percent: percent)
+            }
+            .store(in: &cancellables)
     }
 
-    private func runPrivileged(arguments: [String], background: Bool = false, successMessage: String) {
+    private func scheduleManualApply(percent: Double) {
+        guard settings.controlMode == .manual else { return }
+        manualApplyTask?.cancel()
+        let fireDate = debounceWindow.fireDate(after: Date())
+        lastActionMessage = "Applying after slider settles..."
+        manualApplyTask = Task { [weak self] in
+            let delay = max(0, fireDate.timeIntervalSinceNow)
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.applyManualPercent(percent: percent, message: "Manual target applied")
+            }
+        }
+    }
+
+    private func applyManualPercent(percent: Double, message: String) {
         isWriting = true
-        lastActionMessage = "Awaiting admin approval..."
+        lastActionMessage = helperService.state == .ready ? "Applying..." : "Authorizing helper..."
         Task {
             do {
-                let output = try await cliService.runPrivileged(arguments: arguments, background: background)
+                let output = try await helperService.setPercent(
+                    percent,
+                    allowDangerous: settings.dangerousRangesUnlocked || percent <= 10 || percent >= 95,
+                    allowZero: percent == 0 && settings.dangerousRangesUnlocked
+                )
                 didRunLiveControl = true
                 monitor.refresh()
-                lastActionMessage = output.isEmpty ? successMessage : output
+                lastActionMessage = output.isEmpty ? message : output
             } catch {
                 lastActionMessage = error.localizedDescription
             }

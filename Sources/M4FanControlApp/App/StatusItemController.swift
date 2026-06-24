@@ -8,6 +8,9 @@ final class StatusItemController: NSObject {
     private let popover: NSPopover
     private let model: AppModel
     private var cancellables = Set<AnyCancellable>()
+    private var animationTimer: Timer?
+    private var rotation: CGFloat = 0
+    private var currentAnimationInterval: TimeInterval?
 
     init(model: AppModel) {
         self.model = model
@@ -23,23 +26,24 @@ final class StatusItemController: NSObject {
         if let button = statusItem.button {
             button.target = self
             button.action = #selector(togglePopover)
-            button.image = NSImage(systemSymbolName: "fanblades", accessibilityDescription: "M4 Fan Control")
             button.imagePosition = .imageLeading
         }
 
         model.monitor.$snapshot
             .sink { [weak self] snapshot in
-                self?.updateTitle(snapshot: snapshot)
+                self?.updateStatusItem(snapshot: snapshot)
             }
             .store(in: &cancellables)
 
-        model.settings.$temperatureUnit
+        model.settings.objectWillChange
             .sink { [weak self] _ in
-                self?.updateTitle(snapshot: model.monitor.snapshot)
+                DispatchQueue.main.async {
+                    self?.updateStatusItem(snapshot: model.monitor.snapshot)
+                }
             }
             .store(in: &cancellables)
 
-        updateTitle(snapshot: model.monitor.snapshot)
+        updateStatusItem(snapshot: model.monitor.snapshot)
     }
 
     @objc private func togglePopover() {
@@ -52,9 +56,53 @@ final class StatusItemController: NSObject {
         }
     }
 
-    private func updateTitle(snapshot: FanSnapshot) {
+    private func updateStatusItem(snapshot: FanSnapshot) {
         let temperature = AppFormatters.temperature(snapshot.temperatureCelsius, unit: model.settings.temperatureUnit)
-        let rpm = snapshot.fan?.currentRPM.map { "\(Int($0.rounded()))" } ?? "--"
-        statusItem.button?.title = " \(temperature) \(rpm)"
+        let color = statusColor(for: snapshot.temperatureCelsius)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .foregroundColor: color,
+            .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        ]
+        statusItem.button?.attributedTitle = NSAttributedString(string: " \(temperature)", attributes: attributes)
+        statusItem.button?.image = FanIconRenderer.image(color: color, rotation: rotation)
+        updateAnimation(snapshot: snapshot)
+    }
+
+    private func updateAnimation(snapshot: FanSnapshot) {
+        let interval = model.settings.animateFanIcon
+            ? model.settings.visualRules.animationInterval(for: snapshot.temperatureCelsius)
+            : nil
+        guard interval != currentAnimationInterval else { return }
+        currentAnimationInterval = interval
+        animationTimer?.invalidate()
+        animationTimer = nil
+
+        guard let interval else {
+            rotation = 0
+            statusItem.button?.image = FanIconRenderer.image(color: statusColor(for: snapshot.temperatureCelsius), rotation: rotation)
+            return
+        }
+
+        animationTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.rotation = (self.rotation + 45).truncatingRemainder(dividingBy: 360)
+                self.statusItem.button?.image = FanIconRenderer.image(
+                    color: self.statusColor(for: self.model.monitor.snapshot.temperatureCelsius),
+                    rotation: self.rotation
+                )
+            }
+        }
+    }
+
+    private func statusColor(for temperature: Double?) -> NSColor {
+        switch model.settings.visualRules.band(for: temperature) {
+        case .normal:
+            return NSColor(hexString: model.settings.normalColorHex) ?? .labelColor
+        case .medium:
+            return NSColor(hexString: model.settings.mediumColorHex) ?? .systemOrange
+        case .hot:
+            return NSColor(hexString: model.settings.hotColorHex) ?? .systemRed
+        }
     }
 }

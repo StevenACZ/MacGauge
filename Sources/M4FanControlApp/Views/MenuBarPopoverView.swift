@@ -95,18 +95,17 @@ struct MenuBarPopoverView: View {
 
             HStack {
                 Button {
-                    model.applyManualPercent()
-                } label: {
-                    Label("Apply", systemImage: "fanblades")
-                }
-                .disabled(model.isWriting)
-
-                Button {
                     model.restoreAutomatic()
                 } label: {
                     Label("Auto", systemImage: "arrow.triangle.2.circlepath")
                 }
                 .disabled(model.isWriting)
+
+                Spacer()
+
+                Text(model.isWriting ? "Applying..." : "Auto-apply")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -120,7 +119,7 @@ struct MenuBarPopoverView: View {
                 Button {
                     model.startCurveRun()
                 } label: {
-                    Label("Start", systemImage: "play.fill")
+                    Label("Start/Stop", systemImage: "playpause.fill")
                 }
                 .disabled(model.isWriting)
 

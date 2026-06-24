@@ -32,6 +32,8 @@ This guide applies to `/Users/steven/Desktop/Proyectos/M4FanControl`.
 - Keep permissions honest and narrowly scoped.
 - Use `SMAppService.mainApp` for start-at-login UX when feasible.
 - Root SMC writes from the GUI must use a clearly separated helper/CLI path or a proper privileged helper. Never fake success.
+- The local helper must expose only narrow fan-control actions. Never add generic shell execution.
+- Never store administrator passwords or secrets; use system authorization/helper installation instead.
 
 ## Build And Verification
 
