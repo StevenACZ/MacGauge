@@ -29,7 +29,6 @@ struct MenuBarPopoverView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(AppFormatters.temperaturePrecise(monitor.snapshot.temperatureCelsius, unit: settings.temperatureUnit))
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
-                    .foregroundStyle(temperatureColor)
                 Spacer()
                 Text(AppFormatters.rpm(monitor.snapshot.fan?.currentRPM))
                     .font(.system(.title3, design: .rounded, weight: .medium))
@@ -174,16 +173,5 @@ struct MenuBarPopoverView: View {
     private var manualStatusText: String {
         if model.isWriting { return "Applying..." }
         return model.isManualControlActive ? "Auto-apply" : "Automatic"
-    }
-
-    private var temperatureColor: Color {
-        switch settings.visualRules.band(for: monitor.snapshot.temperatureCelsius) {
-        case .normal:
-            return Color(hexString: settings.normalColorHex)
-        case .medium:
-            return Color(hexString: settings.mediumColorHex)
-        case .hot:
-            return Color(hexString: settings.hotColorHex)
-        }
     }
 }

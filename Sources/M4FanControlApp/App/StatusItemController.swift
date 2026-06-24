@@ -62,12 +62,16 @@ final class StatusItemController: NSObject {
         let color = statusColor(for: snapshot.temperatureCelsius)
         let attributes: [NSAttributedString.Key: Any] = [
             .foregroundColor: color,
-            .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+            .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
+            .baselineOffset: -0.5
         ]
-        let title = NSAttributedString(string: temperature, attributes: attributes)
-        statusItem.button?.attributedTitle = title
-        statusItem.button?.image = FanIconRenderer.image(color: color, rotation: rotation)
-        statusItem.length = min(max(48, ceil(title.size().width) + 28), 66)
+        let title = NSAttributedString(string: " \(temperature)", attributes: attributes)
+        if let button = statusItem.button {
+            button.attributedTitle = title
+            button.contentTintColor = color
+            button.image = FanIconRenderer.image(color: color, rotation: rotation)
+        }
+        statusItem.length = min(max(60, ceil(title.size().width) + 38), 84)
         updateAnimation(snapshot: snapshot)
     }
 
@@ -82,20 +86,26 @@ final class StatusItemController: NSObject {
 
         guard let interval else {
             rotation = 0
-            statusItem.button?.image = FanIconRenderer.image(color: statusColor(for: snapshot.temperatureCelsius), rotation: rotation)
+            let color = statusColor(for: snapshot.temperatureCelsius)
+            statusItem.button?.contentTintColor = color
+            statusItem.button?.image = FanIconRenderer.image(color: color, rotation: rotation)
             return
         }
 
-        animationTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 self.rotation = (self.rotation + 45).truncatingRemainder(dividingBy: 360)
+                let color = self.statusColor(for: self.model.monitor.snapshot.temperatureCelsius)
+                self.statusItem.button?.contentTintColor = color
                 self.statusItem.button?.image = FanIconRenderer.image(
-                    color: self.statusColor(for: self.model.monitor.snapshot.temperatureCelsius),
+                    color: color,
                     rotation: self.rotation
                 )
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        animationTimer = timer
     }
 
     private func statusColor(for temperature: Double?) -> NSColor {
