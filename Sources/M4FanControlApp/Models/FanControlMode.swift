@@ -1,7 +1,6 @@
 import Foundation
 
 enum FanControlMode: String, CaseIterable, Identifiable {
-    case monitor
     case manual
     case curve
 
@@ -9,7 +8,6 @@ enum FanControlMode: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .monitor: "Monitor"
         case .manual: "Manual"
         case .curve: "Curve"
         }

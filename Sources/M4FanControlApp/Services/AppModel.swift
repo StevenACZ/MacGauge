@@ -27,7 +27,6 @@ final class AppModel: ObservableObject {
     private var pendingFanTargetApply: (percent: Double, message: String)?
     private var didRunLiveControl = false
     private var suppressManualApply = false
-    private var suppressModeActivation = false
     private var pendingModeActivationAfterHelperReady = false
 
     init() {
@@ -38,6 +37,7 @@ final class AppModel: ObservableObject {
         bindManualSlider()
         bindControlMode()
         bindHelperReadiness()
+        bindControlTick()
     }
 
     var manualTargetRPM: Double? {
@@ -66,12 +66,7 @@ final class AppModel: ObservableObject {
     }
 
     var curveTargetPercent: Double? {
-        guard let temperature = monitor.snapshot.temperatureCelsius,
-              let curve = settings.curve
-        else {
-            return nil
-        }
-        return curve.percent(for: temperature)
+        curveTargetPercent(for: monitor.snapshot.temperatureCelsius)
     }
 
     var effectiveCurveTargetPercent: Double? {
@@ -93,7 +88,7 @@ final class AppModel: ObservableObject {
     }
 
     func start() {
-        monitor.start()
+        monitor.start(refreshIntervalSeconds: settings.controlTickSeconds)
         Task { await helperService.refreshState() }
     }
 
@@ -166,33 +161,23 @@ final class AppModel: ObservableObject {
             return
         }
 
-        let durationSeconds = max(60, settings.curveRunMinutes * 60)
-        let startedAt = Date()
         let runID = UUID()
         curveRunID = runID
         lastActionMessage = "Curve running"
         curveTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                if Date().timeIntervalSince(startedAt) >= durationSeconds { break }
-                await MainActor.run {
-                    if !self.isWriting,
-                       !self.isApplyingFanTarget,
-                       let percent = self.effectiveCurveTargetPercent {
-                        self.applyManualPercent(percent: percent, message: "Curve target applied")
-                    }
+                let snapshot = await self.monitor.refreshNow()
+                if !self.isWriting,
+                   let percent = self.effectiveCurveTargetPercent(for: snapshot.temperatureCelsius) {
+                    self.applyManualPercent(percent: percent, message: "Curve target applied")
                 }
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                try? await Task.sleep(nanoseconds: self.controlTickNanoseconds)
             }
-            let wasCancelled = Task.isCancelled
             await MainActor.run {
                 guard self?.curveRunID == runID else { return }
                 self?.curveTask = nil
                 self?.curveRunID = nil
-                if !wasCancelled {
-                    self?.lastActionMessage = "Curve finished"
-                    self?.moveToMonitorAfterCurveFinishes()
-                }
             }
         }
     }
@@ -260,16 +245,31 @@ final class AppModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func handleControlModeChange(_ mode: FanControlMode) {
-        guard !suppressModeActivation else { return }
+    private func bindControlTick() {
+        settings.$controlTickSeconds
+            .removeDuplicates()
+            .sink { [weak self] seconds in
+                self?.monitor.setRefreshInterval(seconds: seconds)
+            }
+            .store(in: &cancellables)
+    }
 
+    private func curveTargetPercent(for temperature: Double?) -> Double? {
+        guard let temperature,
+              let curve = settings.curve
+        else {
+            return nil
+        }
+        return curve.percent(for: temperature)
+    }
+
+    private func effectiveCurveTargetPercent(for temperature: Double?) -> Double? {
+        guard let percent = curveTargetPercent(for: temperature) else { return nil }
+        return boundedManualPercent(percent)
+    }
+
+    private func handleControlModeChange(_ mode: FanControlMode) {
         switch mode {
-        case .monitor:
-            pendingModeActivationAfterHelperReady = false
-            pendingFanTargetApply = nil
-            manualApplyTask?.cancel()
-            isManualControlActive = false
-            stopCurveRun(message: "Monitoring")
         case .manual:
             pendingModeActivationAfterHelperReady = !helperReady
             stopCurveRun(message: nil)
@@ -287,8 +287,6 @@ final class AppModel: ObservableObject {
         guard helperReady else { return }
 
         switch settings.controlMode {
-        case .monitor:
-            break
         case .manual:
             applyManualPercentNow()
         case .curve:
@@ -315,12 +313,6 @@ final class AppModel: ObservableObject {
         if let message {
             lastActionMessage = message
         }
-    }
-
-    private func moveToMonitorAfterCurveFinishes() {
-        suppressModeActivation = true
-        settings.controlMode = .monitor
-        suppressModeActivation = false
     }
 
     private func beginHelperApprovalPolling() {
@@ -367,6 +359,14 @@ final class AppModel: ObservableObject {
 
     private func boundedManualPercent(_ percent: Double) -> Double {
         min(max(percent, manualPercentRange.lowerBound), manualPercentRange.upperBound)
+    }
+
+    private var controlTickNanoseconds: UInt64 {
+        let seconds = min(
+            max(settings.controlTickSeconds, AppSettingsStore.controlTickRange.lowerBound),
+            AppSettingsStore.controlTickRange.upperBound
+        )
+        return UInt64(seconds * 1_000_000_000)
     }
 
     private func applyManualPercent(percent: Double, message: String) {

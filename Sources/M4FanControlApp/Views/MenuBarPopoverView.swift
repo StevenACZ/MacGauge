@@ -66,23 +66,10 @@ struct MenuBarPopoverView: View {
     @ViewBuilder
     private var modeContent: some View {
         switch settings.controlMode {
-        case .monitor:
-            monitorContent
         case .manual:
             manualContent
         case .curve:
             curveContent
-        }
-    }
-
-    private var monitorContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            metricRow("Fan count", value: "\(monitor.snapshot.fanCount)")
-            metricRow("Thermal state", value: monitor.snapshot.thermalState.capitalized)
-            metricRow("Current target", value: AppFormatters.rpm(monitor.snapshot.fan?.targetRPM))
-            metricRow("Recommended range", value: "\(AppFormatters.rpm(monitor.snapshot.fan?.minRPM)) - \(AppFormatters.rpm(monitor.snapshot.fan?.maxRPM))")
-            metricRow("Helper", value: helperService.state.rawValue)
-            metricRow("Mode key", value: monitor.snapshot.fan?.modeKey ?? "Unavailable")
         }
     }
 
@@ -123,7 +110,6 @@ struct MenuBarPopoverView: View {
     private var curveContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             metricRow("Curve target", value: "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))")
-            metricRow("Run window", value: "\(Int(settings.curveRunMinutes.rounded())) min")
             metricRow("Status", value: curveStatusText)
 
             if !helperService.isReady {
@@ -193,6 +179,6 @@ struct MenuBarPopoverView: View {
     private var curveStatusText: String {
         if !helperService.isReady { return "Locked" }
         if model.isApplyingFanTarget { return "Applying..." }
-        return settings.controlMode == .curve ? "Running" : "Idle"
+        return "Running"
     }
 }

@@ -20,14 +20,22 @@ struct ControlSettingsTab: View {
                     .frame(width: 260)
                 }
 
+                SettingsDivider()
+
+                SettingsRow(title: "Update tick") {
+                    Stepper(value: $settings.controlTickSeconds, in: AppSettingsStore.controlTickRange, step: 0.5) {
+                        Text(AppFormatters.seconds(settings.controlTickSeconds))
+                            .monospacedDigit()
+                    }
+                    .frame(width: 116)
+                }
+
                 Text(controlModeSummary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             switch settings.controlMode {
-            case .monitor:
-                MonitorControlSection(monitor: monitor)
             case .manual:
                 ManualControlSection(
                     model: model,
@@ -47,40 +55,10 @@ struct ControlSettingsTab: View {
 
     private var controlModeSummary: String {
         switch settings.controlMode {
-        case .monitor:
-            return "Read-only mode. macOS keeps managing the fans automatically."
         case .manual:
             return "Manual mode applies one fixed fan target."
         case .curve:
             return "Curve mode adjusts the target from the temperature points below."
-        }
-    }
-}
-
-private struct MonitorControlSection: View {
-    @ObservedObject var monitor: FanMonitor
-
-    var body: some View {
-        SettingsSurface(icon: "eye", title: "Monitor") {
-            SettingsRow(title: "Current RPM") {
-                Text(AppFormatters.rpm(monitor.snapshot.fan?.currentRPM))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
-
-            SettingsDivider()
-
-            SettingsRow(title: "macOS target") {
-                Text(AppFormatters.rpm(monitor.snapshot.fan?.targetRPM))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
-
-            SettingsDivider()
-
-            Text("Monitor keeps macOS automatic fan control active and only watches temperature, RPM, and helper status.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 }
@@ -122,9 +100,11 @@ private struct CurveControlSection: View {
     var body: some View {
         Group {
             SettingsSurface(icon: "point.3.connected.trianglepath.dotted", title: "Curve Points") {
-                ForEach(Array($settings.curvePoints.enumerated()), id: \.element.id) { index, $point in
+                let sortedPoints = settings.curvePoints.sorted { $0.temperatureCelsius < $1.temperatureCelsius }
+
+                ForEach(Array(sortedPoints.enumerated()), id: \.element.id) { index, point in
                     CurvePointRow(
-                        point: $point,
+                        point: binding(for: point),
                         manualPercentRange: model.manualPercentRange,
                         estimatedRPM: model.estimatedRPM,
                         canRemove: settings.curvePoints.count > 2,
@@ -155,11 +135,6 @@ private struct CurveControlSection: View {
                     .disabled(model.isWriting)
 
                     Spacer()
-
-                    Stepper(value: $settings.curveRunMinutes, in: 1...120, step: 1) {
-                        Text("\(Int(settings.curveRunMinutes.rounded())) min run")
-                            .monospacedDigit()
-                    }
                 }
             }
             .disabled(model.isWriting)
@@ -169,15 +144,28 @@ private struct CurveControlSection: View {
                     points: settings.curvePoints,
                     currentTemperature: monitor.snapshot.temperatureCelsius,
                     targetPercent: model.effectiveCurveTargetPercent,
-                    percentRange: model.manualPercentRange
+                    percentRange: model.manualPercentRange,
+                    isEditingEnabled: !model.isWriting,
+                    updatePoint: { settings.updateCurvePoint($0) }
                 )
-                .frame(height: 120)
+                .frame(height: 168)
 
                 Text(helperService.isReady ? "Curve points are clamped to the current safe manual range." : "Curve runs are locked until the helper is authorized in Safety.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func binding(for point: CurvePoint) -> Binding<CurvePoint> {
+        Binding(
+            get: {
+                settings.curvePoints.first { $0.id == point.id } ?? point
+            },
+            set: { updatedPoint in
+                settings.updateCurvePoint(updatedPoint)
+            }
+        )
     }
 }
 
@@ -224,6 +212,7 @@ private struct CurvePointRow: View {
             .foregroundStyle(canRemove ? Color.red : Color.secondary)
             .disabled(!canRemove || isWriting)
             .help(canRemove ? "Delete point" : "Keep at least two points")
+            .accessibilityLabel("Delete curve point")
         }
         .padding(.vertical, 2)
     }

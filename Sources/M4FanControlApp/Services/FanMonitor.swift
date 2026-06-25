@@ -16,18 +16,23 @@ struct FanSnapshot: Sendable {
 final class FanMonitor: ObservableObject {
     @Published private(set) var snapshot = FanSnapshot()
 
-    private let refreshIntervalNanoseconds: UInt64 = 2_000_000_000
+    private var refreshIntervalNanoseconds: UInt64 = FanMonitor.nanoseconds(forInterval: 1)
     private var pollTask: Task<Void, Never>?
-    private var refreshTask: Task<Void, Never>?
+    private var refreshTask: Task<FanSnapshot, Never>?
+    private var refreshRunID: UUID?
+    private var temperatureSmoother = TemperatureSmoother()
 
-    func start() {
+    func start(refreshIntervalSeconds: Double = 1) {
         stop()
+        temperatureSmoother.reset()
+        refreshIntervalNanoseconds = Self.nanoseconds(forInterval: refreshIntervalSeconds)
         refresh()
-        let interval = refreshIntervalNanoseconds
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
+                guard let self else { return }
+                let interval = self.refreshIntervalNanoseconds
                 try? await Task.sleep(nanoseconds: interval)
-                guard let self, !Task.isCancelled else { return }
+                guard !Task.isCancelled else { return }
                 self.refresh()
             }
         }
@@ -38,18 +43,48 @@ final class FanMonitor: ObservableObject {
         refreshTask?.cancel()
         pollTask = nil
         refreshTask = nil
+        refreshRunID = nil
+    }
+
+    func setRefreshInterval(seconds: Double) {
+        let interval = Self.nanoseconds(forInterval: seconds)
+        guard interval != refreshIntervalNanoseconds else { return }
+        refreshIntervalNanoseconds = interval
     }
 
     func refresh() {
-        guard refreshTask == nil else { return }
-        refreshTask = Task { [weak self] in
-            let nextSnapshot = await Task.detached(priority: .utility) {
+        Task { [weak self] in
+            _ = await self?.refreshNow()
+        }
+    }
+
+    @discardableResult
+    func refreshNow() async -> FanSnapshot {
+        if let refreshTask {
+            return await refreshTask.value
+        }
+
+        let runID = UUID()
+        refreshRunID = runID
+
+        let task = Task { [weak self] in
+            let rawSnapshot = await Task.detached(priority: .utility) {
                 Self.readSnapshot()
             }.value
-            guard let self, !Task.isCancelled else { return }
+            guard let self else { return rawSnapshot }
+            guard !Task.isCancelled, self.refreshRunID == runID else {
+                return self.snapshot
+            }
+
+            var nextSnapshot = rawSnapshot
+            nextSnapshot.temperatureCelsius = self.temperatureSmoother.update(with: nextSnapshot.temperatureCelsius)
             self.refreshTask = nil
+            self.refreshRunID = nil
             self.publish(nextSnapshot)
+            return nextSnapshot
         }
+        refreshTask = task
+        return await task.value
     }
 
     private func publish(_ nextSnapshot: FanSnapshot) {
@@ -76,6 +111,11 @@ final class FanMonitor: ObservableObject {
         } catch {
             return FanSnapshot(error: error.localizedDescription, updatedAt: Date())
         }
+    }
+
+    private static func nanoseconds(forInterval seconds: Double) -> UInt64 {
+        let bounded = min(max(seconds, 0.5), 10)
+        return UInt64(bounded * 1_000_000_000)
     }
 }
 

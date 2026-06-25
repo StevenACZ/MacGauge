@@ -24,4 +24,11 @@ enum AppFormatters {
     static func percent(_ value: Double) -> String {
         String(format: "%.0f%%", value)
     }
+
+    static func seconds(_ value: Double) -> String {
+        if value.rounded() == value {
+            return "\(Int(value)) s"
+        }
+        return String(format: "%.1f s", value)
+    }
 }

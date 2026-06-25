@@ -42,3 +42,9 @@ import Testing
         _ = try FanCurve.parse("40:40,bad")
     }
 }
+
+@Test func rejectsDuplicateCurvePointTemperatures() {
+    #expect(throws: M4FanError.self) {
+        _ = try FanCurve(points: [(40, 40), (40, 55), (70, 80)])
+    }
+}

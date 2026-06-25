@@ -14,6 +14,11 @@ public struct FanCurve {
                 throw M4FanError("Curve percent \(point.1) is outside 0...100.")
             }
         }
+        for index in 1..<sorted.count {
+            guard abs(sorted[index].0 - sorted[index - 1].0) >= 0.001 else {
+                throw M4FanError("Curve point temperatures must be unique.")
+            }
+        }
 
         self.points = sorted.map { (temperature: $0.0, percent: $0.1) }
     }

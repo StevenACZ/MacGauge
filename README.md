@@ -98,6 +98,13 @@ SIGN_IDENTITY="Developer ID Application: Example" ./script/build_and_run.sh stag
 
 `status` prints the detected model, chip string, macOS version, process thermal state, fan count, representative SMC temperature, and fan RPM data when available.
 
+`temps` uses a compact thermal-mass sensor set chosen from live M4 Pro SMC
+sampling. It avoids cold surface/zone readings and unstable hot-spot spikes by
+using selected die/performance/GPU-adjacent sensors with a trimmed mean. On the
+tested Mac, the old representative reading jumped between about `40 C` and
+`73 C` over 25 one-second samples; the current representative stayed within
+`52.8-55.2 C` over 30 one-second samples.
+
 ## Dry-run write commands
 
 These do not write to the SMC:
@@ -150,9 +157,11 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 
 - Compact status item showing representative temperature and current fan RPM.
 - Compact status item showing representative temperature only, with colored fan icon/text.
-- Popover with monitor, manual, and curve modes.
+- Popover with Manual and Curve modes.
+- Configurable update tick, defaulting to 1 second, shared by live temperature/RPM refresh and curve target application.
 - Manual slider auto-applies after a short debounce only when the helper is already authorized; `Auto` remains explicit.
-- Settings window with Celsius/Fahrenheit, start at login, restore on quit, manual target, editable curve points, run duration, color thresholds, icon animation, helper authorization, and safety toggle for edge ranges.
+- Curve mode runs continuously until the user switches modes, sampling a fresh temperature snapshot on each tick.
+- Settings window with Celsius/Fahrenheit, start at login, restore on quit, manual target, draggable/editable curve points with 0-100 C and 0-100% axes, color thresholds, icon animation, helper authorization, and safety toggle for edge ranges.
 - Start at login uses `SMAppService.mainApp`; macOS may require approval in System Settings.
 - Privileged fan writes from the app use the helper's XPC Mach service after the one-time Safety authorization.
 - The locked-helper Settings button opens the Safety tab directly.
@@ -160,9 +169,9 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 
 ## Limitations
 
-- Sensor names on Apple Silicon are not fully mapped. The CLI discovers plausible temperature keys and reports a representative average.
+- Sensor names on Apple Silicon are not fully mapped. M4FanControl uses a tested stable sensor subset for its representative app temperature and falls back to broader plausible thermal-mass keys when needed.
 - The helper command path is XPC-based under `com.stevenacz.M4FanControl.XPCHelper`. The SwiftPM bundling script creates the right SMAppService layout, but a fully production-grade distribution should use a stable Apple signing identity and notarized bundle.
-- Continuous curve control is driven by the app and sends time-limited helper commands.
+- Continuous curve control is driven by the app and sends narrow percentage target commands through the helper.
 - `thermalmonitord` and firmware behavior can vary by M4 Pro/Max/base model and macOS release.
 - Reported `F0Mn`/`F0Mx` values are guidelines, not guaranteed physical limits.
 - Live write paths are experimental and intentionally noisy about permission and safety failures.

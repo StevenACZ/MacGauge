@@ -42,6 +42,15 @@ This guide applies to `/Users/steven/Desktop/Proyectos/M4FanControl`.
 - Preserve CLI verification with read-only and dry-run commands.
 - Add or maintain focused tests for pure logic such as curve interpolation.
 
+## Documentation
+
+- Keep `CHANGELOG.md` updated for meaningful user-facing or safety-relevant
+  changes under `Unreleased` until Steven approves a versioned release.
+- Keep README safety notes aligned with the actual helper, mode, curve, and
+  temperature behavior.
+- Do not document raw SMC dumps, private local logs, or noisy one-off
+  experiments; summarize durable findings only.
+
 ## Git
 
 - Do not push, rebase, reset, delete branches, or create PRs unless Steven asks.
