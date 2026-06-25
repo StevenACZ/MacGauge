@@ -16,6 +16,11 @@ enum AppFormatters {
         return "\(Int(value.rounded())) RPM"
     }
 
+    static func approximateRPM(_ value: Double?) -> String {
+        guard let value else { return "-- RPM" }
+        return "~ \(Int(value.rounded())) RPM"
+    }
+
     static func percent(_ value: Double) -> String {
         String(format: "%.0f%%", value)
     }

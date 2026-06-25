@@ -126,7 +126,7 @@ final class AppSettingsStore: ObservableObject {
     }
 
     func addCurvePoint() {
-        let nextTemperature = (curvePoints.map(\.temperatureCelsius).max() ?? 60) + 10
+        let nextTemperature = min(100, (curvePoints.map(\.temperatureCelsius).max() ?? 60) + 10)
         let nextPercent = min(90, (curvePoints.map(\.percent).max() ?? 50) + 10)
         curvePoints.append(CurvePoint(temperatureCelsius: nextTemperature, percent: nextPercent))
     }
@@ -134,6 +134,11 @@ final class AppSettingsStore: ObservableObject {
     func removeCurvePoints(at offsets: IndexSet) {
         guard curvePoints.count - offsets.count >= 2 else { return }
         curvePoints.remove(atOffsets: offsets)
+    }
+
+    func removeCurvePoint(id: UUID) {
+        guard curvePoints.count > 2 else { return }
+        curvePoints.removeAll { $0.id == id }
     }
 
     func resetCurveDefaults() {

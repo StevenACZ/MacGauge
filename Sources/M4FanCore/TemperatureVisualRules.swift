@@ -22,16 +22,6 @@ public struct TemperatureVisualRules: Codable, Sendable {
         return .hot
     }
 
-    public func animationInterval(for celsius: Double?) -> TimeInterval? {
-        switch band(for: celsius) {
-        case .normal:
-            return nil
-        case .medium:
-            return 0.8
-        case .hot:
-            return 0.25
-        }
-    }
 }
 
 public struct DebounceWindow: Sendable {

@@ -1,133 +1,276 @@
 import Foundation
 import M4FanCore
+import ServiceManagement
 
 @MainActor
 final class HelperCommandService: ObservableObject {
     enum HelperState: String {
         case unknown = "Unknown"
         case ready = "Ready"
-        case missing = "Needs authorization"
+        case needsAuthorization = "Needs authorization"
+        case needsApproval = "Needs approval"
+        case unavailable = "Unavailable"
         case failed = "Failed"
     }
 
     @Published private(set) var state: HelperState = .unknown
 
+    var isReady: Bool {
+        state == .ready
+    }
+
+    var statusSummary: String {
+        switch state {
+        case .unknown:
+            return "Checking helper..."
+        case .ready:
+            return "Helper ready"
+        case .needsAuthorization:
+            return "Authorize helper in Settings > Safety"
+        case .needsApproval:
+            return "Approve M4FanControl in System Settings, then return here"
+        case .unavailable:
+            return "Helper unavailable; register it from Settings > Safety"
+        case .failed:
+            return "Helper failed; check Safety and helper logs"
+        }
+    }
+
+    private static let readinessTimeout: TimeInterval = 4
+    private static let commandTimeout: TimeInterval = 20
+
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
+    private var connection: NSXPCConnection?
 
     func refreshState() async {
         do {
-            _ = try await send(.init(action: .ping), installIfMissing: false)
+            _ = try await sendWithoutInstalling(.init(action: .ping), timeout: Self.readinessTimeout)
             state = .ready
         } catch {
-            state = .missing
+            state = serviceStateAfterFailedPing()
         }
     }
 
     func authorizeHelper() async throws {
-        try await installHelper()
-        _ = try await send(.init(action: .ping), installIfMissing: false)
-        state = .ready
+        do {
+            try registerHelperWithServiceManagement()
+            connection?.invalidate()
+            connection = nil
+            _ = try await sendWithoutInstalling(.init(action: .ping), timeout: Self.readinessTimeout)
+            state = .ready
+        } catch {
+            state = serviceStateAfterFailedPing()
+            throw error
+        }
     }
 
     func setPercent(_ percent: Double, allowDangerous: Bool, allowZero: Bool) async throws -> String {
-        let response = try await send(
+        let response = try await sendReadyCommand(
             .init(
                 action: .setPercent,
                 fanIndex: 0,
                 percent: percent,
                 allowDangerous: allowDangerous,
                 allowZero: allowZero
-            ),
-            installIfMissing: true
+            )
         )
-        state = .ready
         return response.message
     }
 
     func restoreAutomatic() async throws -> String {
-        let response = try await send(.init(action: .automatic), installIfMissing: true)
-        state = .ready
+        let response = try await sendReadyCommand(.init(action: .automatic))
         return response.message
     }
 
-    private func send(_ command: HelperCommand, installIfMissing: Bool) async throws -> HelperResponse {
+    func removeLegacyHelper() async throws -> String {
+        let response = try await sendReadyCommand(.init(action: .removeLegacyHelper))
+        return response.message
+    }
+
+    private func sendReadyCommand(_ command: HelperCommand) async throws -> HelperResponse {
+        try requireReady()
         do {
-            return try await sendWithoutInstalling(command)
+            let response = try await sendWithoutInstalling(command, timeout: Self.commandTimeout)
+            state = .ready
+            return response
+        } catch let error as HelperResponseError {
+            state = .ready
+            throw error
+        } catch let error as HelperUnavailableError {
+            state = serviceStateAfterFailedPing()
+            throw error
         } catch {
-            guard installIfMissing else { throw error }
-            try await installHelper()
-            return try await sendWithoutInstalling(command)
+            state = .failed
+            throw error
         }
     }
 
-    private func sendWithoutInstalling(_ command: HelperCommand) async throws -> HelperResponse {
-        try encoder.encode(command).write(to: commandURL, options: .atomic)
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: commandURL.path)
+    private func requireReady() throws {
+        guard isReady else {
+            state = serviceStateAfterFailedPing()
+            throw M4FanError(statusSummary)
+        }
+    }
 
-        let deadline = Date().addingTimeInterval(8)
-        while Date() < deadline {
-            if let response = try? readResponse(id: command.id) {
-                guard response.ok else { throw M4FanError(response.message) }
-                return response
+    private func sendWithoutInstalling(_ command: HelperCommand, timeout: TimeInterval) async throws -> HelperResponse {
+        let commandData = try encoder.encode(command)
+        let responseData = try await sendXPC(commandData, timeout: timeout)
+        let response = try decoder.decode(HelperResponse.self, from: responseData)
+
+        guard response.id == command.id else {
+            throw HelperResponseError(message: "Helper returned a mismatched response.")
+        }
+        guard response.ok else {
+            throw HelperResponseError(message: response.message)
+        }
+        return response
+    }
+
+    private func sendXPC(_ commandData: Data, timeout: TimeInterval) async throws -> Data {
+        let connection = activeConnection()
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let singleShot = SingleShotContinuation(continuation)
+            let timeoutTask = Task {
+                let delay = UInt64(timeout * 1_000_000_000)
+                try? await Task.sleep(nanoseconds: delay)
+                singleShot.resume(throwing: HelperUnavailableError())
             }
-            try await Task.sleep(nanoseconds: 100_000_000)
-        }
-        throw M4FanError("Helper did not respond.")
-    }
 
-    private func readResponse(id: String) throws -> HelperResponse? {
-        guard FileManager.default.fileExists(atPath: responseURL.path) else { return nil }
-        let response = try decoder.decode(HelperResponse.self, from: Data(contentsOf: responseURL))
-        return response.id == id ? response : nil
-    }
-
-    private func installHelper() async throws {
-        guard let helperURL = Bundle.main.url(forResource: "M4FanHelper", withExtension: nil) else {
-            throw M4FanError("Bundled helper was not found.")
-        }
-
-        let shellCommand = "\(Self.shellQuote(helperURL.path)) --install-daemon"
-        let appleScript = "do shell script \"\(Self.appleScriptString(shellCommand))\" with administrator privileges"
-
-        try await Task.detached(priority: .userInitiated) {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-            process.arguments = ["-e", appleScript]
-            let output = Pipe()
-            let error = Pipe()
-            process.standardOutput = output
-            process.standardError = error
-            try process.run()
-            process.waitUntilExit()
-
-            let stdout = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            let stderr = String(data: error.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            guard process.terminationStatus == 0 else {
-                throw M4FanError((stderr.isEmpty ? stdout : stderr).trimmingCharacters(in: .whitespacesAndNewlines))
+            guard let proxy = connection.remoteObjectProxyWithErrorHandler({ error in
+                timeoutTask.cancel()
+                singleShot.resume(throwing: error)
+            }) as? M4FanHelperXPCProtocol else {
+                timeoutTask.cancel()
+                singleShot.resume(throwing: HelperUnavailableError())
+                return
             }
-        }.value
 
-        try await Task.sleep(nanoseconds: 800_000_000)
+            proxy.runCommand(commandData) { responseData in
+                timeoutTask.cancel()
+                singleShot.resume(returning: responseData)
+            }
+        }
     }
 
-    private var commandURL: URL {
-        let directory = HelperPaths.appSupportDirectory(homeDirectory: FileManager.default.homeDirectoryForCurrentUser)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return HelperPaths.commandFile(homeDirectory: FileManager.default.homeDirectoryForCurrentUser)
+    private func activeConnection() -> NSXPCConnection {
+        if let connection {
+            return connection
+        }
+
+        let connection = NSXPCConnection(
+            machServiceName: HelperPaths.machServiceName,
+            options: .privileged
+        )
+        connection.remoteObjectInterface = NSXPCInterface(with: M4FanHelperXPCProtocol.self)
+        connection.interruptionHandler = { [weak self] in
+            Task { @MainActor in
+                self?.connection?.invalidate()
+                self?.connection = nil
+                if self?.state == .ready {
+                    self?.state = .unavailable
+                }
+            }
+        }
+        connection.invalidationHandler = { [weak self] in
+            Task { @MainActor in
+                self?.connection = nil
+            }
+        }
+        connection.resume()
+        self.connection = connection
+        return connection
     }
 
-    private var responseURL: URL {
-        HelperPaths.responseFile(homeDirectory: FileManager.default.homeDirectoryForCurrentUser)
+    private func registerHelperWithServiceManagement() throws {
+        guard launchDaemonPlistIsBundled else {
+            throw M4FanError("Bundled LaunchDaemon plist was not found. Build the app bundle before authorizing the helper.")
+        }
+
+        let service = SMAppService.daemon(plistName: HelperPaths.launchDaemonPlistName)
+        switch service.status {
+        case .enabled:
+            return
+        case .requiresApproval:
+            SMAppService.openSystemSettingsLoginItems()
+            throw M4FanError("Approve M4FanControl in System Settings, then click Authorize again.")
+        case .notRegistered, .notFound:
+            try service.register()
+        @unknown default:
+            try service.register()
+        }
+
+        switch service.status {
+        case .enabled:
+            return
+        case .requiresApproval:
+            SMAppService.openSystemSettingsLoginItems()
+            throw M4FanError("Approve M4FanControl in System Settings, then click Authorize again.")
+        case .notFound:
+            throw M4FanError("macOS could not find the bundled LaunchDaemon plist.")
+        case .notRegistered:
+            throw M4FanError("Helper registration did not complete.")
+        @unknown default:
+            throw M4FanError("Helper registration returned an unknown macOS status.")
+        }
     }
 
-    private static func shellQuote(_ value: String) -> String {
-        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    private var launchDaemonPlistIsBundled: Bool {
+        let url = Bundle.main.bundleURL
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("LaunchDaemons", isDirectory: true)
+            .appendingPathComponent(HelperPaths.launchDaemonPlistName)
+        return FileManager.default.fileExists(atPath: url.path)
     }
 
-    private static func appleScriptString(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+    private func serviceStateAfterFailedPing() -> HelperState {
+        let status = SMAppService.daemon(plistName: HelperPaths.launchDaemonPlistName).status
+        switch status {
+        case .enabled:
+            return .unavailable
+        case .requiresApproval:
+            return .needsApproval
+        case .notRegistered, .notFound:
+            return .needsAuthorization
+        @unknown default:
+            return .unknown
+        }
+    }
+}
+
+private final class SingleShotContinuation<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Value, Error>?
+
+    init(_ continuation: CheckedContinuation<Value, Error>) {
+        self.continuation = continuation
+    }
+
+    func resume(returning value: Value) {
+        lock.withLock {
+            continuation?.resume(returning: value)
+            continuation = nil
+        }
+    }
+
+    func resume(throwing error: Error) {
+        lock.withLock {
+            continuation?.resume(throwing: error)
+            continuation = nil
+        }
+    }
+}
+
+private struct HelperResponseError: LocalizedError {
+    let message: String
+
+    var errorDescription: String? { message }
+}
+
+private struct HelperUnavailableError: LocalizedError {
+    var errorDescription: String? {
+        "Helper did not respond. Authorize helper in Settings > Safety."
     }
 }

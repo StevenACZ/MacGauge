@@ -4,11 +4,13 @@ struct MenuBarPopoverView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var settings: AppSettingsStore
     @ObservedObject private var monitor: FanMonitor
+    @ObservedObject private var helperService: HelperCommandService
 
     init(model: AppModel) {
         self.model = model
         _settings = ObservedObject(initialValue: model.settings)
         _monitor = ObservedObject(initialValue: model.monitor)
+        _helperService = ObservedObject(initialValue: model.helperService)
     }
 
     var body: some View {
@@ -38,7 +40,7 @@ struct MenuBarPopoverView: View {
                 Text(monitor.snapshot.chip)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(monitor.snapshot.thermalState.capitalized)
+                Text("Current")
                     .foregroundStyle(.secondary)
             }
             .font(.caption)
@@ -76,8 +78,10 @@ struct MenuBarPopoverView: View {
     private var monitorContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             metricRow("Fan count", value: "\(monitor.snapshot.fanCount)")
+            metricRow("Thermal state", value: monitor.snapshot.thermalState.capitalized)
             metricRow("Current target", value: AppFormatters.rpm(monitor.snapshot.fan?.targetRPM))
             metricRow("Recommended range", value: "\(AppFormatters.rpm(monitor.snapshot.fan?.minRPM)) - \(AppFormatters.rpm(monitor.snapshot.fan?.maxRPM))")
+            metricRow("Helper", value: helperService.state.rawValue)
             metricRow("Mode key", value: monitor.snapshot.fan?.modeKey ?? "Unavailable")
         }
     }
@@ -87,12 +91,17 @@ struct MenuBarPopoverView: View {
             HStack {
                 Text("Target")
                 Spacer()
-                Text("\(AppFormatters.percent(settings.manualPercent)) / \(AppFormatters.rpm(model.manualTargetRPM))")
+                Text("\(AppFormatters.percent(model.manualDisplayPercent)) / \(AppFormatters.rpm(model.manualTargetRPM))")
                     .foregroundStyle(.secondary)
             }
 
-            Slider(value: $settings.manualPercent, in: settings.dangerousRangesUnlocked ? 0...100 : 20...90, step: 1)
+            Slider(value: $settings.manualPercent, in: model.manualPercentRange, step: 1)
                 .opacity(model.isManualControlActive ? 1 : 0.58)
+                .disabled(!helperService.isReady || model.isWriting)
+
+            if !helperService.isReady {
+                helperNotice
+            }
 
             HStack {
                 Button {
@@ -100,7 +109,7 @@ struct MenuBarPopoverView: View {
                 } label: {
                     Label("Auto", systemImage: "arrow.triangle.2.circlepath")
                 }
-                .disabled(model.isWriting)
+                .disabled(!helperService.isReady || model.isWriting)
 
                 Spacer()
 
@@ -113,23 +122,12 @@ struct MenuBarPopoverView: View {
 
     private var curveContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            metricRow("Curve target", value: "\(model.curveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))")
+            metricRow("Curve target", value: "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))")
             metricRow("Run window", value: "\(Int(settings.curveRunMinutes.rounded())) min")
+            metricRow("Status", value: curveStatusText)
 
-            HStack {
-                Button {
-                    model.startCurveRun()
-                } label: {
-                    Label("Start/Stop", systemImage: "playpause.fill")
-                }
-                .disabled(model.isWriting)
-
-                Button {
-                    model.restoreAutomatic()
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                }
-                .disabled(model.isWriting)
+            if !helperService.isReady {
+                helperNotice
             }
         }
     }
@@ -170,8 +168,31 @@ struct MenuBarPopoverView: View {
         .font(.callout)
     }
 
+    private var helperNotice: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lock.shield")
+                .foregroundStyle(.secondary)
+            Text(model.helperStatusSummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            Spacer()
+            Button("Settings") {
+                model.openSettings(tab: .safety)
+            }
+            .controlSize(.small)
+        }
+    }
+
     private var manualStatusText: String {
-        if model.isWriting { return "Applying..." }
+        if !helperService.isReady { return "Locked" }
+        if model.isApplyingFanTarget { return "Applying..." }
         return model.isManualControlActive ? "Auto-apply" : "Automatic"
+    }
+
+    private var curveStatusText: String {
+        if !helperService.isReady { return "Locked" }
+        if model.isApplyingFanTarget { return "Applying..." }
+        return settings.controlMode == .curve ? "Running" : "Idle"
     }
 }

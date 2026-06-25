@@ -4,7 +4,7 @@ import M4FanCore
 import SystemConfiguration
 
 private let toolPath = "/Library/PrivilegedHelperTools/\(HelperPaths.label)"
-private let plistPath = "/Library/LaunchDaemons/\(HelperPaths.label).plist"
+private let plistPath = "/Library/LaunchDaemons/\(HelperPaths.launchDaemonPlistName)"
 
 @main
 struct M4FanHelper {
@@ -13,11 +13,12 @@ struct M4FanHelper {
             let arguments = Array(CommandLine.arguments.dropFirst())
             switch arguments.first {
             case "--install-daemon":
-                try Installer.install()
+                try LegacyInstaller.install()
             case "--uninstall-daemon":
-                try Installer.uninstall()
-            case "--daemon":
-                try Daemon().run()
+                try LegacyInstaller.uninstall()
+            case "--daemon", nil:
+                let daemon = Daemon()
+                try daemon.run()
             default:
                 print("usage: M4FanHelper --install-daemon|--uninstall-daemon|--daemon")
             }
@@ -28,7 +29,7 @@ struct M4FanHelper {
     }
 }
 
-private enum Installer {
+private enum LegacyInstaller {
     static func install() throws {
         guard geteuid() == 0 else {
             throw M4FanError("Helper installation requires root.")
@@ -61,6 +62,11 @@ private enum Installer {
             <string>\(toolPath)</string>
             <string>--daemon</string>
           </array>
+          <key>MachServices</key>
+          <dict>
+            <key>\(HelperPaths.machServiceName)</key>
+            <true/>
+          </dict>
           <key>RunAtLoad</key>
           <true/>
           <key>KeepAlive</key>
@@ -93,7 +99,7 @@ private enum Installer {
     }
 
     @discardableResult
-    private static func runLaunchctl(_ arguments: [String], allowFailure: Bool = false) throws -> String {
+    static func runLaunchctl(_ arguments: [String], allowFailure: Bool = false) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
         process.arguments = arguments
@@ -120,53 +126,54 @@ private struct ConsoleUser {
     let homeDirectory: URL
 }
 
-private final class Daemon {
+private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProtocol {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
-    private var lastCommandID: String?
+    private let listener = NSXPCListener(machServiceName: HelperPaths.machServiceName)
+    private let commandQueue = DispatchQueue(label: "\(HelperPaths.label).commands")
+    private let safety = HelperCommandSafety()
 
     func run() throws -> Never {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        listener.delegate = self
+        listener.resume()
+        RunLoop.current.run()
+        throw M4FanError("Helper listener stopped unexpectedly.")
+    }
 
-        while true {
-            autoreleasepool {
-                do {
-                    try processNextCommandIfNeeded()
-                } catch {
-                    writeFallbackError(error)
-                }
-            }
-            Thread.sleep(forTimeInterval: 0.2)
+    func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
+        guard isAuthorizedClient(connection) else {
+            return false
+        }
+
+        connection.exportedInterface = NSXPCInterface(with: M4FanHelperXPCProtocol.self)
+        connection.exportedObject = self
+        connection.resume()
+        return true
+    }
+
+    func runCommand(_ commandData: Data, withReply reply: @escaping (Data) -> Void) {
+        commandQueue.async { [weak self] in
+            guard let self else { return }
+            reply(self.responseData(for: commandData))
         }
     }
 
-    private func processNextCommandIfNeeded() throws {
-        guard let user = currentConsoleUser() else { return }
-        let directory = HelperPaths.appSupportDirectory(homeDirectory: user.homeDirectory)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        chown(directory.path, user.uid, user.gid)
-        chmod(directory.path, 0o700)
-
-        let commandURL = HelperPaths.commandFile(homeDirectory: user.homeDirectory)
-        guard FileManager.default.fileExists(atPath: commandURL.path) else { return }
-
-        let data = try Data(contentsOf: commandURL)
-        let command = try decoder.decode(HelperCommand.self, from: data)
-        guard command.id != lastCommandID else { return }
-        lastCommandID = command.id
-
+    private func responseData(for commandData: Data) -> Data {
         let response: HelperResponse
         do {
+            let command = try decoder.decode(HelperCommand.self, from: commandData)
             response = try execute(command)
         } catch {
-            response = HelperResponse(id: command.id, ok: false, message: error.localizedDescription)
+            response = HelperResponse(id: "unknown", ok: false, message: error.localizedDescription)
         }
 
-        let responseURL = HelperPaths.responseFile(homeDirectory: user.homeDirectory)
-        let responseData = try encoder.encode(response)
-        try responseData.write(to: responseURL, options: .atomic)
-        chown(responseURL.path, user.uid, user.gid)
-        chmod(responseURL.path, 0o600)
+        do {
+            return try encoder.encode(response)
+        } catch {
+            let fallback = #"{"id":"unknown","ok":false,"message":"Failed to encode helper response."}"#
+            return Data(fallback.utf8)
+        }
     }
 
     private func execute(_ command: HelperCommand) throws -> HelperResponse {
@@ -177,12 +184,16 @@ private final class Daemon {
             guard let percent = command.percent else {
                 throw M4FanError("Missing percent.")
             }
-            try validate(percent: percent, allowDangerous: command.allowDangerous, allowZero: command.allowZero)
+            try safety.validate(
+                percent: percent,
+                allowDangerous: command.allowDangerous,
+                allowZero: command.allowZero
+            )
             let smc = try SMCClient()
             let controller = FanController(smc: smc)
             let fan = try controller.fanInfo(index: command.fanIndex)
             let rpm = try controller.targetRPM(forPercent: percent, fan: fan)
-            try validate(rpm: rpm, fan: fan, percent: percent, allowDangerous: command.allowDangerous)
+            try safety.validate(rpm: rpm, fan: fan, percent: percent, allowDangerous: command.allowDangerous)
             let strategy = try controller.setTargetRPM(index: command.fanIndex, rpm: rpm)
             return HelperResponse(id: command.id, ok: true, message: "Set fan \(command.fanIndex) to \(Int(rpm.rounded())) RPM (\(strategy.rawValue))")
         case .automatic:
@@ -194,27 +205,41 @@ private final class Daemon {
             }
             try controller.resetForceTestIfAvailable()
             return HelperResponse(id: command.id, ok: true, message: "Automatic control restored")
+        case .removeLegacyHelper:
+            let message = removeLegacyHelper()
+            return HelperResponse(id: command.id, ok: true, message: message)
         }
     }
 
-    private func validate(percent: Double, allowDangerous: Bool, allowZero: Bool) throws {
-        guard percent.isFinite, percent >= 0, percent <= 100 else {
-            throw M4FanError("Percent must be between 0 and 100.")
+    private func removeLegacyHelper() -> String {
+        let fileManager = FileManager.default
+        let hadTool = fileManager.fileExists(atPath: LegacyHelperPaths.toolPath)
+        let hadPlist = fileManager.fileExists(atPath: LegacyHelperPaths.plistPath)
+
+        guard hadTool || hadPlist else {
+            return "No legacy helper found."
         }
-        if percent == 0 && !(allowZero && allowDangerous) {
-            throw M4FanError("0 percent requires explicit dangerous zero unlock.")
+
+        _ = try? LegacyInstaller.runLaunchctl(
+            ["bootout", "system/\(LegacyHelperPaths.label)"],
+            allowFailure: true
+        )
+        try? fileManager.removeItem(atPath: LegacyHelperPaths.plistPath)
+        try? fileManager.removeItem(atPath: LegacyHelperPaths.toolPath)
+
+        let stillHasTool = fileManager.fileExists(atPath: LegacyHelperPaths.toolPath)
+        let stillHasPlist = fileManager.fileExists(atPath: LegacyHelperPaths.plistPath)
+        if stillHasTool || stillHasPlist {
+            return "Legacy helper cleanup incomplete."
         }
-        if (percent <= 10 || percent >= 95) && !allowDangerous {
-            throw M4FanError("Edge fan ranges require dangerous range unlock.")
-        }
+        return "Legacy helper removed."
     }
 
-    private func validate(rpm: Double, fan: FanInfo, percent: Double, allowDangerous: Bool) throws {
-        let belowMinimum = fan.minRPM.map { rpm < $0 } ?? false
-        let aboveMaximum = fan.maxRPM.map { rpm > $0 } ?? false
-        if (belowMinimum || aboveMaximum) && !allowDangerous {
-            throw M4FanError("Target \(Int(rpm.rounded())) RPM is outside reported fan limits.")
+    private func isAuthorizedClient(_ connection: NSXPCConnection) -> Bool {
+        guard let user = currentConsoleUser() else {
+            return false
         }
+        return connection.effectiveUserIdentifier == user.uid
     }
 
     private func currentConsoleUser() -> ConsoleUser? {
@@ -228,15 +253,5 @@ private final class Daemon {
             return nil
         }
         return ConsoleUser(name: user, uid: uid, gid: gid, homeDirectory: home)
-    }
-
-    private func writeFallbackError(_ error: Error) {
-        guard let user = currentConsoleUser() else { return }
-        let response = HelperResponse(id: lastCommandID ?? "unknown", ok: false, message: error.localizedDescription)
-        guard let data = try? encoder.encode(response) else { return }
-        let url = HelperPaths.responseFile(homeDirectory: user.homeDirectory)
-        try? data.write(to: url, options: .atomic)
-        chown(url.path, user.uid, user.gid)
-        chmod(url.path, 0o600)
     }
 }

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import M4FanCore
 import SwiftUI
 
 @MainActor
@@ -11,6 +12,7 @@ final class StatusItemController: NSObject {
     private var animationTimer: Timer?
     private var rotation: CGFloat = 0
     private var currentAnimationInterval: TimeInterval?
+    private let animationRules = FanAnimationRules()
 
     init(model: AppModel) {
         self.model = model
@@ -76,8 +78,14 @@ final class StatusItemController: NSObject {
     }
 
     private func updateAnimation(snapshot: FanSnapshot) {
+        let fan = snapshot.fan
         let interval = model.settings.animateFanIcon
-            ? model.settings.visualRules.animationInterval(for: snapshot.temperatureCelsius)
+            ? animationRules.animationInterval(
+                currentRPM: fan?.currentRPM,
+                targetRPM: fan?.targetRPM,
+                minRPM: fan?.minRPM,
+                maxRPM: fan?.maxRPM
+            )
             : nil
         guard interval != currentAnimationInterval else { return }
         currentAnimationInterval = interval

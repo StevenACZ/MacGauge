@@ -11,14 +11,6 @@ import Testing
     #expect(rules.band(for: 70) == .hot)
 }
 
-@Test func choosesAnimationIntervalsByBand() {
-    let rules = TemperatureVisualRules(normalUpperCelsius: 45, hotLowerCelsius: 70)
-
-    #expect(rules.animationInterval(for: 35) == nil)
-    #expect(rules.animationInterval(for: 55) == 0.8)
-    #expect(rules.animationInterval(for: 80) == 0.25)
-}
-
 @Test func debounceWindowSchedulesAfterDelay() {
     let now = Date(timeIntervalSince1970: 100)
     let window = DebounceWindow(delay: 0.55)

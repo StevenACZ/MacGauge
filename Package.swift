@@ -32,7 +32,13 @@ let package = Package(
             name: "M4FanHelper",
             dependencies: ["M4FanCore"],
             linkerSettings: [
-                .linkedFramework("SystemConfiguration")
+                .linkedFramework("SystemConfiguration"),
+                .unsafeFlags([
+                    "-Xlinker", "-sectcreate",
+                    "-Xlinker", "__TEXT",
+                    "-Xlinker", "__info_plist",
+                    "-Xlinker", "Resources/M4FanHelperInfo.plist"
+                ], .when(platforms: [.macOS]))
             ]
         ),
         .testTarget(

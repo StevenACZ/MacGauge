@@ -25,10 +25,11 @@ public final class TemperatureReader {
 
     public func readings(includeAll: Bool) throws -> [TemperatureReading] {
         let direct = knownTemperatureKeys.compactMap { try? readTemperature(key: $0) }
-        let discovered = try smc.enumerateKeys()
-            .filter { $0.hasPrefix("T") }
-            .compactMap { try? readTemperature(key: $0) }
+        guard includeAll else {
+            return representativeCandidates(from: direct)
+        }
 
+        let discovered = try discoveredReadings()
         let combined = (direct + discovered).reduce(into: [String: TemperatureReading]()) { result, reading in
             result[reading.key] = reading
         }
@@ -38,10 +39,19 @@ public final class TemperatureReader {
     }
 
     public func representativeTemperature() throws -> Double? {
-        let readings = try readings(includeAll: true)
-        let candidates = representativeCandidates(from: readings)
+        let direct = knownTemperatureKeys.compactMap { try? readTemperature(key: $0) }
+        var candidates = representativeCandidates(from: direct)
+        if candidates.isEmpty {
+            candidates = representativeCandidates(from: try discoveredReadings())
+        }
         guard !candidates.isEmpty else { return nil }
         return candidates.map(\.celsius).reduce(0, +) / Double(candidates.count)
+    }
+
+    private func discoveredReadings() throws -> [TemperatureReading] {
+        try smc.enumerateKeys()
+            .filter { $0.hasPrefix("T") }
+            .compactMap { try? readTemperature(key: $0) }
     }
 
     private func representativeCandidates(from readings: [TemperatureReading]) -> [TemperatureReading] {

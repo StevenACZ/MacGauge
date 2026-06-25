@@ -16,8 +16,25 @@ public enum FanWriteStrategy: String, Sendable {
     case ftstUnlock
 }
 
+public struct FanTargetRules: Sendable {
+    public init() {}
+
+    public func targetRPM(forPercent percent: Double, fan: FanInfo) throws -> Double {
+        guard let maxRPM = fan.maxRPM, maxRPM > 0 else {
+            throw M4FanError("Cannot convert percent to RPM because F\(fan.index)Mx is unavailable.")
+        }
+        let boundedPercent = max(0, min(100, percent))
+        let requestedRPM = boundedPercent / 100.0 * maxRPM
+        guard let minRPM = fan.minRPM, minRPM > 0, boundedPercent > 0 else {
+            return requestedRPM
+        }
+        return max(minRPM, requestedRPM)
+    }
+}
+
 public final class FanController {
     private let smc: SMCClient
+    private let targetRules = FanTargetRules()
 
     public init(smc: SMCClient) {
         self.smc = smc
@@ -34,15 +51,16 @@ public final class FanController {
     }
 
     public func fanInfo(index: Int) throws -> FanInfo {
-        FanInfo(
+        let mode = try? readMode(index: index)
+        return FanInfo(
             index: index,
             name: try? fanName(index: index),
             currentRPM: try? readNumber("F\(index)Ac"),
             minRPM: try? readNumber("F\(index)Mn"),
             maxRPM: try? readNumber("F\(index)Mx"),
             targetRPM: try? readNumber("F\(index)Tg"),
-            mode: try? readMode(index: index).mode,
-            modeKey: try? readMode(index: index).key
+            mode: mode?.mode,
+            modeKey: mode?.key
         )
     }
 
@@ -86,10 +104,7 @@ public final class FanController {
     }
 
     public func targetRPM(forPercent percent: Double, fan: FanInfo) throws -> Double {
-        guard let maxRPM = fan.maxRPM, maxRPM > 0 else {
-            throw M4FanError("Cannot convert percent to RPM because F\(fan.index)Mx is unavailable.")
-        }
-        return max(0, min(100, percent)) / 100.0 * maxRPM
+        try targetRules.targetRPM(forPercent: percent, fan: fan)
     }
 
     private func enableManualMode(index: Int) throws -> FanWriteStrategy {

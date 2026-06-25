@@ -14,13 +14,16 @@ APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
+APP_LAUNCH_DAEMONS="$APP_CONTENTS/Library/LaunchDaemons"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 INSTALL_DIR="$HOME/Applications"
 INSTALLED_APP="$INSTALL_DIR/$APP_NAME.app"
+HELPER_PLIST_SRC="$ROOT_DIR/Resources/LaunchDaemons/com.stevenacz.M4FanControl.XPCHelper.plist"
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 usage() {
-  echo "usage: $0 [run|--verify|--install|--debug|--logs|--telemetry]" >&2
+  echo "usage: $0 [stage|run|--verify|--install|--install-only|--debug|--logs|--telemetry]" >&2
 }
 
 kill_existing() {
@@ -36,12 +39,13 @@ stage_bundle() {
   build_dir="$(swift build --show-bin-path)"
 
   rm -rf "$APP_BUNDLE"
-  mkdir -p "$APP_MACOS" "$APP_RESOURCES"
+  mkdir -p "$APP_MACOS" "$APP_RESOURCES" "$APP_LAUNCH_DAEMONS"
 
   cp "$build_dir/$APP_NAME" "$APP_BINARY"
   cp "$build_dir/$CLI_NAME" "$APP_RESOURCES/$CLI_NAME"
-  cp "$build_dir/$HELPER_NAME" "$APP_RESOURCES/$HELPER_NAME"
-  chmod +x "$APP_BINARY" "$APP_RESOURCES/$CLI_NAME" "$APP_RESOURCES/$HELPER_NAME"
+  cp "$build_dir/$HELPER_NAME" "$APP_MACOS/$HELPER_NAME"
+  cp "$HELPER_PLIST_SRC" "$APP_LAUNCH_DAEMONS/"
+  chmod +x "$APP_BINARY" "$APP_RESOURCES/$CLI_NAME" "$APP_MACOS/$HELPER_NAME"
 
   cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -73,38 +77,64 @@ stage_bundle() {
 PLIST
 }
 
+sign_bundle() {
+  if ! command -v codesign >/dev/null 2>&1; then
+    echo "codesign not found; leaving bundle unsigned" >&2
+    return
+  fi
+
+  codesign --force --sign "$SIGN_IDENTITY" "$APP_MACOS/$HELPER_NAME"
+  codesign --force --sign "$SIGN_IDENTITY" "$APP_RESOURCES/$CLI_NAME"
+  codesign --force --sign "$SIGN_IDENTITY" "$APP_BINARY"
+  codesign --force --sign "$SIGN_IDENTITY" "$APP_BUNDLE"
+}
+
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
 }
 
-kill_existing
 stage_bundle
+sign_bundle
 
 case "$MODE" in
+  stage)
+    echo "$APP_NAME staged at $APP_BUNDLE"
+    ;;
   run)
+    kill_existing
     open_app
     ;;
   --verify|verify)
+    kill_existing
     open_app
     sleep 2
     pgrep -x "$APP_NAME" >/dev/null
     echo "$APP_NAME launched from $APP_BUNDLE"
     ;;
   --install|install)
+    kill_existing
     mkdir -p "$INSTALL_DIR"
     rm -rf "$INSTALLED_APP"
     cp -R "$APP_BUNDLE" "$INSTALLED_APP"
     /usr/bin/open -n "$INSTALLED_APP"
     echo "$APP_NAME installed to $INSTALLED_APP"
     ;;
+  --install-only|install-only)
+    mkdir -p "$INSTALL_DIR"
+    rm -rf "$INSTALLED_APP"
+    cp -R "$APP_BUNDLE" "$INSTALLED_APP"
+    echo "$APP_NAME installed to $INSTALLED_APP"
+    ;;
   --debug|debug)
     lldb -- "$APP_BINARY"
     ;;
   --logs|logs)
+    kill_existing
     open_app
     /usr/bin/log stream --info --style compact --predicate "process == \"$APP_NAME\""
     ;;
   --telemetry|telemetry)
+    kill_existing
     open_app
     /usr/bin/log stream --info --style compact --predicate "subsystem == \"$BUNDLE_ID\""
     ;;
