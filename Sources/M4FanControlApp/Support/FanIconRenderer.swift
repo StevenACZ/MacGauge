@@ -1,8 +1,23 @@
 import AppKit
 
+@MainActor
 enum FanIconRenderer {
+    private static var imageCache = [String: NSImage]()
+    private static let symbol: NSImage? = {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+        return ["fanblades.fill", "fanblades", "fan.fill", "fan"]
+            .compactMap { NSImage(systemSymbolName: $0, accessibilityDescription: "M4 Fan Control") }
+            .compactMap { $0.withSymbolConfiguration(configuration) }
+            .first
+    }()
+
     static func image(color: NSColor, rotation: CGFloat) -> NSImage? {
         let drawColor = color.usingColorSpace(.sRGB) ?? color
+        let cacheKey = cacheKey(color: drawColor, rotation: rotation)
+        if let image = imageCache[cacheKey] {
+            return image
+        }
+
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size)
         image.lockFocus()
@@ -19,7 +34,7 @@ enum FanIconRenderer {
         transform.concat()
 
         let rect = NSRect(x: 1, y: 1, width: 16, height: 16)
-        if let symbol = configuredSymbol() {
+        if let symbol {
             symbol.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
             drawColor.setFill()
             rect.fill(using: .sourceAtop)
@@ -28,15 +43,27 @@ enum FanIconRenderer {
         }
 
         image.isTemplate = false
+        imageCache[cacheKey] = image
         return image
     }
 
-    private static func configuredSymbol() -> NSImage? {
-        let configuration = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
-        return ["fanblades.fill", "fanblades", "fan.fill", "fan"]
-            .compactMap { NSImage(systemSymbolName: $0, accessibilityDescription: "M4 Fan Control") }
-            .compactMap { $0.withSymbolConfiguration(configuration) }
-            .first
+    private static func cacheKey(color: NSColor, rotation: CGFloat) -> String {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+        let roundedRotation = Int(rotation.rounded())
+        return [
+            Int((red * 255).rounded()),
+            Int((green * 255).rounded()),
+            Int((blue * 255).rounded()),
+            Int((alpha * 255).rounded()),
+            roundedRotation
+        ]
+        .map(String.init)
+        .joined(separator: ":")
     }
 
     private static func drawFallbackFan(in rect: NSRect, color: NSColor) {

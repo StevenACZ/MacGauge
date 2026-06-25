@@ -51,12 +51,3 @@ public struct FanCurve {
         return try FanCurve(points: points)
     }
 }
-
-public enum StopFlag {
-    nonisolated(unsafe) public static var shouldStop = false
-
-    public static func installSignalHandlers() {
-        signal(SIGINT) { _ in StopFlag.shouldStop = true }
-        signal(SIGTERM) { _ in StopFlag.shouldStop = true }
-    }
-}

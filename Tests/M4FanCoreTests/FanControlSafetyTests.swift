@@ -51,6 +51,23 @@ private let testFan = FanInfo(
     #expect(throws: Never.self) {
         try safety.validate(percent: 45, allowDangerous: false, allowZero: false)
     }
+    #expect(throws: Never.self) {
+        try safety.validate(percent: 95, allowDangerous: true, allowZero: false)
+    }
+}
+
+@Test func helperSafetyRejectsInvalidPercentValues() {
+    let safety = HelperCommandSafety()
+
+    #expect(throws: Error.self) {
+        try safety.validate(percent: -.infinity, allowDangerous: true, allowZero: true)
+    }
+    #expect(throws: Error.self) {
+        try safety.validate(percent: 101, allowDangerous: true, allowZero: true)
+    }
+    #expect(throws: Error.self) {
+        try safety.validate(percent: .nan, allowDangerous: true, allowZero: true)
+    }
 }
 
 @Test func helperSafetyRejectsRpmOutsideReportedLimitsWithoutUnlock() {

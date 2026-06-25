@@ -38,11 +38,15 @@ final class StatusItemController: NSObject {
             }
             .store(in: &cancellables)
 
-        model.settings.objectWillChange
+        Publishers.MergeMany(
+            model.settings.$temperatureUnit.map { _ in () }.eraseToAnyPublisher(),
+            model.settings.$normalColorHex.map { _ in () }.eraseToAnyPublisher(),
+            model.settings.$mediumColorHex.map { _ in () }.eraseToAnyPublisher(),
+            model.settings.$hotColorHex.map { _ in () }.eraseToAnyPublisher(),
+            model.settings.$animateFanIcon.map { _ in () }.eraseToAnyPublisher()
+        )
             .sink { [weak self] _ in
-                DispatchQueue.main.async {
-                    self?.updateStatusItem(snapshot: model.monitor.snapshot)
-                }
+                self?.updateStatusItem(snapshot: model.monitor.snapshot)
             }
             .store(in: &cancellables)
 
