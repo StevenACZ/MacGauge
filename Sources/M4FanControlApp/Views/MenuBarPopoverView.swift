@@ -105,9 +105,13 @@ struct MenuBarPopoverView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Slider(value: $settings.manualPercent, in: model.manualPercentRange, step: 1)
-                .opacity(model.isManualControlActive ? 1 : 0.58)
-                .disabled(!helperService.isReady || model.isWriting)
+            ManualPercentSlider(
+                value: $settings.manualPercent,
+                range: model.manualPercentRange,
+                step: 1,
+                isDisabled: !helperService.isReady || model.isWriting
+            )
+            .opacity(model.isManualControlActive ? 1 : 0.58)
 
             if !helperService.isReady {
                 helperNotice

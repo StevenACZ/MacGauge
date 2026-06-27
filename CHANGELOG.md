@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Replaced the popover Manual target slider with a cleaner custom slider: a rounded track that fills with the accent color up to a circular thumb, removing the per-step tick marks from the native slider.
+
 - Simplified the popover footer by hiding routine helper apply messages in Manual and Curve modes.
 - Added the live Curve preview chart to the menu bar popover so current temperature and target track the curve without opening Settings.
 - Stabilized the popover layout during live updates so footer controls no longer jump while Curve mode refreshes.
