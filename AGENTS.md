@@ -37,8 +37,16 @@ This guide applies to `/Users/steven/Desktop/Proyectos/M4FanControl`.
 
 ## Build And Verification
 
-- Use `swift build` for package checks.
-- Use `./script/build_and_run.sh` for the GUI app once present.
+- Use the Makefile for the standard local gate:
+
+```bash
+make ci-check
+```
+
+- `make ci-check` runs lint, `swift build`, and `swift test`.
+- Use `./script/build_and_run.sh stage` / `run` for the GUI app bundle.
+- Use `make format` / `make lint` before commits; optional Lefthook via
+  `make hooks-install`.
 - Preserve CLI verification with read-only and dry-run commands.
 - Add or maintain focused tests for pure logic such as curve interpolation.
 

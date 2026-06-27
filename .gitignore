@@ -1,11 +1,95 @@
+# M4FanControl - local repo hygiene
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Swift Package Manager
 .build/
 .swiftpm/
+Packages/
+Package.resolved
+
+# Xcode build output and user state
+build/
 DerivedData/
-dist/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.xcscmblueprint
+*.hmap
+*.dSYM
+*.dSYM.zip
+*.xcarchive
+*.xcresult
+*.xcdistributionlogs
 *.xcodeproj/
 *.xcworkspace/
-*.xcuserstate
-*.xcuserdata/
-.DS_Store
+
+# Local signing/provisioning
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.p12
+*.pem
+*.key
+*.xcconfig.local
+Local.xcconfig
+Signing.xcconfig
 local.env
 Config/local.xcconfig
+
+# Sensitive files
+.env
+.env.*
+secrets/
+credentials/
+*.credentials.json
+*credentials*.json
+*service-account*.json
+
+# Crash reports and logs
+*.crash
+*.log
+logs/
+
+# Archives and distribution artifacts
+*.app
+*.ipa
+*.zip
+*.tar.gz
+*.dmg
+dist/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local AI/editor context
+.agent/
+.agents/
+.codex/
+.cursor/
+.claude/
