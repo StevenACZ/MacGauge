@@ -7,6 +7,8 @@ CLI_NAME="m4fan"
 HELPER_NAME="M4FanHelper"
 BUNDLE_ID="com.stevenacz.M4FanControl"
 MIN_SYSTEM_VERSION="13.0"
+APP_VERSION="0.2.0"
+APP_BUILD="3"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -23,7 +25,7 @@ HELPER_PLIST_SRC="$ROOT_DIR/Resources/LaunchDaemons/com.stevenacz.M4FanControl.X
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 usage() {
-  echo "usage: $0 [stage|run|--verify|--install|--install-only|--debug|--logs|--telemetry]" >&2
+  echo "usage: $0 [stage|run|--verify|--install|--install-only|--debug|--logs|--telemetry|--dmg]" >&2
 }
 
 kill_existing() {
@@ -31,12 +33,12 @@ kill_existing() {
 }
 
 stage_bundle() {
-  swift build --product "$APP_NAME"
-  swift build --product "$CLI_NAME"
-  swift build --product "$HELPER_NAME"
+  swift build -c "$CONFIG" --product "$APP_NAME"
+  swift build -c "$CONFIG" --product "$CLI_NAME"
+  swift build -c "$CONFIG" --product "$HELPER_NAME"
 
   local build_dir
-  build_dir="$(swift build --show-bin-path)"
+  build_dir="$(swift build -c "$CONFIG" --show-bin-path)"
 
   rm -rf "$APP_BUNDLE"
   mkdir -p "$APP_MACOS" "$APP_RESOURCES" "$APP_LAUNCH_DAEMONS"
@@ -63,9 +65,9 @@ stage_bundle() {
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.1.1</string>
+  <string>$APP_VERSION</string>
   <key>CFBundleVersion</key>
-  <string>2</string>
+  <string>$APP_BUILD</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_SYSTEM_VERSION</string>
   <key>LSUIElement</key>
@@ -92,6 +94,27 @@ sign_bundle() {
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
 }
+
+build_dmg() {
+  local dmg_path="$DIST_DIR/$APP_NAME-$APP_VERSION.dmg"
+  local staging="$DIST_DIR/dmg-staging"
+  rm -rf "$staging" "$dmg_path"
+  mkdir -p "$staging"
+  cp -R "$APP_BUNDLE" "$staging/"
+  ln -s /Applications "$staging/Applications"
+  hdiutil create \
+    -volname "$APP_NAME $APP_VERSION" \
+    -fs HFS+ -format UDZO -imagekey zlib-level=9 \
+    -srcfolder "$staging" \
+    "$dmg_path" >/dev/null
+  rm -rf "$staging"
+  echo "$dmg_path"
+}
+
+case "$MODE" in
+  --dmg|dmg) CONFIG="release" ;;
+  *) CONFIG="${CONFIG:-debug}" ;;
+esac
 
 stage_bundle
 sign_bundle
@@ -137,6 +160,10 @@ case "$MODE" in
     kill_existing
     open_app
     /usr/bin/log stream --info --style compact --predicate "subsystem == \"$BUNDLE_ID\""
+    ;;
+  --dmg|dmg)
+    dmg_path="$(build_dmg)"
+    echo "$APP_NAME $APP_VERSION DMG at $dmg_path"
     ;;
   *)
     usage
