@@ -11,6 +11,11 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Standard Swift project workflow tooling: shared formatting config, Makefile
   checks, optional Lefthook hooks, and contributor/security docs.
 
+### Changed
+
+- Simplified the menu bar popover footer to only Settings and Exit by removing
+  the helper-readiness shield notice from Manual and Curve content.
+
 ## [0.2.0] - 2026-06-26
 
 ### Added

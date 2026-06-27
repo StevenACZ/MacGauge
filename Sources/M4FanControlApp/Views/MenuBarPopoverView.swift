@@ -112,11 +112,6 @@ struct MenuBarPopoverView: View {
                 isDisabled: !helperService.isReady || model.isWriting
             )
             .opacity(model.isManualControlActive ? 1 : 0.58)
-
-            if !helperService.isReady {
-                helperNotice
-            }
-
         }
     }
 
@@ -135,10 +130,6 @@ struct MenuBarPopoverView: View {
             )
             .frame(height: 168)
             .clipped()
-
-            if !helperService.isReady {
-                helperNotice
-            }
         }
     }
 
@@ -155,7 +146,7 @@ struct MenuBarPopoverView: View {
             Button {
                 model.quit()
             } label: {
-                Label("Quit", systemImage: "power")
+                Label("Exit", systemImage: "power")
             }
             .foregroundStyle(.red)
         }
@@ -183,17 +174,5 @@ struct MenuBarPopoverView: View {
 
     private var headerRPMLabel: String {
         settings.controlMode == .curve ? "Target" : "Current"
-    }
-
-    private var helperNotice: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "lock.shield")
-                .foregroundStyle(.secondary)
-            Spacer()
-            Button("Settings") {
-                model.openSettings(tab: .safety)
-            }
-            .controlSize(.small)
-        }
     }
 }
