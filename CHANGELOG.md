@@ -10,6 +10,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Standard Swift project workflow tooling: shared formatting config, Makefile
   checks, optional Lefthook hooks, and contributor/security docs.
+- `make install-dev` / `scripts/install_dev.sh` for Apple Development signed
+  local reinstalls to `~/Applications`.
 
 ### Changed
 

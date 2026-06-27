@@ -1,4 +1,4 @@
-.PHONY: help tools format format-all lint lint-all build test stage ci-check hooks-install
+.PHONY: help tools format format-all lint lint-all build test stage install-dev ci-check hooks-install
 
 .DEFAULT_GOAL := help
 
@@ -16,6 +16,7 @@ help:
 	@printf "  make build         Build SwiftPM release binaries\n"
 	@printf "  make test          Run SwiftPM tests\n"
 	@printf "  make stage         Stage the menu bar app bundle via script/build_and_run.sh\n"
+	@printf "  make install-dev   Install signed app bundle to ~/Applications\n"
 	@printf "  make ci-check      Local gate: lint + build + test\n"
 	@printf "  make hooks-install Install optional Lefthook git hooks\n"
 
@@ -48,6 +49,10 @@ test:
 
 stage:
 	./script/build_and_run.sh stage
+
+install-dev:
+	@chmod +x scripts/install_dev.sh
+	@scripts/install_dev.sh
 
 ci-check: lint build test
 	@printf "ci-check: passed\n"
