@@ -19,11 +19,19 @@ struct MenuBarPopoverView: View {
             Divider()
             modePicker
             modeContent
-            Divider()
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .clipped()
             footer
         }
-        .padding(16)
-        .frame(width: 360)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
+        .frame(width: PopoverLayout.width, height: popoverHeight, alignment: .topLeading)
+        .animation(PopoverLayout.modeTransitionAnimation, value: settings.controlMode)
+    }
+
+    private var popoverHeight: CGFloat {
+        PopoverLayout.height(for: settings.controlMode)
     }
 
     private var header: some View {
@@ -31,16 +39,20 @@ struct MenuBarPopoverView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(AppFormatters.temperaturePrecise(monitor.snapshot.temperatureCelsius, unit: settings.temperatureUnit))
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .frame(minWidth: 132, alignment: .leading)
                 Spacer()
-                Text(AppFormatters.rpm(monitor.snapshot.fan?.currentRPM))
+                Text(AppFormatters.rpm(headerRPM))
                     .font(.system(.title3, design: .rounded, weight: .medium))
+                    .monospacedDigit()
+                    .frame(minWidth: 96, alignment: .trailing)
             }
 
             HStack {
                 Text(monitor.snapshot.chip)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("Current")
+                Text(headerRPMLabel)
                     .foregroundStyle(.secondary)
             }
             .font(.caption)
@@ -68,8 +80,10 @@ struct MenuBarPopoverView: View {
         switch settings.controlMode {
         case .manual:
             manualContent
+                .transition(.opacity.combined(with: .move(edge: .top)))
         case .curve:
             curveContent
+                .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
 
@@ -110,7 +124,18 @@ struct MenuBarPopoverView: View {
     private var curveContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             metricRow("Curve target", value: "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))")
-            metricRow("Status", value: curveStatusText)
+
+            CurvePreview(
+                points: settings.curvePoints,
+                currentTemperature: monitor.snapshot.temperatureCelsius,
+                targetPercent: model.effectiveCurveTargetPercent,
+                percentRange: model.manualPercentRange,
+                isEditingEnabled: false,
+                animatesLiveMarker: true,
+                updatePoint: { _ in }
+            )
+            .frame(height: 168)
+            .clipped()
 
             if !helperService.isReady {
                 helperNotice
@@ -119,13 +144,16 @@ struct MenuBarPopoverView: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(model.lastActionMessage)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
+        VStack(alignment: .leading, spacing: 6) {
+            if let message = footerMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
 
-            HStack {
+            HStack(spacing: 12) {
                 Button {
                     model.openSettings()
                 } label: {
@@ -154,6 +182,19 @@ struct MenuBarPopoverView: View {
         .font(.callout)
     }
 
+    private var headerRPM: Double? {
+        switch settings.controlMode {
+        case .curve:
+            return model.curveTargetRPM ?? monitor.snapshot.fan?.targetRPM ?? monitor.snapshot.fan?.currentRPM
+        case .manual:
+            return monitor.snapshot.fan?.currentRPM
+        }
+    }
+
+    private var headerRPMLabel: String {
+        settings.controlMode == .curve ? "Target" : "Current"
+    }
+
     private var helperNotice: some View {
         HStack(spacing: 8) {
             Image(systemName: "lock.shield")
@@ -180,5 +221,33 @@ struct MenuBarPopoverView: View {
         if !helperService.isReady { return "Locked" }
         if model.isApplyingFanTarget { return "Applying..." }
         return "Running"
+    }
+
+    private var footerMessage: String? {
+        if isActionableError(model.lastActionMessage) { return model.lastActionMessage }
+        return nil
+    }
+
+    private func isActionableError(_ message: String) -> Bool {
+        let ignored = [
+            "Ready",
+            "Curve running",
+            "Curve target applied",
+            "Manual target applied",
+            "Applying...",
+            "Apply queued",
+            "Applying after slider settles..."
+        ]
+        guard !ignored.contains(message) else { return false }
+        guard !isHelperReadinessMessage(message) else { return false }
+        if message.hasPrefix("Set fan ") { return false }
+        return true
+    }
+
+    private func isHelperReadinessMessage(_ message: String) -> Bool {
+        message == model.helperStatusSummary
+            || message.contains("Settings > Safety")
+            || message.hasPrefix("Authorize helper")
+            || message.hasPrefix("Helper authorized")
     }
 }

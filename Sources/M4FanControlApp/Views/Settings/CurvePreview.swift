@@ -6,7 +6,26 @@ struct CurvePreview: View {
     let targetPercent: Double?
     let percentRange: ClosedRange<Double>
     let isEditingEnabled: Bool
+    let animatesLiveMarker: Bool
     let updatePoint: (CurvePoint) -> Void
+
+    init(
+        points: [CurvePoint],
+        currentTemperature: Double?,
+        targetPercent: Double?,
+        percentRange: ClosedRange<Double>,
+        isEditingEnabled: Bool,
+        animatesLiveMarker: Bool = false,
+        updatePoint: @escaping (CurvePoint) -> Void
+    ) {
+        self.points = points
+        self.currentTemperature = currentTemperature
+        self.targetPercent = targetPercent
+        self.percentRange = percentRange
+        self.isEditingEnabled = isEditingEnabled
+        self.animatesLiveMarker = animatesLiveMarker
+        self.updatePoint = updatePoint
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -29,7 +48,7 @@ struct CurvePreview: View {
                     Text("\(Int(tick))")
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(.secondary)
-                        .position(x: xPosition(forTemperature: tick, in: plotRect), y: plotRect.maxY + 16)
+                        .position(x: xAxisLabelX(for: tick, plotRect: plotRect, viewWidth: proxy.size.width), y: plotRect.maxY + CurvePreviewLayout.xAxisLabelOffset)
                 }
 
                 ForEach(axisTicks, id: \.self) { tick in
@@ -45,11 +64,6 @@ struct CurvePreview: View {
                         .foregroundStyle(.secondary)
                         .position(x: plotRect.minX - 20, y: yPosition(forPercent: tick, in: plotRect))
                 }
-
-                Text("C")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .position(x: plotRect.maxX + 8, y: plotRect.maxY + 16)
 
                 Path { path in
                     guard let first = plotted.first else { return }
@@ -123,8 +137,11 @@ struct CurvePreview: View {
                         .position(labelPosition)
                 }
             }
+            .animation(animatesLiveMarker ? .easeOut(duration: 0.28) : nil, value: liveMarkerAnimationKey)
             .transaction { transaction in
-                transaction.animation = nil
+                if !animatesLiveMarker {
+                    transaction.animation = nil
+                }
             }
         }
         .accessibilityLabel("Curve preview")
@@ -136,6 +153,11 @@ struct CurvePreview: View {
 
     private var axisTicks: [Double] {
         [0, 25, 50, 75, 100]
+    }
+
+    private var liveMarkerAnimationKey: String {
+        guard let currentTemperature, let targetPercent else { return "none" }
+        return String(format: "%.1f-%.1f", currentTemperature, targetPercent)
     }
 
     private func normalizedPoints(in size: CGSize) -> [CGPoint] {
@@ -193,6 +215,17 @@ struct CurvePreview: View {
         return plotRect.minX + progress * plotRect.width
     }
 
+    private func xAxisLabelX(for tick: Double, plotRect: CGRect, viewWidth: CGFloat) -> CGFloat {
+        let x = xPosition(forTemperature: tick, in: plotRect)
+        if tick >= 100 {
+            return min(x, viewWidth - 14)
+        }
+        if tick <= 0 {
+            return max(x, 14)
+        }
+        return x
+    }
+
     private func yPosition(forPercent percent: Double, in plotRect: CGRect) -> CGFloat {
         let progress = min(max(percent, 0), 100) / 100
         return plotRect.maxY - progress * plotRect.height
@@ -219,11 +252,23 @@ private extension CurvePoint {
     }
 }
 
+private enum CurvePreviewLayout {
+    static let leadingInset: CGFloat = 42
+    static let trailingInset: CGFloat = 18
+    static let plotTopPadding: CGFloat = 22
+    static let plotBottomPadding: CGFloat = 12
+    static let xAxisLabelBand: CGFloat = 15
+    static let xAxisLabelOffset: CGFloat = 12
+}
+
 private func curvePreviewPlotRect(in size: CGSize) -> CGRect {
-    CGRect(
-        x: 42,
-        y: 14,
-        width: max(1, size.width - 58),
-        height: max(1, size.height - 44)
+    let topInset = CurvePreviewLayout.plotTopPadding
+    let bottomInset = CurvePreviewLayout.plotBottomPadding + CurvePreviewLayout.xAxisLabelBand
+
+    return CGRect(
+        x: CurvePreviewLayout.leadingInset,
+        y: topInset,
+        width: max(1, size.width - CurvePreviewLayout.leadingInset - CurvePreviewLayout.trailingInset),
+        height: max(1, size.height - topInset - bottomInset)
     )
 }

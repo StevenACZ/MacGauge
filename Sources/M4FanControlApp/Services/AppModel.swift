@@ -17,6 +17,7 @@ final class AppModel: ObservableObject {
 
     var presentSettings: ((SettingsTab) -> Void)?
 
+    private var fanApplyInFlight = false
     private let debounceWindow = DebounceWindow(delay: 0.55)
     private let targetRules = FanTargetRules()
     private var cancellables = Set<AnyCancellable>()
@@ -25,6 +26,7 @@ final class AppModel: ObservableObject {
     private var curveRunID: UUID?
     private var helperApprovalPollTask: Task<Void, Never>?
     private var pendingFanTargetApply: (percent: Double, message: String)?
+    private var lastAppliedCurvePercent: Double?
     private var didRunLiveControl = false
     private var suppressManualApply = false
     private var pendingModeActivationAfterHelperReady = false
@@ -38,6 +40,7 @@ final class AppModel: ObservableObject {
         bindControlMode()
         bindHelperReadiness()
         bindControlTick()
+        bindCurveSnapshot()
     }
 
     var manualTargetRPM: Double? {
@@ -163,14 +166,13 @@ final class AppModel: ObservableObject {
 
         let runID = UUID()
         curveRunID = runID
-        lastActionMessage = "Curve running"
         curveTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 let snapshot = await self.monitor.refreshNow()
                 if !self.isWriting,
                    let percent = self.effectiveCurveTargetPercent(for: snapshot.temperatureCelsius) {
-                    self.applyManualPercent(percent: percent, message: "Curve target applied")
+                    await self.applyCurveTargetIfNeeded(percent: percent)
                 }
                 try? await Task.sleep(nanoseconds: self.controlTickNanoseconds)
             }
@@ -245,6 +247,31 @@ final class AppModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private func bindCurveSnapshot() {
+        monitor.$snapshot
+            .map { [weak self] snapshot in
+                self?.effectiveCurveTargetPercent(for: snapshot.temperatureCelsius)
+            }
+            .removeDuplicates { [weak self] lhs, rhs in
+                self?.curvePercentChangeIsNegligible(lhs, rhs) ?? (lhs == nil && rhs == nil)
+            }
+            .sink { [weak self] percent in
+                guard let self,
+                      self.settings.controlMode == .curve,
+                      self.helperReady,
+                      !self.isWriting,
+                      !self.fanApplyInFlight,
+                      let percent
+                else {
+                    return
+                }
+                Task {
+                    await self.applyCurveTargetIfNeeded(percent: percent)
+                }
+            }
+            .store(in: &cancellables)
+    }
+
     private func bindControlTick() {
         settings.$controlTickSeconds
             .removeDuplicates()
@@ -277,6 +304,7 @@ final class AppModel: ObservableObject {
         case .curve:
             pendingModeActivationAfterHelperReady = !helperReady
             pendingFanTargetApply = nil
+            lastAppliedCurvePercent = nil
             manualApplyTask?.cancel()
             isManualControlActive = false
             startCurveRun()
@@ -310,6 +338,7 @@ final class AppModel: ObservableObject {
         curveRunID = nil
         curveTask?.cancel()
         curveTask = nil
+        lastAppliedCurvePercent = nil
         if let message {
             lastActionMessage = message
         }
@@ -370,38 +399,79 @@ final class AppModel: ObservableObject {
     }
 
     private func applyManualPercent(percent: Double, message: String) {
+        Task {
+            await applyManualPercentAsync(percent: percent, message: message)
+        }
+    }
+
+    private func applyCurveTargetIfNeeded(percent: Double) async {
+        guard settings.controlMode == .curve, helperReady, !isWriting else { return }
+        let boundedPercent = boundedManualPercent(percent)
+        guard !curvePercentChangeIsNegligible(lastAppliedCurvePercent, boundedPercent) else { return }
+        guard !fanApplyInFlight else {
+            pendingFanTargetApply = (boundedPercent, "Curve target applied")
+            return
+        }
+        await applyManualPercentAsync(percent: boundedPercent, message: "Curve target applied")
+    }
+
+    private func applyManualPercentAsync(percent: Double, message: String) async {
         guard helperReady else {
             lastActionMessage = helperStatusSummary
             return
         }
 
         let boundedPercent = boundedManualPercent(percent)
-        if isApplyingFanTarget {
+        let showsApplyingState = settings.controlMode == .manual
+        if fanApplyInFlight {
             pendingFanTargetApply = (boundedPercent, message)
-            lastActionMessage = "Apply queued"
+            if showsApplyingState {
+                lastActionMessage = "Apply queued"
+            }
             return
         }
 
-        isApplyingFanTarget = true
-        lastActionMessage = "Applying..."
-        Task {
-            do {
-                let output = try await helperService.setPercent(
-                    boundedPercent,
-                    allowDangerous: settings.dangerousRangesUnlocked,
-                    allowZero: boundedPercent == 0 && settings.dangerousRangesUnlocked
-                )
-                didRunLiveControl = true
-                monitor.refresh()
-                lastActionMessage = output.isEmpty ? message : output
-            } catch {
-                lastActionMessage = error.localizedDescription
+        fanApplyInFlight = true
+        if showsApplyingState {
+            isApplyingFanTarget = true
+            lastActionMessage = "Applying..."
+        }
+        do {
+            _ = try await helperService.setPercent(
+                boundedPercent,
+                allowDangerous: settings.dangerousRangesUnlocked,
+                allowZero: boundedPercent == 0 && settings.dangerousRangesUnlocked
+            )
+            didRunLiveControl = true
+            if settings.controlMode == .curve {
+                lastAppliedCurvePercent = boundedPercent
             }
+            _ = await monitor.refreshNow()
+        } catch {
+            lastActionMessage = error.localizedDescription
+        }
+        fanApplyInFlight = false
+        if showsApplyingState {
             isApplyingFanTarget = false
-            if let pendingFanTargetApply {
-                self.pendingFanTargetApply = nil
-                applyManualPercent(percent: pendingFanTargetApply.percent, message: pendingFanTargetApply.message)
+        }
+        if let pending = pendingFanTargetApply {
+            pendingFanTargetApply = nil
+            if settings.controlMode == .curve {
+                await applyCurveTargetIfNeeded(percent: pending.percent)
+            } else {
+                await applyManualPercentAsync(percent: pending.percent, message: pending.message)
             }
+        }
+    }
+
+    private func curvePercentChangeIsNegligible(_ lhs: Double?, _ rhs: Double?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil):
+            return true
+        case let (lhs?, rhs?):
+            return abs(lhs - rhs) < 0.25
+        default:
+            return false
         }
     }
 

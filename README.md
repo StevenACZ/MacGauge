@@ -155,9 +155,9 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 
 ## Menu bar app features
 
-- Compact status item showing representative temperature and current fan RPM.
-- Compact status item showing representative temperature only, with colored fan icon/text.
+- Compact status item showing representative temperature with colored fan icon/text.
 - Popover with Manual and Curve modes.
+- Curve popover view includes a live preview chart with current temperature and target percent/RPM.
 - Configurable update tick, defaulting to 1 second, shared by live temperature/RPM refresh and curve target application.
 - Manual slider auto-applies after a short debounce only when the helper is already authorized; `Auto` remains explicit.
 - Curve mode runs continuously until the user switches modes, sampling a fresh temperature snapshot on each tick.

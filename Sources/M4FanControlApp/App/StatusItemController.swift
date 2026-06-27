@@ -22,7 +22,8 @@ final class StatusItemController: NSObject {
         super.init()
 
         popover.behavior = .transient
-        popover.contentSize = NSSize(width: 360, height: 520)
+        popover.animates = true
+        popover.contentSize = Self.popoverSize(for: model.settings.controlMode)
         popover.contentViewController = NSHostingController(rootView: MenuBarPopoverView(model: model))
 
         if let button = statusItem.button {
@@ -35,6 +36,13 @@ final class StatusItemController: NSObject {
         model.monitor.$snapshot
             .sink { [weak self] snapshot in
                 self?.updateStatusItem(snapshot: snapshot)
+            }
+            .store(in: &cancellables)
+
+        model.settings.$controlMode
+            .dropFirst()
+            .sink { [weak self] mode in
+                self?.updatePopoverSize(for: mode, animated: self?.popover.isShown == true)
             }
             .store(in: &cancellables)
 
@@ -58,9 +66,30 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             popover.performClose(nil)
         } else {
+            updatePopoverSize(for: model.settings.controlMode, animated: false)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    private func updatePopoverSize(for mode: FanControlMode, animated: Bool) {
+        let newSize = Self.popoverSize(for: mode)
+        guard animated else {
+            popover.contentSize = newSize
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = PopoverLayout.modeTransitionDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            context.allowsImplicitAnimation = true
+            popover.contentSize = newSize
+            popover.contentViewController?.view.layoutSubtreeIfNeeded()
+        }
+    }
+
+    private static func popoverSize(for mode: FanControlMode) -> NSSize {
+        NSSize(width: PopoverLayout.width, height: PopoverLayout.height(for: mode))
     }
 
     private func updateStatusItem(snapshot: FanSnapshot) {
