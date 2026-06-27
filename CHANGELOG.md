@@ -2,11 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- Standard Swift project workflow tooling: shared formatting config, Makefile
+  checks, optional Lefthook hooks, and contributor/security docs.
 
 ## [0.2.0] - 2026-06-26
 
