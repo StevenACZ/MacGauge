@@ -67,8 +67,11 @@ This stages the app at:
 Install a copy to `~/Applications` and open it:
 
 ```sh
-./script/build_and_run.sh --install
+make install-dev
 ```
+
+`make install-dev` signs the local bundle with Apple Development, installs it to
+`~/Applications/M4FanControl.app`, and relaunches it for fast iteration.
 
 The app bundle includes:
 
@@ -80,7 +83,8 @@ Authorize the helper explicitly from Settings > Safety before using manual or cu
 
 The helper warning's Settings button opens directly to the Safety tab. The current app helper identity is `com.stevenacz.M4FanControl.XPCHelper`. This intentionally avoids the older local helper label `com.stevenacz.M4FanControl.Helper`, which may still exist on Steven's Mac from pre-XPC builds. After `XPCHelper` is authorized, the app asks it to remove that legacy helper.
 
-Local script builds are ad-hoc signed by default. For a stricter local signing test, set `SIGN_IDENTITY` before staging:
+Local script builds are ad-hoc signed by default outside `make install-dev`.
+For a stricter local signing test, set `SIGN_IDENTITY` before staging:
 
 ```sh
 SIGN_IDENTITY="Developer ID Application: Example" ./script/build_and_run.sh stage

@@ -45,6 +45,9 @@ make ci-check
 
 - `make ci-check` runs lint, `swift build`, and `swift test`.
 - Use `./script/build_and_run.sh stage` / `run` for the GUI app bundle.
+- Use `make install-dev` for routine local app testing on Steven's Mac. It
+  signs with Apple Development, installs to `~/Applications/M4FanControl.app`,
+  and relaunches the app.
 - Use `make format` / `make lint` before commits; optional Lefthook via
   `make hooks-install`.
 - Preserve CLI verification with read-only and dry-run commands.
