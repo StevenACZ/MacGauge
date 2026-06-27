@@ -105,8 +105,8 @@ final class StatusItemController: NSObject {
             button.attributedTitle = title
             button.contentTintColor = nil
             button.image = FanIconRenderer.image(color: color, rotation: rotation)
+            statusItem.length = min(ceil(button.fittingSize.width), 84)
         }
-        statusItem.length = min(max(60, ceil(title.size().width) + 38), 84)
         updateAnimation(snapshot: snapshot)
     }
 
