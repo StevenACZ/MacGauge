@@ -17,7 +17,6 @@ struct GeneralSettingsTab: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .frame(width: 220)
                 }
 
                 SettingsDivider()

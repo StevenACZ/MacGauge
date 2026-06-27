@@ -24,7 +24,9 @@ struct SettingsView: View {
             selectedTabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .padding(20)
+        .padding(.leading, 20)
+        .padding(.trailing, 12)
+        .padding(.vertical, 20)
         .frame(width: 680, height: 520)
         .background(Color(nsColor: .windowBackgroundColor))
         .toolbarBackground(Color(nsColor: .windowBackgroundColor), for: .windowToolbar)

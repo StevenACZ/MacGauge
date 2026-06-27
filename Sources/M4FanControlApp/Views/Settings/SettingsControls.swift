@@ -47,14 +47,10 @@ struct HelperStatusBadge: View {
     let state: HelperCommandService.HelperState
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(color)
-                .frame(width: 8, height: 8)
-            Text(title)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
+        Circle()
+            .fill(color)
+            .frame(width: 10, height: 10)
+            .accessibilityLabel(title)
     }
 
     private var title: String {

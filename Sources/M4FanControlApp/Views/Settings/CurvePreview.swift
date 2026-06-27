@@ -108,8 +108,6 @@ struct CurvePreview: View {
                 }
 
                 if let marker {
-                    let labelPosition = currentLabelPosition(for: marker, in: proxy.size)
-
                     Path { path in
                         path.move(to: CGPoint(x: marker.x, y: plotRect.minY))
                         path.addLine(to: CGPoint(x: marker.x, y: plotRect.maxY))
@@ -124,17 +122,6 @@ struct CurvePreview: View {
                                 .stroke(Color.white.opacity(0.72), lineWidth: 1)
                         )
                         .position(marker)
-
-                    Text("Current")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.blue)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.blue.opacity(0.14))
-                        )
-                        .position(labelPosition)
                 }
             }
             .animation(animatesLiveMarker ? .easeOut(duration: 0.28) : nil, value: liveMarkerAnimationKey)
@@ -190,14 +177,6 @@ struct CurvePreview: View {
         return CGPoint(
             x: plotRect.minX + (temperature - temperatureRange.lowerBound) / temperatureSpan * plotRect.width,
             y: yPosition(forPercent: clampPercent(point.percent), in: plotRect)
-        )
-    }
-
-    private func currentLabelPosition(for marker: CGPoint, in size: CGSize) -> CGPoint {
-        let plotRect = plotRect(in: size)
-        return CGPoint(
-            x: min(max(marker.x + 38, 42), size.width - 42),
-            y: plotRect.minY + 16
         )
     }
 

@@ -1,5 +1,21 @@
 import SwiftUI
 
+enum SettingsLayout {
+    static let trailingControlWidth: CGFloat = 220
+}
+
+struct SettingsTrailingControl<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            content()
+        }
+        .frame(width: SettingsLayout.trailingControlWidth, alignment: .trailing)
+    }
+}
+
 struct SettingsPane<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
@@ -55,7 +71,9 @@ struct SettingsRow<Content: View>: View {
             Text(title)
                 .font(.callout.weight(.semibold))
             Spacer(minLength: 24)
-            content()
+            SettingsTrailingControl {
+                content()
+            }
         }
         .padding(.vertical, 2)
     }

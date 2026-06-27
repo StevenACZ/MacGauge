@@ -32,16 +32,6 @@ struct SafetySettingsTab: View {
 
                 SettingsDivider()
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("0 RPM and near-maximum targets can damage hardware or fight macOS thermal management.")
-                    Text("The helper is a narrow SMAppService LaunchDaemon with an XPC Mach service. It does not store passwords.")
-                    Text("macOS may require one explicit approval from this Safety action before controls are unlocked.")
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-                SettingsDivider()
-
                 HStack {
                     Button {
                         model.restoreAutomatic()
@@ -51,11 +41,6 @@ struct SafetySettingsTab: View {
                     .disabled(!helperService.isReady || model.isWriting)
 
                     Spacer()
-
-                    Text(model.lastActionMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
                 }
             }
         }

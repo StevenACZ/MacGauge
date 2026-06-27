@@ -17,7 +17,7 @@ struct MenuBarPopoverView: View {
         VStack(alignment: .leading, spacing: 14) {
             header
             Divider()
-            modePicker
+            controlBar
             modeContent
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .clipped()
@@ -25,7 +25,7 @@ struct MenuBarPopoverView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
-        .padding(.bottom, 12)
+        .padding(.bottom, 37)
         .frame(width: PopoverLayout.width, height: popoverHeight, alignment: .topLeading)
         .animation(PopoverLayout.modeTransitionAnimation, value: settings.controlMode)
     }
@@ -56,23 +56,32 @@ struct MenuBarPopoverView: View {
                     .foregroundStyle(.secondary)
             }
             .font(.caption)
-
-            if let error = monitor.snapshot.error {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
-            }
         }
     }
 
-    private var modePicker: some View {
-        Picker("Mode", selection: $settings.controlMode) {
-            ForEach(FanControlMode.allCases) { mode in
-                Text(mode.label).tag(mode)
+    private var controlBar: some View {
+        HStack(spacing: 12) {
+            Picker("Mode", selection: $settings.controlMode) {
+                ForEach(FanControlMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .fixedSize()
+
+            Spacer(minLength: 0)
+
+            if settings.controlMode == .manual {
+                Button {
+                    model.restoreAutomatic()
+                } label: {
+                    Label("Auto", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(!helperService.isReady || model.isWriting)
             }
         }
-        .pickerStyle(.segmented)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -104,20 +113,6 @@ struct MenuBarPopoverView: View {
                 helperNotice
             }
 
-            HStack {
-                Button {
-                    model.restoreAutomatic()
-                } label: {
-                    Label("Auto", systemImage: "arrow.triangle.2.circlepath")
-                }
-                .disabled(!helperService.isReady || model.isWriting)
-
-                Spacer()
-
-                Text(manualStatusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
@@ -144,30 +139,21 @@ struct MenuBarPopoverView: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let message = footerMessage {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+        HStack(spacing: 12) {
+            Button {
+                model.openSettings()
+            } label: {
+                Label("Settings", systemImage: "gearshape")
             }
 
-            HStack(spacing: 12) {
-                Button {
-                    model.openSettings()
-                } label: {
-                    Label("Settings", systemImage: "gearshape")
-                }
+            Spacer()
 
-                Spacer()
-
-                Button {
-                    model.quit()
-                } label: {
-                    Label("Quit", systemImage: "power")
-                }
+            Button {
+                model.quit()
+            } label: {
+                Label("Quit", systemImage: "power")
             }
+            .foregroundStyle(.red)
         }
     }
 
@@ -199,55 +185,11 @@ struct MenuBarPopoverView: View {
         HStack(spacing: 8) {
             Image(systemName: "lock.shield")
                 .foregroundStyle(.secondary)
-            Text(model.helperStatusSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
             Spacer()
             Button("Settings") {
                 model.openSettings(tab: .safety)
             }
             .controlSize(.small)
         }
-    }
-
-    private var manualStatusText: String {
-        if !helperService.isReady { return "Locked" }
-        if model.isApplyingFanTarget { return "Applying..." }
-        return model.isManualControlActive ? "Auto-apply" : "Automatic"
-    }
-
-    private var curveStatusText: String {
-        if !helperService.isReady { return "Locked" }
-        if model.isApplyingFanTarget { return "Applying..." }
-        return "Running"
-    }
-
-    private var footerMessage: String? {
-        if isActionableError(model.lastActionMessage) { return model.lastActionMessage }
-        return nil
-    }
-
-    private func isActionableError(_ message: String) -> Bool {
-        let ignored = [
-            "Ready",
-            "Curve running",
-            "Curve target applied",
-            "Manual target applied",
-            "Applying...",
-            "Apply queued",
-            "Applying after slider settles..."
-        ]
-        guard !ignored.contains(message) else { return false }
-        guard !isHelperReadinessMessage(message) else { return false }
-        if message.hasPrefix("Set fan ") { return false }
-        return true
-    }
-
-    private func isHelperReadinessMessage(_ message: String) -> Bool {
-        message == model.helperStatusSummary
-            || message.contains("Settings > Safety")
-            || message.hasPrefix("Authorize helper")
-            || message.hasPrefix("Helper authorized")
     }
 }

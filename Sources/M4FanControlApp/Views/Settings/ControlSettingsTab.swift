@@ -17,7 +17,6 @@ struct ControlSettingsTab: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .frame(width: 260)
                 }
 
                 SettingsDivider()
@@ -27,12 +26,7 @@ struct ControlSettingsTab: View {
                         Text(AppFormatters.seconds(settings.controlTickSeconds))
                             .monospacedDigit()
                     }
-                    .frame(width: 116)
                 }
-
-                Text(controlModeSummary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             switch settings.controlMode {
@@ -50,15 +44,6 @@ struct ControlSettingsTab: View {
                     helperService: helperService
                 )
             }
-        }
-    }
-
-    private var controlModeSummary: String {
-        switch settings.controlMode {
-        case .manual:
-            return "Manual mode applies one fixed fan target."
-        case .curve:
-            return "Curve mode adjusts the target from the temperature points below."
         }
     }
 }
@@ -82,10 +67,6 @@ private struct ManualControlSection: View {
 
                 Slider(value: $settings.manualPercent, in: model.manualPercentRange, step: 1)
                     .disabled(!helperService.isReady || model.isWriting)
-
-                Text(helperService.isReady ? "Manual changes apply after the slider settles." : "Authorize the helper in Safety before manual controls can write fan targets.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -106,7 +87,6 @@ private struct CurveControlSection: View {
                     CurvePointRow(
                         point: binding(for: point),
                         manualPercentRange: model.manualPercentRange,
-                        estimatedRPM: model.estimatedRPM,
                         canRemove: settings.curvePoints.count > 2,
                         isWriting: model.isWriting,
                         remove: {
@@ -149,10 +129,6 @@ private struct CurveControlSection: View {
                     updatePoint: { settings.updateCurvePoint($0) }
                 )
                 .frame(height: 168)
-
-                Text(helperService.isReady ? "Curve points are clamped to the current safe manual range." : "Curve runs are locked until the helper is authorized in Safety.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -173,7 +149,6 @@ private struct CurvePointRow: View {
     @Binding var point: CurvePoint
 
     let manualPercentRange: ClosedRange<Double>
-    let estimatedRPM: (Double) -> Double?
     let canRemove: Bool
     let isWriting: Bool
     let remove: () -> Void
@@ -193,12 +168,6 @@ private struct CurvePointRow: View {
                 .font(.callout.weight(.semibold))
                 .monospacedDigit()
                 .frame(width: 48, alignment: .trailing)
-
-            Text(AppFormatters.approximateRPM(estimatedRPM(point.percent)))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .frame(width: 88, alignment: .trailing)
 
             Button {
                 remove()

@@ -67,9 +67,20 @@ final class StatusItemController: NSObject {
             popover.performClose(nil)
         } else {
             updatePopoverSize(for: model.settings.controlMode, animated: false)
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            let positioningRect = trailingAnchorRect(for: button)
+            popover.show(relativeTo: positioningRect, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    private func trailingAnchorRect(for button: NSStatusBarButton) -> NSRect {
+        let bounds = button.bounds
+        return NSRect(
+            x: bounds.maxX - 1,
+            y: bounds.minY,
+            width: 1,
+            height: bounds.height
+        )
     }
 
     private func updatePopoverSize(for mode: FanControlMode, animated: Bool) {
