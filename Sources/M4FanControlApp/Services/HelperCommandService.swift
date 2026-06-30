@@ -65,7 +65,14 @@ final class HelperCommandService: ObservableObject {
         }
     }
 
-    func setPercent(_ percent: Double, allowDangerous: Bool, allowZero: Bool) async throws -> String {
+    struct SetPercentResult: Sendable {
+        let message: String
+        let actualRPM: Double?
+        let mode: Int?
+        let contested: Bool
+    }
+
+    func setPercent(_ percent: Double, allowDangerous: Bool, allowZero: Bool) async throws -> SetPercentResult {
         let response = try await sendReadyCommand(
             .init(
                 action: .setPercent,
@@ -75,7 +82,12 @@ final class HelperCommandService: ObservableObject {
                 allowZero: allowZero
             )
         )
-        return response.message
+        return SetPercentResult(
+            message: response.message,
+            actualRPM: response.actualRPM,
+            mode: response.mode,
+            contested: response.contested ?? false
+        )
     }
 
     func restoreAutomatic() async throws -> String {
@@ -138,10 +150,12 @@ final class HelperCommandService: ObservableObject {
                 singleShot.resume(throwing: HelperUnavailableError())
             }
 
-            guard let proxy = connection.remoteObjectProxyWithErrorHandler({ error in
-                timeoutTask.cancel()
-                singleShot.resume(throwing: error)
-            }) as? M4FanHelperXPCProtocol else {
+            guard
+                let proxy = connection.remoteObjectProxyWithErrorHandler({ error in
+                    timeoutTask.cancel()
+                    singleShot.resume(throwing: error)
+                }) as? M4FanHelperXPCProtocol
+            else {
                 timeoutTask.cancel()
                 singleShot.resume(throwing: HelperUnavailableError())
                 return

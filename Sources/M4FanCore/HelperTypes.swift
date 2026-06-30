@@ -40,11 +40,25 @@ public struct HelperResponse: Codable, Sendable {
     public var ok: Bool
     public var message: String
     public var completedAt: Date
+    public var actualRPM: Double?
+    public var mode: Int?
+    public var contested: Bool?
 
-    public init(id: String, ok: Bool, message: String, completedAt: Date = Date()) {
+    public init(
+        id: String,
+        ok: Bool,
+        message: String,
+        completedAt: Date = Date(),
+        actualRPM: Double? = nil,
+        mode: Int? = nil,
+        contested: Bool? = nil
+    ) {
         self.id = id
         self.ok = ok
         self.message = message
         self.completedAt = completedAt
+        self.actualRPM = actualRPM
+        self.mode = mode
+        self.contested = contested
     }
 }

@@ -51,33 +51,33 @@ private enum LegacyInstaller {
         chmod(destination.path, 0o755)
 
         let plist = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-          <key>Label</key>
-          <string>\(HelperPaths.label)</string>
-          <key>ProgramArguments</key>
-          <array>
-            <string>\(toolPath)</string>
-            <string>--daemon</string>
-          </array>
-          <key>MachServices</key>
-          <dict>
-            <key>\(HelperPaths.machServiceName)</key>
-            <true/>
-          </dict>
-          <key>RunAtLoad</key>
-          <true/>
-          <key>KeepAlive</key>
-          <true/>
-          <key>StandardOutPath</key>
-          <string>/tmp/\(HelperPaths.label).out.log</string>
-          <key>StandardErrorPath</key>
-          <string>/tmp/\(HelperPaths.label).err.log</string>
-        </dict>
-        </plist>
-        """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+              <key>Label</key>
+              <string>\(HelperPaths.label)</string>
+              <key>ProgramArguments</key>
+              <array>
+                <string>\(toolPath)</string>
+                <string>--daemon</string>
+              </array>
+              <key>MachServices</key>
+              <dict>
+                <key>\(HelperPaths.machServiceName)</key>
+                <true/>
+              </dict>
+              <key>RunAtLoad</key>
+              <true/>
+              <key>KeepAlive</key>
+              <true/>
+              <key>StandardOutPath</key>
+              <string>/tmp/\(HelperPaths.label).out.log</string>
+              <key>StandardErrorPath</key>
+              <string>/tmp/\(HelperPaths.label).err.log</string>
+            </dict>
+            </plist>
+            """
         try plist.write(to: plistURL, atomically: true, encoding: .utf8)
         chown(plistURL.path, 0, 0)
         chmod(plistURL.path, 0o644)
@@ -194,8 +194,15 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
             let fan = try controller.fanInfo(index: command.fanIndex)
             let rpm = try controller.targetRPM(forPercent: percent, fan: fan)
             try safety.validate(rpm: rpm, fan: fan, percent: percent, allowDangerous: command.allowDangerous)
-            let strategy = try controller.setTargetRPM(index: command.fanIndex, rpm: rpm)
-            return HelperResponse(id: command.id, ok: true, message: "Set fan \(command.fanIndex) to \(Int(rpm.rounded())) RPM (\(strategy.rawValue))")
+            let result = try controller.setTargetRPMVerified(index: command.fanIndex, rpm: rpm)
+            return HelperResponse(
+                id: command.id,
+                ok: true,
+                message: "Set fan \(command.fanIndex) to \(Int(rpm.rounded())) RPM (\(result.strategy.rawValue))",
+                actualRPM: result.actualRPM,
+                mode: result.mode,
+                contested: result.contested
+            )
         case .automatic:
             let smc = try SMCClient()
             let controller = FanController(smc: smc)
@@ -246,9 +253,9 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
         var uid: uid_t = 0
         var gid: gid_t = 0
         guard let user = SCDynamicStoreCopyConsoleUser(nil, &uid, &gid) as String?,
-              user != "loginwindow",
-              !user.isEmpty,
-              let home = FileManager.default.homeDirectory(forUser: user)
+            user != "loginwindow",
+            !user.isEmpty,
+            let home = FileManager.default.homeDirectory(forUser: user)
         else {
             return nil
         }

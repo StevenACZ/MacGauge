@@ -16,6 +16,31 @@ public enum FanWriteStrategy: String, Sendable {
     case ftstUnlock
 }
 
+public struct FanWriteResult: Sendable {
+    public let strategy: FanWriteStrategy
+    public let actualRPM: Double?
+    public let mode: Int?
+    public let contested: Bool
+
+    public init(strategy: FanWriteStrategy, actualRPM: Double?, mode: Int?, contested: Bool) {
+        self.strategy = strategy
+        self.actualRPM = actualRPM
+        self.mode = mode
+        self.contested = contested
+    }
+}
+
+public enum FanContestedRules {
+    public static let manualModeValue = 1
+    public static let contestedRPMThreshold = 400.0
+
+    public static func isContested(mode: Int?, actualRPM: Double?, targetRPM: Double?) -> Bool {
+        let modeReverted = mode.map { $0 != manualModeValue } ?? false
+        let runaway = (actualRPM ?? 0) - (targetRPM ?? 0) > contestedRPMThreshold
+        return modeReverted || runaway
+    }
+}
+
 public struct FanTargetRules: Sendable {
     public init() {}
 
@@ -85,10 +110,36 @@ public final class FanController {
 
     public func setTargetRPM(index: Int, rpm: Double) throws -> FanWriteStrategy {
         let strategy = try enableManualMode(index: index)
+        try writeTarget(index: index, rpm: rpm)
+        return strategy
+    }
+
+    public func setTargetRPMVerified(index: Int, rpm: Double) throws -> FanWriteResult {
+        var strategy = try enableManualMode(index: index)
+        try writeTarget(index: index, rpm: rpm)
+
+        var mode = (try? readMode(index: index))?.mode
+        var actual = try? readNumber("F\(index)Ac")
+
+        let maxReassertions = 3
+        var attempts = 0
+        while mode != FanContestedRules.manualModeValue, attempts < maxReassertions {
+            Thread.sleep(forTimeInterval: 0.08)
+            strategy = (try? enableManualMode(index: index)) ?? strategy
+            try writeTarget(index: index, rpm: rpm)
+            mode = (try? readMode(index: index))?.mode
+            actual = try? readNumber("F\(index)Ac")
+            attempts += 1
+        }
+
+        let contested = FanContestedRules.isContested(mode: mode, actualRPM: actual, targetRPM: rpm)
+        return FanWriteResult(strategy: strategy, actualRPM: actual, mode: mode, contested: contested)
+    }
+
+    private func writeTarget(index: Int, rpm: Double) throws {
         let targetKey = "F\(index)Tg"
         let info = try smc.keyInfo(targetKey)
         try smc.writeKey(targetKey, bytes: SMCCodec.encodeNumber(rpm, for: info))
-        return strategy
     }
 
     public func returnToAutomatic(index: Int) throws {
