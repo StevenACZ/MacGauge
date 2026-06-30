@@ -161,13 +161,16 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 
 - Compact status item showing representative temperature with colored fan icon/text.
 - Popover with Manual and Curve modes.
-- Curve popover view includes a live preview chart with current temperature and target percent/RPM.
+- Curve popover view includes a live preview chart with current temperature and target percent/RPM. The Curve mode header shows the measured actual fan RPM (labeled "Actual"); the computed curve target remains in the "Curve target" row.
 - Configurable update tick, defaulting to 1 second, shared by live temperature/RPM refresh and curve target application.
+- The monitor reuses a persistent SMC IOKit connection on a serial `.userInitiated` queue so temperature/RPM readings stay fresh under heavy CPU/RAM load instead of reopening the connection every tick.
 - Manual slider auto-applies after a short debounce only when the helper is already authorized; `Auto` remains explicit.
 - Curve mode runs continuously until the user switches modes, sampling a fresh temperature snapshot on each tick.
+- A warning banner appears in the popover when the system is overriding the requested fan target (fan mode reverted or actual RPM far above target); Curve mode also re-applies the target when the fan mode reverts, not only when the temperature changes.
 - Settings window with Celsius/Fahrenheit, start at login, restore on quit, manual target, draggable/editable curve points with 0-100 C and 0-100% axes, color thresholds, icon animation, helper authorization, and safety toggle for edge ranges.
 - Start at login uses `SMAppService.mainApp`; macOS may require approval in System Settings.
 - Privileged fan writes from the app use the helper's XPC Mach service after the one-time Safety authorization.
+- Manual and curve writes are verified: the helper reads back the fan mode and actual RPM after each write and re-asserts manual mode plus the target (bounded retry) when `thermalmonitord` reverts it.
 - The locked-helper Settings button opens the Safety tab directly.
 - No Accessibility permission is requested.
 
@@ -177,17 +180,16 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 - The helper command path is XPC-based under `com.stevenacz.M4FanControl.XPCHelper`. The SwiftPM bundling script creates the right SMAppService layout, but a fully production-grade distribution should use a stable Apple signing identity and notarized bundle.
 - Continuous curve control is driven by the app and sends narrow percentage target commands through the helper.
 - `thermalmonitord` and firmware behavior can vary by M4 Pro/Max/base model and macOS release.
+- Under heavy thermal load, `thermalmonitord` can reclaim fan control even after a successful manual write; the app detects this (fan mode reverted or actual RPM far above target), shows a warning, and re-asserts the target on the next tick, but cannot guarantee the firmware never overrides the system.
 - Reported `F0Mn`/`F0Mx` values are guidelines, not guaranteed physical limits.
 - Live write paths are experimental and intentionally noisy about permission and safety failures.
 
 ## Helper management
 
-Authorize/install helper from the app Settings > Safety tab. Manual slider and curve changes do not prompt for approval.
+Authorize the helper once from the app Settings > Safety tab. Manual slider and curve changes do not prompt for approval.
 
-The normal app flow does not require terminal `sudo`. The command below is only a recovery path for removing the current `XPCHelper` helper:
+The app and dev flow does not require terminal `sudo` or `launchctl`. `make install-dev` signs with Apple Development, installs to `~/Applications/M4FanControl.app`, and relaunches the app; the helper is authorized and managed from Settings > Safety.
 
-Manual uninstall:
+After a dev update, the running helper daemon loads the new binary on its next restart — reboot, or toggle the M4FanControl helper off and on in System Settings > Login Items > Allow in Background. No `sudo launchctl kickstart` or terminal command is needed.
 
-```sh
-sudo /Users/steven/Applications/M4FanControl.app/Contents/MacOS/M4FanHelper --uninstall-daemon
-```
+To remove the helper, toggle it off in System Settings > Login Items > Allow in Background.

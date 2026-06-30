@@ -23,7 +23,7 @@ final class StatusItemController: NSObject {
 
         popover.behavior = .transient
         popover.animates = true
-        popover.contentSize = Self.popoverSize(for: model.settings.controlMode)
+        popover.contentSize = Self.popoverSize(for: model.settings.controlMode, contested: model.controlContested)
         popover.contentViewController = NSHostingController(rootView: MenuBarPopoverView(model: model))
 
         if let button = statusItem.button {
@@ -42,7 +42,20 @@ final class StatusItemController: NSObject {
         model.settings.$controlMode
             .dropFirst()
             .sink { [weak self] mode in
-                self?.updatePopoverSize(for: mode, animated: self?.popover.isShown == true)
+                guard let self else { return }
+                self.updatePopoverSize(for: mode, contested: self.model.controlContested, animated: self.popover.isShown)
+            }
+            .store(in: &cancellables)
+
+        model.$controlContested
+            .removeDuplicates()
+            .sink { [weak self] contested in
+                guard let self else { return }
+                self.updatePopoverSize(
+                    for: self.model.settings.controlMode,
+                    contested: contested,
+                    animated: self.popover.isShown
+                )
             }
             .store(in: &cancellables)
 
@@ -53,10 +66,10 @@ final class StatusItemController: NSObject {
             model.settings.$hotColorHex.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$animateFanIcon.map { _ in () }.eraseToAnyPublisher()
         )
-            .sink { [weak self] _ in
-                self?.updateStatusItem(snapshot: model.monitor.snapshot)
-            }
-            .store(in: &cancellables)
+        .sink { [weak self] _ in
+            self?.updateStatusItem(snapshot: model.monitor.snapshot)
+        }
+        .store(in: &cancellables)
 
         updateStatusItem(snapshot: model.monitor.snapshot)
     }
@@ -66,14 +79,14 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             popover.performClose(nil)
         } else {
-            updatePopoverSize(for: model.settings.controlMode, animated: false)
+            updatePopoverSize(for: model.settings.controlMode, contested: model.controlContested, animated: false)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
     }
 
-    private func updatePopoverSize(for mode: FanControlMode, animated: Bool) {
-        let newSize = Self.popoverSize(for: mode)
+    private func updatePopoverSize(for mode: FanControlMode, contested: Bool, animated: Bool) {
+        let newSize = Self.popoverSize(for: mode, contested: contested)
         guard animated else {
             popover.contentSize = newSize
             return
@@ -88,8 +101,8 @@ final class StatusItemController: NSObject {
         }
     }
 
-    private static func popoverSize(for mode: FanControlMode) -> NSSize {
-        NSSize(width: PopoverLayout.width, height: PopoverLayout.height(for: mode))
+    private static func popoverSize(for mode: FanControlMode, contested: Bool) -> NSSize {
+        NSSize(width: PopoverLayout.width, height: PopoverLayout.height(for: mode, contested: contested))
     }
 
     private func updateStatusItem(snapshot: FanSnapshot) {
@@ -98,7 +111,7 @@ final class StatusItemController: NSObject {
         let attributes: [NSAttributedString.Key: Any] = [
             .foregroundColor: color,
             .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
-            .baselineOffset: -0.5
+            .baselineOffset: -0.5,
         ]
         let title = NSAttributedString(string: " \(temperature)", attributes: attributes)
         if let button = statusItem.button {
@@ -112,7 +125,8 @@ final class StatusItemController: NSObject {
 
     private func updateAnimation(snapshot: FanSnapshot) {
         let fan = snapshot.fan
-        let interval = model.settings.animateFanIcon
+        let interval =
+            model.settings.animateFanIcon
             ? animationRules.animationInterval(
                 currentRPM: fan?.currentRPM,
                 targetRPM: fan?.targetRPM,

@@ -21,6 +21,8 @@ final class FanMonitor: ObservableObject {
     private var refreshTask: Task<FanSnapshot, Never>?
     private var refreshRunID: UUID?
     private var temperatureSmoother = TemperatureSmoother()
+    private let pool = SMCPool()
+    private let readQueue = DispatchQueue(label: "com.stevenacz.M4FanControl.fanmonitor.read", qos: .userInitiated)
 
     func start(refreshIntervalSeconds: Double = 1) {
         stop()
@@ -67,10 +69,8 @@ final class FanMonitor: ObservableObject {
         let runID = UUID()
         refreshRunID = runID
 
-        let task = Task { [weak self] in
-            let rawSnapshot = await Task.detached(priority: .utility) {
-                Self.readSnapshot()
-            }.value
+        let task = Task { [weak self, pool, readQueue] in
+            let rawSnapshot = await Self.readSnapshotAsync(pool: pool, queue: readQueue)
             guard let self else { return rawSnapshot }
             guard !Task.isCancelled, self.refreshRunID == runID else {
                 return self.snapshot
@@ -92,22 +92,31 @@ final class FanMonitor: ObservableObject {
         snapshot = nextSnapshot
     }
 
-    nonisolated private static func readSnapshot() -> FanSnapshot {
+    nonisolated private static func readSnapshotAsync(pool: SMCPool, queue: DispatchQueue) async -> FanSnapshot {
+        await withCheckedContinuation { (continuation: CheckedContinuation<FanSnapshot, Never>) in
+            queue.async {
+                continuation.resume(returning: Self.readSnapshot(using: pool))
+            }
+        }
+    }
+
+    nonisolated private static func readSnapshot(using pool: SMCPool) -> FanSnapshot {
         do {
-            let smc = try SMCClient()
-            let fanController = FanController(smc: smc)
-            let temperatureReader = TemperatureReader(smc: smc)
-            let fans = try fanController.allFans()
-            return FanSnapshot(
-                model: SystemInfo.hardwareModel,
-                chip: SystemInfo.chipName,
-                thermalState: SystemInfo.thermalState,
-                temperatureCelsius: try temperatureReader.representativeTemperature(),
-                fan: fans.first,
-                fanCount: fans.count,
-                error: nil,
-                updatedAt: Date()
-            )
+            return try pool.withClient { smc in
+                let fanController = FanController(smc: smc)
+                let temperatureReader = TemperatureReader(smc: smc)
+                let fans = try fanController.allFans()
+                return FanSnapshot(
+                    model: SystemInfo.hardwareModel,
+                    chip: SystemInfo.chipName,
+                    thermalState: SystemInfo.thermalState,
+                    temperatureCelsius: try temperatureReader.representativeTemperature(),
+                    fan: fans.first,
+                    fanCount: fans.count,
+                    error: nil,
+                    updatedAt: Date()
+                )
+            }
         } catch {
             return FanSnapshot(error: error.localizedDescription, updatedAt: Date())
         }
@@ -119,8 +128,8 @@ final class FanMonitor: ObservableObject {
     }
 }
 
-private extension FanSnapshot {
-    func isMeaningfullyDifferent(from other: FanSnapshot) -> Bool {
+extension FanSnapshot {
+    fileprivate func isMeaningfullyDifferent(from other: FanSnapshot) -> Bool {
         model != other.model
             || chip != other.chip
             || thermalState != other.thermalState
@@ -134,7 +143,7 @@ private extension FanSnapshot {
         switch (lhs, rhs) {
         case (nil, nil):
             return false
-        case let (lhs?, rhs?):
+        case (let lhs?, let rhs?):
             return lhs.index != rhs.index
                 || lhs.name != rhs.name
                 || lhs.mode != rhs.mode
@@ -152,10 +161,49 @@ private extension FanSnapshot {
         switch (lhs, rhs) {
         case (nil, nil):
             return false
-        case let (lhs?, rhs?):
+        case (let lhs?, let rhs?):
             return abs(lhs - rhs) >= tolerance
         default:
             return true
         }
+    }
+}
+
+final class SMCPool: @unchecked Sendable {
+    private var client: SMCClient?
+    private let lock = NSLock()
+
+    func withClient<T>(_ body: (SMCClient) throws -> T) throws -> T {
+        let reused = try clientOrReuse()
+        do {
+            return try body(reused)
+        } catch let error as SMCError {
+            switch error {
+            case .ioKit, .openFailed, .driverNotFound:
+                invalidate()
+                let fresh = try clientOrReuse()
+                return try body(fresh)
+            default:
+                throw error
+            }
+        }
+    }
+
+    func invalidate() {
+        lock.lock()
+        client = nil
+        lock.unlock()
+    }
+
+    private func clientOrReuse() throws -> SMCClient {
+        lock.lock()
+        let existing = client
+        lock.unlock()
+        if let existing { return existing }
+        let new = try SMCClient()
+        lock.lock()
+        client = new
+        lock.unlock()
+        return new
     }
 }

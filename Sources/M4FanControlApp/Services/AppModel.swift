@@ -14,6 +14,7 @@ final class AppModel: ObservableObject {
     @Published var isApplyingFanTarget = false
     @Published var lastActionMessage = "Ready"
     @Published var isManualControlActive = false
+    @Published private(set) var controlContested = false
 
     var presentSettings: ((SettingsTab) -> Void)?
 
@@ -30,6 +31,8 @@ final class AppModel: ObservableObject {
     private var didRunLiveControl = false
     private var suppressManualApply = false
     private var pendingModeActivationAfterHelperReady = false
+    private let contestedStreakLimit = 2
+    private var contestedStreak = 0
 
     init() {
         settings = AppSettingsStore()
@@ -41,10 +44,15 @@ final class AppModel: ObservableObject {
         bindHelperReadiness()
         bindControlTick()
         bindCurveSnapshot()
+        bindContestedState()
     }
 
     var manualTargetRPM: Double? {
         targetRPM(percent: manualDisplayPercent)
+    }
+
+    var actualRPM: Double? {
+        monitor.snapshot.fan?.currentRPM
     }
 
     var manualDisplayPercent: Double {
@@ -53,9 +61,9 @@ final class AppModel: ObservableObject {
 
     var minimumFanPercent: Double {
         guard let fan = monitor.snapshot.fan,
-              let minRPM = fan.minRPM,
-              let maxRPM = fan.maxRPM,
-              maxRPM > 0
+            let minRPM = fan.minRPM,
+            let maxRPM = fan.maxRPM,
+            maxRPM > 0
         else {
             return settings.dangerousRangesUnlocked ? 0 : 20
         }
@@ -103,7 +111,8 @@ final class AppModel: ObservableObject {
             do {
                 try await helperService.authorizeHelper()
                 let cleanupMessage = try await helperService.removeLegacyHelper()
-                lastActionMessage = cleanupMessage == "No legacy helper found."
+                lastActionMessage =
+                    cleanupMessage == "No legacy helper found."
                     ? "Helper authorized"
                     : "Helper authorized. \(cleanupMessage)"
                 helperApprovalPollTask?.cancel()
@@ -171,7 +180,8 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 let snapshot = await self.monitor.refreshNow()
                 if !self.isWriting,
-                   let percent = self.effectiveCurveTargetPercent(for: snapshot.temperatureCelsius) {
+                    let percent = self.effectiveCurveTargetPercent(for: snapshot.temperatureCelsius)
+                {
                     await self.applyCurveTargetIfNeeded(percent: percent)
                 }
                 try? await Task.sleep(nanoseconds: self.controlTickNanoseconds)
@@ -257,11 +267,11 @@ final class AppModel: ObservableObject {
             }
             .sink { [weak self] percent in
                 guard let self,
-                      self.settings.controlMode == .curve,
-                      self.helperReady,
-                      !self.isWriting,
-                      !self.fanApplyInFlight,
-                      let percent
+                    self.settings.controlMode == .curve,
+                    self.helperReady,
+                    !self.isWriting,
+                    !self.fanApplyInFlight,
+                    let percent
                 else {
                     return
                 }
@@ -283,7 +293,7 @@ final class AppModel: ObservableObject {
 
     private func curveTargetPercent(for temperature: Double?) -> Double? {
         guard let temperature,
-              let curve = settings.curve
+            let curve = settings.curve
         else {
             return nil
         }
@@ -407,12 +417,54 @@ final class AppModel: ObservableObject {
     private func applyCurveTargetIfNeeded(percent: Double) async {
         guard settings.controlMode == .curve, helperReady, !isWriting else { return }
         let boundedPercent = boundedManualPercent(percent)
-        guard !curvePercentChangeIsNegligible(lastAppliedCurvePercent, boundedPercent) else { return }
+        let modeReverted = fanModeReverted
+        guard !curvePercentChangeIsNegligible(lastAppliedCurvePercent, boundedPercent) || modeReverted else { return }
         guard !fanApplyInFlight else {
             pendingFanTargetApply = (boundedPercent, "Curve target applied")
             return
         }
         await applyManualPercentAsync(percent: boundedPercent, message: "Curve target applied")
+    }
+
+    private var fanModeReverted: Bool {
+        guard didRunLiveControl, let mode = monitor.snapshot.fan?.mode else { return false }
+        return mode != FanContestedRules.manualModeValue
+    }
+
+    private func bindContestedState() {
+        monitor.$snapshot
+            .sink { [weak self] snapshot in
+                self?.evaluateControlContested(for: snapshot)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func evaluateControlContested(for snapshot: FanSnapshot) {
+        guard didRunLiveControl, let fan = snapshot.fan else {
+            contestedStreak = 0
+            controlContested = false
+            return
+        }
+        let contested = FanContestedRules.isContested(
+            mode: fan.mode,
+            actualRPM: fan.currentRPM,
+            targetRPM: currentLiveTargetRPM
+        )
+        if contested {
+            contestedStreak += 1
+        } else {
+            contestedStreak = 0
+        }
+        controlContested = contestedStreak >= contestedStreakLimit
+    }
+
+    private var currentLiveTargetRPM: Double? {
+        switch settings.controlMode {
+        case .manual:
+            return manualTargetRPM
+        case .curve:
+            return curveTargetRPM
+        }
     }
 
     private func applyManualPercentAsync(percent: Double, message: String) async {
@@ -468,7 +520,7 @@ final class AppModel: ObservableObject {
         switch (lhs, rhs) {
         case (nil, nil):
             return true
-        case let (lhs?, rhs?):
+        case (let lhs?, let rhs?):
             return abs(lhs - rhs) < 0.25
         default:
             return false

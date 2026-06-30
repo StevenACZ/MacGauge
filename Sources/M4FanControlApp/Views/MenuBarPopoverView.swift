@@ -18,6 +18,9 @@ struct MenuBarPopoverView: View {
             header
             Divider()
             controlBar
+            if model.controlContested {
+                contestedWarning
+            }
             modeContent
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .clipped()
@@ -28,10 +31,11 @@ struct MenuBarPopoverView: View {
         .padding(.bottom, 37)
         .frame(width: PopoverLayout.width, height: popoverHeight, alignment: .topLeading)
         .animation(PopoverLayout.modeTransitionAnimation, value: settings.controlMode)
+        .animation(PopoverLayout.modeTransitionAnimation, value: model.controlContested)
     }
 
     private var popoverHeight: CGFloat {
-        PopoverLayout.height(for: settings.controlMode)
+        PopoverLayout.height(for: settings.controlMode, contested: model.controlContested)
     }
 
     private var header: some View {
@@ -117,7 +121,10 @@ struct MenuBarPopoverView: View {
 
     private var curveContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            metricRow("Curve target", value: "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))")
+            metricRow(
+                "Curve target",
+                value:
+                    "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))")
 
             CurvePreview(
                 points: settings.curvePoints,
@@ -166,13 +173,26 @@ struct MenuBarPopoverView: View {
     private var headerRPM: Double? {
         switch settings.controlMode {
         case .curve:
-            return model.curveTargetRPM ?? monitor.snapshot.fan?.targetRPM ?? monitor.snapshot.fan?.currentRPM
+            return monitor.snapshot.fan?.currentRPM ?? monitor.snapshot.fan?.targetRPM ?? model.curveTargetRPM
         case .manual:
             return monitor.snapshot.fan?.currentRPM
         }
     }
 
     private var headerRPMLabel: String {
-        settings.controlMode == .curve ? "Target" : "Current"
+        settings.controlMode == .curve ? "Actual" : "Current"
+    }
+
+    private var contestedWarning: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+            Text("System is overriding the fan target")
+                .font(.callout)
+            Spacer()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .foregroundStyle(.orange)
     }
 }
