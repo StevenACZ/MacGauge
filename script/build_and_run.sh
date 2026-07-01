@@ -8,7 +8,7 @@ HELPER_NAME="M4FanHelper"
 BUNDLE_ID="com.stevenacz.M4FanControl"
 MIN_SYSTEM_VERSION="13.0"
 APP_VERSION="0.2.0"
-APP_BUILD="3"
+APP_BUILD="4"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"

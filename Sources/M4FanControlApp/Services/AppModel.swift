@@ -26,7 +26,6 @@ final class AppModel: ObservableObject {
     private var manualApplyTask: Task<Void, Never>?
     private var curveTask: Task<Void, Never>?
     private var curveRunID: UUID?
-    private var helperApprovalPollTask: Task<Void, Never>?
     private var pendingFanTargetApply: (percent: Double, message: String)?
     private var lastAppliedCurvePercent: Double?
     private var didRunLiveControl = false
@@ -102,42 +101,35 @@ final class AppModel: ObservableObject {
 
     func start() {
         monitor.start(refreshIntervalSeconds: settings.controlTickSeconds)
-        Task {
-            await helperService.refreshState()
-            log.info(
-                "app started helperState=\(self.helperService.state.rawValue, privacy: .public) mode=\(self.settings.controlMode.rawValue, privacy: .public)"
-            )
-        }
+        helperService.startMonitoring()
+        log.info(
+            "app started mode=\(self.settings.controlMode.rawValue, privacy: .public)"
+        )
     }
 
     func authorizeHelper() {
         isWriting = true
-        lastActionMessage = "Registering helper..."
-        helperApprovalPollTask?.cancel()
+        lastActionMessage = "Checking helper..."
         Task {
             do {
-                try await helperService.authorizeHelper()
-                let cleanupMessage = try await helperService.removeLegacyHelper()
+                try await helperService.userRepair()
+                let cleanupMessage = (try? await helperService.removeLegacyHelper()) ?? "No legacy helper found."
                 lastActionMessage =
                     cleanupMessage == "No legacy helper found."
-                    ? "Helper authorized"
-                    : "Helper authorized. \(cleanupMessage)"
-                log.info("helper authorized cleanup=\(cleanupMessage, privacy: .public)")
-                helperApprovalPollTask?.cancel()
+                    ? "Helper ready"
+                    : "Helper ready. \(cleanupMessage)"
+                log.info("helper repaired cleanup=\(cleanupMessage, privacy: .public)")
                 activateSelectedModeAfterHelperReady()
             } catch {
                 lastActionMessage = error.localizedDescription
-                log.error("helper authorization failed: \(error.localizedDescription, privacy: .public)")
-                if helperService.state == .needsApproval || helperService.state == .unavailable {
-                    beginHelperApprovalPolling()
-                }
+                log.error("helper repair failed: \(error.localizedDescription, privacy: .public)")
             }
             isWriting = false
         }
     }
 
     func refreshHelperState() {
-        Task { await helperService.refreshState() }
+        helperService.requestImmediateRefresh()
     }
 
     func applyManualPercentNow() {
@@ -188,9 +180,11 @@ final class AppModel: ObservableObject {
             while !Task.isCancelled {
                 guard let self else { return }
                 let snapshot = await self.monitor.refreshNow()
-                if !self.isWriting,
-                    let percent = self.effectiveCurveTargetPercent(for: snapshot.temperatureCelsius)
-                {
+                let percent = self.effectiveCurveTargetPercent(for: snapshot.temperatureCelsius)
+                self.log.debug(
+                    "curve tick temp=\(snapshot.temperatureCelsius ?? -1, privacy: .public) percent=\(percent ?? -1, privacy: .public) writing=\(self.isWriting, privacy: .public) helperReady=\(self.helperReady, privacy: .public)"
+                )
+                if !self.isWriting, let percent {
                     await self.applyCurveTargetIfNeeded(percent: percent)
                 }
                 try? await Task.sleep(nanoseconds: self.controlTickNanoseconds)
@@ -259,8 +253,6 @@ final class AppModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] state in
                 guard state == .ready else { return }
-                self?.helperApprovalPollTask?.cancel()
-                self?.helperApprovalPollTask = nil
                 self?.activateSelectedModeAfterHelperReady()
             }
             .store(in: &cancellables)
@@ -354,25 +346,6 @@ final class AppModel: ObservableObject {
         lastAppliedCurvePercent = nil
         if let message {
             lastActionMessage = message
-        }
-    }
-
-    private func beginHelperApprovalPolling() {
-        helperApprovalPollTask?.cancel()
-        helperApprovalPollTask = Task { [weak self] in
-            for _ in 0..<60 {
-                try? await Task.sleep(nanoseconds: 1_500_000_000)
-                guard let self else { return }
-                await self.helperService.refreshState()
-                guard self.helperService.isReady else { continue }
-                self.helperApprovalPollTask = nil
-                self.lastActionMessage = "Helper authorized"
-                self.activateSelectedModeAfterHelperReady()
-                return
-            }
-            await MainActor.run {
-                self?.helperApprovalPollTask = nil
-            }
         }
     }
 

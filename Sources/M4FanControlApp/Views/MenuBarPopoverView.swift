@@ -18,31 +18,33 @@ struct MenuBarPopoverView: View {
             header
             Divider()
             controlBar
-            if showsHelperWarning {
-                helperWarning
+            if showsHelperBanner {
+                helperBanner
+                    .transition(bannerTransition)
             }
             if model.controlContested {
-                contestedWarning
+                StatusBanner(
+                    severity: .warning,
+                    icon: "exclamationmark.triangle.fill",
+                    message: "Fan RPM is not matching the requested target"
+                )
+                .transition(bannerTransition)
             }
             modeContent
                 .frame(maxWidth: .infinity, alignment: .topLeading)
-                .clipped()
             footer
+                .padding(.top, 4)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 37)
-        .frame(width: PopoverLayout.width, height: popoverHeight, alignment: .topLeading)
+        .padding(20)
+        .frame(width: PopoverLayout.width)
+        .fixedSize(horizontal: false, vertical: true)
         .animation(PopoverLayout.modeTransitionAnimation, value: settings.controlMode)
         .animation(PopoverLayout.modeTransitionAnimation, value: model.controlContested)
+        .animation(PopoverLayout.modeTransitionAnimation, value: helperService.state)
     }
 
-    private var popoverHeight: CGFloat {
-        PopoverLayout.height(
-            for: settings.controlMode,
-            contested: model.controlContested,
-            helperWarning: showsHelperWarning
-        )
+    private var bannerTransition: AnyTransition {
+        .move(edge: .top).combined(with: .opacity)
     }
 
     private var header: some View {
@@ -51,11 +53,15 @@ struct MenuBarPopoverView: View {
                 Text(AppFormatters.temperaturePrecise(monitor.snapshot.temperatureCelsius, unit: settings.temperatureUnit))
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.default, value: monitor.snapshot.temperatureCelsius)
                     .frame(minWidth: 132, alignment: .leading)
                 Spacer()
                 Text(AppFormatters.rpm(headerRPM))
                     .font(.system(.title3, design: .rounded, weight: .medium))
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.default, value: headerRPM)
                     .frame(minWidth: 96, alignment: .trailing)
             }
 
@@ -114,6 +120,9 @@ struct MenuBarPopoverView: View {
                 Spacer()
                 Text("\(AppFormatters.percent(model.manualDisplayPercent)) / \(AppFormatters.rpm(model.manualTargetRPM))")
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.default, value: model.manualDisplayPercent)
             }
 
             ManualPercentSlider(
@@ -128,10 +137,18 @@ struct MenuBarPopoverView: View {
 
     private var curveContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            metricRow(
-                "Curve target",
-                value:
-                    "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))")
+            HStack {
+                Text("Curve target")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(
+                    "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))"
+                )
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.default, value: model.effectiveCurveTargetPercent)
+            }
+            .font(.callout)
 
             CurvePreview(
                 points: settings.curvePoints,
@@ -148,12 +165,15 @@ struct MenuBarPopoverView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Button {
                 model.openSettings()
             } label: {
                 Label("Settings", systemImage: "gearshape")
+                    .padding(.horizontal, 2)
             }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
 
             Spacer()
 
@@ -161,20 +181,12 @@ struct MenuBarPopoverView: View {
                 model.quit()
             } label: {
                 Label("Exit", systemImage: "power")
+                    .padding(.horizontal, 2)
             }
-            .foregroundStyle(.red)
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .tint(.red)
         }
-    }
-
-    private func metricRow(_ title: String, value: String) -> some View {
-        HStack {
-            Text(title)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .monospacedDigit()
-        }
-        .font(.callout)
     }
 
     private var headerRPM: Double? {
@@ -190,38 +202,101 @@ struct MenuBarPopoverView: View {
         settings.controlMode == .curve ? "Actual" : "Current"
     }
 
-    private var contestedWarning: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-            Text("Fan RPM is not matching the requested target")
-                .font(.callout)
-            Spacer()
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .foregroundStyle(.orange)
-    }
-
-    private var showsHelperWarning: Bool {
+    private var showsHelperBanner: Bool {
         !helperService.isReady
     }
 
-    private var helperWarning: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "lock.shield")
-            Text(helperService.statusSummary)
-                .font(.callout)
-                .lineLimit(1)
-            Spacer()
-            Button("Safety") {
-                model.openSettings(tab: .safety)
-            }
-            .buttonStyle(.borderless)
+    private var helperBanner: some View {
+        StatusBanner(
+            severity: helperBannerSeverity,
+            icon: helperBannerIcon,
+            message: helperService.statusSummary,
+            showsProgress: helperService.isRecovering || helperService.state == .unknown,
+            actionTitle: helperBannerActionTitle,
+            action: helperBannerActionTitle == nil ? nil : { model.authorizeHelper() }
+        )
+    }
+
+    private var helperBannerSeverity: StatusBanner.Severity {
+        switch helperService.state {
+        case .failed:
+            return .error
+        case .stale, .unavailable:
+            return .warning
+        case .unknown, .ready, .reloading, .needsApproval, .needsAuthorization:
+            return .info
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(.blue.opacity(0.13), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .foregroundStyle(.blue)
+    }
+
+    private var helperBannerIcon: String {
+        switch helperService.state {
+        case .needsApproval:
+            return "person.badge.shield.checkmark"
+        case .failed:
+            return "exclamationmark.octagon"
+        default:
+            return "lock.shield"
+        }
+    }
+
+    private var helperBannerActionTitle: String? {
+        switch helperService.state {
+        case .unknown, .ready, .reloading:
+            return nil
+        case .needsApproval:
+            return "Approve"
+        case .needsAuthorization:
+            return "Authorize"
+        case .stale, .unavailable, .failed:
+            return "Fix"
+        }
+    }
+}
+
+struct StatusBanner: View {
+    enum Severity {
+        case info
+        case warning
+        case error
+
+        var tint: Color {
+            switch self {
+            case .info: return .blue
+            case .warning: return .orange
+            case .error: return .red
+            }
+        }
+    }
+
+    let severity: Severity
+    let icon: String
+    let message: String
+    var showsProgress = false
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 9) {
+            if showsProgress {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: icon)
+            }
+            Text(message)
+                .font(.callout)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.borderless)
+                    .font(.callout.weight(.semibold))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(severity.tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .foregroundStyle(severity.tint)
     }
 }

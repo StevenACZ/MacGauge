@@ -12,6 +12,7 @@ final class HelperCommandService: ObservableObject {
         case needsApproval = "Needs approval"
         case unavailable = "Unavailable"
         case stale = "Needs reload"
+        case reloading = "Reloading"
         case failed = "Failed"
     }
 
@@ -21,6 +22,10 @@ final class HelperCommandService: ObservableObject {
         state == .ready
     }
 
+    var isRecovering: Bool {
+        state == .reloading
+    }
+
     var statusSummary: String {
         switch state {
         case .unknown:
@@ -28,62 +33,278 @@ final class HelperCommandService: ObservableObject {
         case .ready:
             return "Helper ready"
         case .needsAuthorization:
-            return "Authorize helper in Settings > Safety"
+            return "Authorize the helper to enable fan control"
         case .needsApproval:
-            return "Approve M4FanControl in System Settings, then return here"
+            return "Approve M4FanControl in System Settings > Login Items"
         case .unavailable:
-            return "Helper unavailable; register it from Settings > Safety"
+            return "Helper not responding; recovering automatically"
         case .stale:
-            return "Helper needs reload; open Settings > Safety and reload it"
+            return "Helper is outdated; reloading it automatically"
+        case .reloading:
+            return "Reloading helper..."
         case .failed:
-            return "Helper failed; check Safety and helper logs"
+            return "Helper failed; use Fix in Settings > Safety"
         }
     }
 
-    private static let readinessTimeout: TimeInterval = 4
+    private static let pingTimeout: TimeInterval = 2.5
     private static let commandTimeout: TimeInterval = 20
     private static let minimumProtocolVersion = HelperResponse.currentProtocolVersion
+    private static let daemonRelaunchDeadline: TimeInterval = 14
+    private static let registerRecoveryDeadline: TimeInterval = 10
+    private static let unregisterSettleDeadline: TimeInterval = 3
+    private static let autoRepairCooldown: TimeInterval = 120
 
+    private static let everReadyDefaultsKey = "helperEverReady"
+
+    private let rules = HelperHealthRules()
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
+    private let defaults = UserDefaults.standard
     private let log = Logger(subsystem: "com.stevenacz.M4FanControl", category: "helper-service")
     private var connection: NSXPCConnection?
+    private var monitorTask: Task<Void, Never>?
+    private var healthCheckInFlight = false
+    private var repairInFlight = false
+    private var consecutivePingFailures = 0
+    private var lastAutoRepairAt: Date?
 
-    func refreshState() async {
-        do {
-            _ = try await sendWithoutInstalling(.init(action: .ping), timeout: Self.readinessTimeout)
-            state = .ready
-            log.debug("helper ready")
-        } catch let error as HelperStaleError {
-            state = .stale
-            log.warning("helper stale: \(error.localizedDescription, privacy: .public)")
-        } catch {
-            state = serviceStateAfterFailedPing()
-            log.warning(
-                "helper ping failed; state=\(self.state.rawValue, privacy: .public), error=\(error.localizedDescription, privacy: .public)")
+    // MARK: - Health monitoring
+
+    func startMonitoring() {
+        guard monitorTask == nil else { return }
+        monitorTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                await self.evaluateHealth(userInitiated: false)
+                let interval = self.rules.heartbeatInterval(isReady: self.isReady)
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            }
         }
     }
 
-    func authorizeHelper() async throws {
-        do {
-            try registerHelperWithServiceManagement(forceReload: state == .stale || state == .unavailable || state == .failed)
-            connection?.invalidate()
-            connection = nil
-            _ = try await sendWithoutInstalling(.init(action: .ping), timeout: Self.readinessTimeout)
-            state = .ready
-            log.info("helper authorized")
-        } catch let error as HelperStaleError {
-            state = .stale
-            log.warning("helper authorization left stale daemon: \(error.localizedDescription, privacy: .public)")
-            throw error
-        } catch {
-            state = serviceStateAfterFailedPing()
-            log.error(
-                "helper authorization failed; state=\(self.state.rawValue, privacy: .public), error=\(error.localizedDescription, privacy: .public)"
-            )
-            throw error
+    func requestImmediateRefresh() {
+        Task { await evaluateHealth(userInitiated: false) }
+    }
+
+    /// User-facing repair: authorize, approve, or reload as needed. Never
+    /// unregisters a daemon that answers pings with the current protocol.
+    func userRepair() async throws {
+        await evaluateHealth(userInitiated: true)
+        switch state {
+        case .ready:
+            return
+        case .needsApproval:
+            throw M4FanError("Approve M4FanControl in System Settings; the app detects it automatically.")
+        default:
+            throw M4FanError(statusSummary)
         }
     }
+
+    private func evaluateHealth(userInitiated: Bool) async {
+        guard !healthCheckInFlight, !repairInFlight else { return }
+        healthCheckInFlight = true
+        defer { healthCheckInFlight = false }
+
+        let status = daemonStatus()
+        var ping: HelperPingOutcome?
+        if status == .enabled {
+            ping = await pingOutcome()
+            consecutivePingFailures = ping == .failed ? consecutivePingFailures + 1 : 0
+        } else {
+            consecutivePingFailures = 0
+        }
+
+        let decision = rules.decision(
+            status: status,
+            ping: ping,
+            consecutivePingFailures: consecutivePingFailures,
+            canRepair: userInitiated || autoRepairAllowed
+        )
+
+        switch decision {
+        case .markReady:
+            setState(.ready)
+        case .markNeedsAuthorization:
+            let wasAuthorizedBefore = defaults.bool(forKey: Self.everReadyDefaultsKey)
+            if userInitiated || (wasAuthorizedBefore && autoRepairAllowed) {
+                await repair(startingWith: .reregisterDaemon, userInitiated: userInitiated)
+            } else {
+                setState(.needsAuthorization)
+            }
+        case .markNeedsApproval:
+            setState(.needsApproval)
+            if userInitiated {
+                SMAppService.openSystemSettingsLoginItems()
+            }
+        case .waitForNextTick:
+            if state == .unknown, ping == .failed {
+                setState(.unavailable)
+            }
+        case .restartDaemon, .reregisterDaemon:
+            await repair(startingWith: decision, userInitiated: userInitiated)
+        case .markDegraded:
+            setState(ping == .stale ? .stale : .unavailable)
+        }
+    }
+
+    private func repair(startingWith decision: HelperHealthDecision, userInitiated: Bool) async {
+        guard !repairInFlight else { return }
+        repairInFlight = true
+        if !userInitiated {
+            lastAutoRepairAt = Date()
+        }
+        setState(.reloading)
+        defer { repairInFlight = false }
+
+        if decision == .restartDaemon {
+            log.info("repair: asking outdated daemon to exit so launchd relaunches the current binary")
+            _ = try? await sendUnchecked(.init(action: .shutdown), timeout: Self.pingTimeout)
+            invalidateConnection()
+            if await pingRecovered(within: Self.daemonRelaunchDeadline) {
+                setState(.ready)
+                log.info("repair: daemon relaunched and answers the current protocol")
+                return
+            }
+            log.warning("repair: daemon restart did not recover; re-registering")
+        }
+
+        do {
+            try await reregisterDaemon(userInitiated: userInitiated)
+        } catch {
+            log.error("repair: re-register failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+
+        if await pingRecovered(within: Self.registerRecoveryDeadline) {
+            setState(.ready)
+            log.info("repair: daemon re-registered and ready")
+        } else {
+            setState(.unavailable)
+            log.error("repair: daemon re-registered but did not answer pings yet")
+        }
+    }
+
+    private func reregisterDaemon(userInitiated: Bool) async throws {
+        guard launchDaemonPlistIsBundled else {
+            setState(.failed)
+            throw M4FanError("Bundled LaunchDaemon plist was not found. Build the app bundle before authorizing the helper.")
+        }
+
+        let service = SMAppService.daemon(plistName: HelperPaths.launchDaemonPlistName)
+        if service.status == .enabled || service.status == .requiresApproval {
+            do {
+                try await service.unregister()
+                log.info("repair: unregistered existing daemon")
+            } catch {
+                log.warning("repair: unregister failed: \(error.localizedDescription, privacy: .public)")
+            }
+            await waitForUnregisterToSettle(service)
+        }
+        invalidateConnection()
+
+        // BTM can briefly refuse registration right after an unregister
+        // ("Operation not permitted"); retry with backoff until it settles.
+        for attempt in 0..<4 {
+            if attempt > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(attempt) * 1_500_000_000)
+            }
+            do {
+                try service.register()
+                break
+            } catch {
+                log.warning(
+                    "repair: register attempt \(attempt + 1, privacy: .public) returned: \(error.localizedDescription, privacy: .public)"
+                )
+                if service.status == .enabled || service.status == .requiresApproval {
+                    break
+                }
+            }
+        }
+
+        switch service.status {
+        case .enabled:
+            return
+        case .requiresApproval:
+            setState(.needsApproval)
+            if userInitiated {
+                SMAppService.openSystemSettingsLoginItems()
+            }
+            throw M4FanError("Approve M4FanControl in System Settings; the app detects it automatically.")
+        case .notFound:
+            setState(.failed)
+            throw M4FanError("macOS could not find the bundled LaunchDaemon plist.")
+        case .notRegistered:
+            setState(.failed)
+            throw M4FanError("Helper registration did not complete.")
+        @unknown default:
+            setState(.failed)
+            throw M4FanError("Helper registration returned an unknown macOS status.")
+        }
+    }
+
+    private func waitForUnregisterToSettle(_ service: SMAppService) async {
+        let deadline = Date().addingTimeInterval(Self.unregisterSettleDeadline)
+        while Date() < deadline, service.status == .enabled {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+    }
+
+    private func pingRecovered(within seconds: TimeInterval) async -> Bool {
+        try? await Task.sleep(nanoseconds: 700_000_000)
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if await pingOutcome() == .ready {
+                return true
+            }
+            invalidateConnection()
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+        return await pingOutcome() == .ready
+    }
+
+    private func pingOutcome() async -> HelperPingOutcome {
+        do {
+            _ = try await send(.init(action: .ping), timeout: Self.pingTimeout)
+            return .ready
+        } catch is HelperStaleError {
+            return .stale
+        } catch {
+            return .failed
+        }
+    }
+
+    private var autoRepairAllowed: Bool {
+        guard let lastAutoRepairAt else { return true }
+        return Date().timeIntervalSince(lastAutoRepairAt) > Self.autoRepairCooldown
+    }
+
+    private func daemonStatus() -> HelperDaemonStatus {
+        switch SMAppService.daemon(plistName: HelperPaths.launchDaemonPlistName).status {
+        case .enabled:
+            return .enabled
+        case .requiresApproval:
+            return .requiresApproval
+        case .notFound:
+            return .notFound
+        case .notRegistered:
+            return .notRegistered
+        @unknown default:
+            return .notRegistered
+        }
+    }
+
+    private func setState(_ newState: HelperState) {
+        guard state != newState else { return }
+        log.info(
+            "helper state \(self.state.rawValue, privacy: .public) -> \(newState.rawValue, privacy: .public)")
+        state = newState
+        if newState == .ready {
+            defaults.set(true, forKey: Self.everReadyDefaultsKey)
+        }
+    }
+
+    // MARK: - Commands
 
     struct SetPercentResult: Sendable {
         let message: String
@@ -121,34 +342,35 @@ final class HelperCommandService: ObservableObject {
     }
 
     private func sendReadyCommand(_ command: HelperCommand) async throws -> HelperResponse {
-        try requireReady()
-        do {
-            let response = try await sendWithoutInstalling(command, timeout: Self.commandTimeout)
-            state = .ready
-            return response
-        } catch let error as HelperResponseError {
-            state = .ready
-            throw error
-        } catch let error as HelperStaleError {
-            state = .stale
-            throw error
-        } catch let error as HelperUnavailableError {
-            state = serviceStateAfterFailedPing()
-            throw error
-        } catch {
-            state = .failed
-            throw error
-        }
-    }
-
-    private func requireReady() throws {
         guard isReady else {
-            state = serviceStateAfterFailedPing()
             throw M4FanError(statusSummary)
         }
+        do {
+            return try await send(command, timeout: Self.commandTimeout)
+        } catch let error as HelperResponseError {
+            throw error
+        } catch let error as HelperStaleError {
+            setState(.stale)
+            requestImmediateRefresh()
+            throw error
+        } catch {
+            setState(.unavailable)
+            requestImmediateRefresh()
+            throw error
+        }
     }
 
-    private func sendWithoutInstalling(_ command: HelperCommand, timeout: TimeInterval) async throws -> HelperResponse {
+    // MARK: - Transport
+
+    private func send(_ command: HelperCommand, timeout: TimeInterval) async throws -> HelperResponse {
+        let response = try await sendUnchecked(command, timeout: timeout)
+        guard (response.protocolVersion ?? 0) >= Self.minimumProtocolVersion else {
+            throw HelperStaleError()
+        }
+        return response
+    }
+
+    private func sendUnchecked(_ command: HelperCommand, timeout: TimeInterval) async throws -> HelperResponse {
         let commandData = try encoder.encode(command)
         let responseData = try await sendXPC(commandData, timeout: timeout)
         let response = try decoder.decode(HelperResponse.self, from: responseData)
@@ -158,9 +380,6 @@ final class HelperCommandService: ObservableObject {
         }
         guard response.ok else {
             throw HelperResponseError(message: response.message)
-        }
-        guard (response.protocolVersion ?? 0) >= Self.minimumProtocolVersion else {
-            throw HelperStaleError()
         }
         return response
     }
@@ -194,6 +413,11 @@ final class HelperCommandService: ObservableObject {
         }
     }
 
+    private func invalidateConnection() {
+        connection?.invalidate()
+        connection = nil
+    }
+
     private func activeConnection() -> NSXPCConnection {
         if let connection {
             return connection
@@ -206,10 +430,11 @@ final class HelperCommandService: ObservableObject {
         connection.remoteObjectInterface = NSXPCInterface(with: M4FanHelperXPCProtocol.self)
         connection.interruptionHandler = { [weak self] in
             Task { @MainActor in
-                self?.connection?.invalidate()
-                self?.connection = nil
-                if self?.state == .ready {
-                    self?.state = .unavailable
+                guard let self else { return }
+                self.connection?.invalidate()
+                self.connection = nil
+                if !self.repairInFlight {
+                    self.requestImmediateRefresh()
                 }
             }
         }
@@ -223,55 +448,6 @@ final class HelperCommandService: ObservableObject {
         return connection
     }
 
-    private func registerHelperWithServiceManagement(forceReload: Bool = false) throws {
-        guard launchDaemonPlistIsBundled else {
-            throw M4FanError("Bundled LaunchDaemon plist was not found. Build the app bundle before authorizing the helper.")
-        }
-
-        let service = SMAppService.daemon(plistName: HelperPaths.launchDaemonPlistName)
-        if forceReload {
-            switch service.status {
-            case .enabled, .requiresApproval:
-                do {
-                    try service.unregister()
-                    log.info("helper unregistered for reload")
-                } catch {
-                    log.warning("helper unregister before reload failed: \(error.localizedDescription, privacy: .public)")
-                }
-            case .notRegistered, .notFound:
-                break
-            @unknown default:
-                break
-            }
-        }
-
-        switch service.status {
-        case .enabled:
-            return
-        case .requiresApproval:
-            SMAppService.openSystemSettingsLoginItems()
-            throw M4FanError("Approve M4FanControl in System Settings, then click Authorize again.")
-        case .notRegistered, .notFound:
-            try service.register()
-        @unknown default:
-            try service.register()
-        }
-
-        switch service.status {
-        case .enabled:
-            return
-        case .requiresApproval:
-            SMAppService.openSystemSettingsLoginItems()
-            throw M4FanError("Approve M4FanControl in System Settings, then click Authorize again.")
-        case .notFound:
-            throw M4FanError("macOS could not find the bundled LaunchDaemon plist.")
-        case .notRegistered:
-            throw M4FanError("Helper registration did not complete.")
-        @unknown default:
-            throw M4FanError("Helper registration returned an unknown macOS status.")
-        }
-    }
-
     private var launchDaemonPlistIsBundled: Bool {
         let url = Bundle.main.bundleURL
             .appendingPathComponent("Contents", isDirectory: true)
@@ -279,20 +455,6 @@ final class HelperCommandService: ObservableObject {
             .appendingPathComponent("LaunchDaemons", isDirectory: true)
             .appendingPathComponent(HelperPaths.launchDaemonPlistName)
         return FileManager.default.fileExists(atPath: url.path)
-    }
-
-    private func serviceStateAfterFailedPing() -> HelperState {
-        let status = SMAppService.daemon(plistName: HelperPaths.launchDaemonPlistName).status
-        switch status {
-        case .enabled:
-            return .stale
-        case .requiresApproval:
-            return .needsApproval
-        case .notRegistered, .notFound:
-            return .needsAuthorization
-        @unknown default:
-            return .unknown
-        }
     }
 }
 
@@ -327,12 +489,12 @@ private struct HelperResponseError: LocalizedError {
 
 private struct HelperUnavailableError: LocalizedError {
     var errorDescription: String? {
-        "Helper did not respond. Authorize helper in Settings > Safety."
+        "Helper did not respond."
     }
 }
 
 private struct HelperStaleError: LocalizedError {
     var errorDescription: String? {
-        "Helper is stale. Reload it from Settings > Safety so curve writes can be verified."
+        "Helper is outdated; the app reloads it automatically."
     }
 }

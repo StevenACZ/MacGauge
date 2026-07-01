@@ -23,12 +23,9 @@ final class StatusItemController: NSObject {
 
         popover.behavior = .transient
         popover.animates = true
-        popover.contentSize = Self.popoverSize(
-            for: model.settings.controlMode,
-            contested: model.controlContested,
-            helperWarning: showsHelperWarning
-        )
-        popover.contentViewController = NSHostingController(rootView: MenuBarPopoverView(model: model))
+        let hostingController = NSHostingController(rootView: MenuBarPopoverView(model: model))
+        hostingController.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = hostingController
 
         if let button = statusItem.button {
             button.target = self
@@ -40,38 +37,6 @@ final class StatusItemController: NSObject {
         model.monitor.$snapshot
             .sink { [weak self] snapshot in
                 self?.updateStatusItem(snapshot: snapshot)
-            }
-            .store(in: &cancellables)
-
-        model.settings.$controlMode
-            .dropFirst()
-            .sink { [weak self] mode in
-                guard let self else { return }
-                self.updatePopoverSize(for: mode, contested: self.model.controlContested, animated: self.popover.isShown)
-            }
-            .store(in: &cancellables)
-
-        model.$controlContested
-            .removeDuplicates()
-            .sink { [weak self] contested in
-                guard let self else { return }
-                self.updatePopoverSize(
-                    for: self.model.settings.controlMode,
-                    contested: contested,
-                    animated: self.popover.isShown
-                )
-            }
-            .store(in: &cancellables)
-
-        model.helperService.$state
-            .removeDuplicates()
-            .sink { [weak self] _ in
-                guard let self else { return }
-                self.updatePopoverSize(
-                    for: self.model.settings.controlMode,
-                    contested: self.model.controlContested,
-                    animated: self.popover.isShown
-                )
             }
             .store(in: &cancellables)
 
@@ -95,37 +60,10 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             popover.performClose(nil)
         } else {
-            updatePopoverSize(for: model.settings.controlMode, contested: model.controlContested, animated: false)
+            model.refreshHelperState()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
-    }
-
-    private func updatePopoverSize(for mode: FanControlMode, contested: Bool, animated: Bool) {
-        let newSize = Self.popoverSize(for: mode, contested: contested, helperWarning: showsHelperWarning)
-        guard animated else {
-            popover.contentSize = newSize
-            return
-        }
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = PopoverLayout.modeTransitionDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            context.allowsImplicitAnimation = true
-            popover.contentSize = newSize
-            popover.contentViewController?.view.layoutSubtreeIfNeeded()
-        }
-    }
-
-    private static func popoverSize(for mode: FanControlMode, contested: Bool, helperWarning: Bool) -> NSSize {
-        NSSize(
-            width: PopoverLayout.width,
-            height: PopoverLayout.height(for: mode, contested: contested, helperWarning: helperWarning)
-        )
-    }
-
-    private var showsHelperWarning: Bool {
-        !model.helperReady
     }
 
     private func updateStatusItem(snapshot: FanSnapshot) {

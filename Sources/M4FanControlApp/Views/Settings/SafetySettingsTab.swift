@@ -18,11 +18,16 @@ struct SafetySettingsTab: View {
 
                 SettingsRow(title: "Privileged helper") {
                     HStack(spacing: 12) {
-                        HelperStatusBadge(state: helperService.state)
+                        if helperService.isRecovering {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            HelperStatusBadge(state: helperService.state)
+                        }
                         Text(helperService.statusSummary)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        if !helperService.isReady {
+                            .lineLimit(2)
+                        if !helperService.isReady && !helperService.isRecovering {
                             Button {
                                 model.authorizeHelper()
                             } label: {
@@ -57,8 +62,8 @@ struct SafetySettingsTab: View {
         case .needsApproval:
             return "Open Settings"
         case .stale, .unavailable, .failed:
-            return "Reload Helper"
-        case .unknown, .needsAuthorization, .ready:
+            return "Fix Helper"
+        case .unknown, .needsAuthorization, .ready, .reloading:
             return "Authorize"
         }
     }
@@ -69,7 +74,7 @@ struct SafetySettingsTab: View {
             return "arrow.up.forward.app"
         case .stale, .unavailable, .failed:
             return "arrow.clockwise"
-        case .unknown, .needsAuthorization, .ready:
+        case .unknown, .needsAuthorization, .ready, .reloading:
             return "lock.open"
         }
     }

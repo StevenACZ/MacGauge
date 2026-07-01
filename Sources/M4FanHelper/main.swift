@@ -1,12 +1,14 @@
 import Darwin
 import Foundation
 import M4FanCore
+import Security
 import SystemConfiguration
 import os
 
 private let toolPath = "/Library/PrivilegedHelperTools/\(HelperPaths.label)"
 private let plistPath = "/Library/LaunchDaemons/\(HelperPaths.launchDaemonPlistName)"
 private let helperLog = Logger(subsystem: "com.stevenacz.M4FanControl", category: "helper")
+private let helperVersion = "3.0"
 
 @main
 struct M4FanHelper {
@@ -148,6 +150,15 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
             return false
         }
 
+        if let requirement = Self.clientCodeSigningRequirement {
+            do {
+                try connection.setCodeSigningRequirement(requirement)
+            } catch {
+                helperLog.error("rejected client: signing requirement setup failed")
+                return false
+            }
+        }
+
         connection.exportedInterface = NSXPCInterface(with: M4FanHelperXPCProtocol.self)
         connection.exportedObject = self
         connection.resume()
@@ -183,7 +194,13 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
         switch command.action {
         case .ping:
             helperLog.debug("ping")
-            return HelperResponse(id: command.id, ok: true, message: "helper ready")
+            return HelperResponse(id: command.id, ok: true, message: "helper ready", helperVersion: helperVersion)
+        case .shutdown:
+            helperLog.info("shutdown requested; exiting so launchd relaunches the current binary")
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.2) {
+                exit(0)
+            }
+            return HelperResponse(id: command.id, ok: true, message: "Helper exiting for reload", helperVersion: helperVersion)
         case .setPercent:
             guard let percent = command.percent else {
                 throw M4FanError("Missing percent.")
@@ -258,6 +275,25 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
         }
         return connection.effectiveUserIdentifier == user.uid
     }
+
+    // Requires XPC clients to carry the same Team ID as this helper's own
+    // signature; nil (no requirement) when the helper runs unsigned in dev.
+    private static let clientCodeSigningRequirement: String? = {
+        var codeRef: SecCode?
+        guard SecCodeCopySelf([], &codeRef) == errSecSuccess, let code = codeRef else { return nil }
+        var staticCodeRef: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCodeRef) == errSecSuccess,
+            let staticCode = staticCodeRef
+        else { return nil }
+        var infoRef: CFDictionary?
+        let flags = SecCSFlags(rawValue: kSecCSSigningInformation)
+        guard SecCodeCopySigningInformation(staticCode, flags, &infoRef) == errSecSuccess,
+            let info = infoRef as? [String: Any],
+            let team = info[kSecCodeInfoTeamIdentifier as String] as? String,
+            !team.isEmpty
+        else { return nil }
+        return "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\""
+    }()
 
     private func currentConsoleUser() -> ConsoleUser? {
         var uid: uid_t = 0

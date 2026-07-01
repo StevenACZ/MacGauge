@@ -5,6 +5,7 @@ public enum HelperAction: String, Codable, Sendable {
     case setPercent
     case automatic
     case removeLegacyHelper
+    case shutdown
 }
 
 public struct HelperCommand: Codable, Sendable {
@@ -36,13 +37,14 @@ public struct HelperCommand: Codable, Sendable {
 }
 
 public struct HelperResponse: Codable, Sendable {
-    public static let currentProtocolVersion = 2
+    public static let currentProtocolVersion = 3
 
     public var id: String
     public var ok: Bool
     public var message: String
     public var completedAt: Date
     public var protocolVersion: Int?
+    public var helperVersion: String?
     public var actualRPM: Double?
     public var mode: Int?
     public var contested: Bool?
@@ -53,6 +55,7 @@ public struct HelperResponse: Codable, Sendable {
         message: String,
         completedAt: Date = Date(),
         protocolVersion: Int? = HelperResponse.currentProtocolVersion,
+        helperVersion: String? = nil,
         actualRPM: Double? = nil,
         mode: Int? = nil,
         contested: Bool? = nil
@@ -62,6 +65,7 @@ public struct HelperResponse: Codable, Sendable {
         self.message = message
         self.completedAt = completedAt
         self.protocolVersion = protocolVersion
+        self.helperVersion = helperVersion
         self.actualRPM = actualRPM
         self.mode = mode
         self.contested = contested

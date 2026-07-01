@@ -65,6 +65,8 @@ struct HelperStatusBadge: View {
             return "Unavailable"
         case .stale:
             return "Reload needed"
+        case .reloading:
+            return "Reloading"
         case .failed:
             return "Failed"
         case .unknown:
@@ -82,6 +84,8 @@ struct HelperStatusBadge: View {
             return .secondary
         case .stale:
             return .orange
+        case .reloading:
+            return .blue
         case .unavailable, .failed:
             return .red
         }
