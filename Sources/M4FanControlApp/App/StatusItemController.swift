@@ -23,7 +23,11 @@ final class StatusItemController: NSObject {
 
         popover.behavior = .transient
         popover.animates = true
-        popover.contentSize = Self.popoverSize(for: model.settings.controlMode, contested: model.controlContested)
+        popover.contentSize = Self.popoverSize(
+            for: model.settings.controlMode,
+            contested: model.controlContested,
+            helperWarning: showsHelperWarning
+        )
         popover.contentViewController = NSHostingController(rootView: MenuBarPopoverView(model: model))
 
         if let button = statusItem.button {
@@ -59,6 +63,18 @@ final class StatusItemController: NSObject {
             }
             .store(in: &cancellables)
 
+        model.helperService.$state
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.updatePopoverSize(
+                    for: self.model.settings.controlMode,
+                    contested: self.model.controlContested,
+                    animated: self.popover.isShown
+                )
+            }
+            .store(in: &cancellables)
+
         Publishers.MergeMany(
             model.settings.$temperatureUnit.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$normalColorHex.map { _ in () }.eraseToAnyPublisher(),
@@ -86,7 +102,7 @@ final class StatusItemController: NSObject {
     }
 
     private func updatePopoverSize(for mode: FanControlMode, contested: Bool, animated: Bool) {
-        let newSize = Self.popoverSize(for: mode, contested: contested)
+        let newSize = Self.popoverSize(for: mode, contested: contested, helperWarning: showsHelperWarning)
         guard animated else {
             popover.contentSize = newSize
             return
@@ -101,8 +117,15 @@ final class StatusItemController: NSObject {
         }
     }
 
-    private static func popoverSize(for mode: FanControlMode, contested: Bool) -> NSSize {
-        NSSize(width: PopoverLayout.width, height: PopoverLayout.height(for: mode, contested: contested))
+    private static func popoverSize(for mode: FanControlMode, contested: Bool, helperWarning: Bool) -> NSSize {
+        NSSize(
+            width: PopoverLayout.width,
+            height: PopoverLayout.height(for: mode, contested: contested, helperWarning: helperWarning)
+        )
+    }
+
+    private var showsHelperWarning: Bool {
+        !model.helperReady
     }
 
     private func updateStatusItem(snapshot: FanSnapshot) {

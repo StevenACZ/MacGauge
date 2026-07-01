@@ -6,9 +6,10 @@ enum PopoverLayout {
     static let manualHeight: CGFloat = 230
     static let curveHeight: CGFloat = 381
     static let contestedBannerHeight: CGFloat = 36
+    static let helperWarningHeight: CGFloat = 44
     static let modeTransitionDuration: TimeInterval = 0.28
 
-    static func height(for mode: FanControlMode, contested: Bool = false) -> CGFloat {
+    static func height(for mode: FanControlMode, contested: Bool = false, helperWarning: Bool = false) -> CGFloat {
         let base: CGFloat
         switch mode {
         case .manual:
@@ -16,7 +17,9 @@ enum PopoverLayout {
         case .curve:
             base = curveHeight
         }
-        return base + (contested ? contestedBannerHeight : 0)
+        return base
+            + (contested ? contestedBannerHeight : 0)
+            + (helperWarning ? helperWarningHeight : 0)
     }
 
     static var modeTransitionAnimation: Animation {

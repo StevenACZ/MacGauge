@@ -7,7 +7,7 @@ struct ColorPresetPicker: View {
         ColorPreset(name: "White", hex: "#FFFFFF"),
         ColorPreset(name: "Green", hex: "#30D158"),
         ColorPreset(name: "Yellow", hex: "#FFD60A"),
-        ColorPreset(name: "Red", hex: "#FF453A")
+        ColorPreset(name: "Red", hex: "#FF453A"),
     ]
 
     var body: some View {
@@ -63,6 +63,8 @@ struct HelperStatusBadge: View {
             return "Not authorized"
         case .unavailable:
             return "Unavailable"
+        case .stale:
+            return "Reload needed"
         case .failed:
             return "Failed"
         case .unknown:
@@ -78,6 +80,8 @@ struct HelperStatusBadge: View {
             return .yellow
         case .needsAuthorization, .unknown:
             return .secondary
+        case .stale:
+            return .orange
         case .unavailable, .failed:
             return .red
         }

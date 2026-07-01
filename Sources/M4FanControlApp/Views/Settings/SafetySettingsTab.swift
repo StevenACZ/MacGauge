@@ -19,6 +19,9 @@ struct SafetySettingsTab: View {
                 SettingsRow(title: "Privileged helper") {
                     HStack(spacing: 12) {
                         HelperStatusBadge(state: helperService.state)
+                        Text(helperService.statusSummary)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                         if !helperService.isReady {
                             Button {
                                 model.authorizeHelper()
@@ -50,10 +53,24 @@ struct SafetySettingsTab: View {
     }
 
     private var authorizeButtonTitle: String {
-        helperService.state == .needsApproval ? "Open Settings" : "Authorize"
+        switch helperService.state {
+        case .needsApproval:
+            return "Open Settings"
+        case .stale, .unavailable, .failed:
+            return "Reload Helper"
+        case .unknown, .needsAuthorization, .ready:
+            return "Authorize"
+        }
     }
 
     private var authorizeButtonIcon: String {
-        helperService.state == .needsApproval ? "arrow.up.forward.app" : "lock.open"
+        switch helperService.state {
+        case .needsApproval:
+            return "arrow.up.forward.app"
+        case .stale, .unavailable, .failed:
+            return "arrow.clockwise"
+        case .unknown, .needsAuthorization, .ready:
+            return "lock.open"
+        }
     }
 }

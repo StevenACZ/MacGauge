@@ -15,8 +15,16 @@ import Testing
     #expect(FanContestedRules.isContested(mode: 1, actualRPM: 4_000, targetRPM: 1_133))
 }
 
+@Test func contestedWhenActualFallsFarBelowTarget() {
+    #expect(FanContestedRules.isContested(mode: 1, actualRPM: 1_800, targetRPM: 4_900))
+}
+
 @Test func notContestedWhenActualWithinThresholdAboveTarget() {
     #expect(!FanContestedRules.isContested(mode: 1, actualRPM: 1_500, targetRPM: 1_200))
+}
+
+@Test func notContestedWhenActualWithinThresholdBelowTarget() {
+    #expect(!FanContestedRules.isContested(mode: 1, actualRPM: 1_000, targetRPM: 1_200))
 }
 
 @Test func notContestedWhenModeUnknownAndActualNearTarget() {

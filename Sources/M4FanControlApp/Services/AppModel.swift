@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import Foundation
 import M4FanCore
+import os
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -33,6 +34,7 @@ final class AppModel: ObservableObject {
     private var pendingModeActivationAfterHelperReady = false
     private let contestedStreakLimit = 2
     private var contestedStreak = 0
+    private let log = Logger(subsystem: "com.stevenacz.M4FanControl", category: "app-model")
 
     init() {
         settings = AppSettingsStore()
@@ -100,7 +102,12 @@ final class AppModel: ObservableObject {
 
     func start() {
         monitor.start(refreshIntervalSeconds: settings.controlTickSeconds)
-        Task { await helperService.refreshState() }
+        Task {
+            await helperService.refreshState()
+            log.info(
+                "app started helperState=\(self.helperService.state.rawValue, privacy: .public) mode=\(self.settings.controlMode.rawValue, privacy: .public)"
+            )
+        }
     }
 
     func authorizeHelper() {
@@ -115,10 +122,12 @@ final class AppModel: ObservableObject {
                     cleanupMessage == "No legacy helper found."
                     ? "Helper authorized"
                     : "Helper authorized. \(cleanupMessage)"
+                log.info("helper authorized cleanup=\(cleanupMessage, privacy: .public)")
                 helperApprovalPollTask?.cancel()
-                activatePendingModeIfNeeded()
+                activateSelectedModeAfterHelperReady()
             } catch {
                 lastActionMessage = error.localizedDescription
+                log.error("helper authorization failed: \(error.localizedDescription, privacy: .public)")
                 if helperService.state == .needsApproval || helperService.state == .unavailable {
                     beginHelperApprovalPolling()
                 }
@@ -252,7 +261,7 @@ final class AppModel: ObservableObject {
                 guard state == .ready else { return }
                 self?.helperApprovalPollTask?.cancel()
                 self?.helperApprovalPollTask = nil
-                self?.activatePendingModeIfNeeded()
+                self?.activateSelectedModeAfterHelperReady()
             }
             .store(in: &cancellables)
     }
@@ -332,12 +341,6 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func activatePendingModeIfNeeded() {
-        guard pendingModeActivationAfterHelperReady else { return }
-        pendingModeActivationAfterHelperReady = false
-        activateSelectedModeIfNeeded()
-    }
-
     private func stopCurveRun(message: String?) {
         guard curveTask != nil else {
             if let message {
@@ -364,7 +367,7 @@ final class AppModel: ObservableObject {
                 guard self.helperService.isReady else { continue }
                 self.helperApprovalPollTask = nil
                 self.lastActionMessage = "Helper authorized"
-                self.activatePendingModeIfNeeded()
+                self.activateSelectedModeAfterHelperReady()
                 return
             }
             await MainActor.run {
@@ -417,18 +420,34 @@ final class AppModel: ObservableObject {
     private func applyCurveTargetIfNeeded(percent: Double) async {
         guard settings.controlMode == .curve, helperReady, !isWriting else { return }
         let boundedPercent = boundedManualPercent(percent)
-        let modeReverted = fanModeReverted
-        guard !curvePercentChangeIsNegligible(lastAppliedCurvePercent, boundedPercent) || modeReverted else { return }
-        guard !fanApplyInFlight else {
-            pendingFanTargetApply = (boundedPercent, "Curve target applied")
+        let targetOutOfSync = fanTargetOutOfSync
+        guard !curvePercentChangeIsNegligible(lastAppliedCurvePercent, boundedPercent) || targetOutOfSync else {
+            log.debug("curve apply skipped; percent unchanged and fan in sync")
             return
         }
+        guard !fanApplyInFlight else {
+            pendingFanTargetApply = (boundedPercent, "Curve target applied")
+            log.debug("curve apply queued; percent=\(boundedPercent, privacy: .public)")
+            return
+        }
+        log.info(
+            "curve applying percent=\(boundedPercent, privacy: .public) targetRPM=\(self.curveTargetRPM ?? -1, privacy: .public) reason=\(targetOutOfSync ? "target-out-of-sync" : "percent-change", privacy: .public)"
+        )
         await applyManualPercentAsync(percent: boundedPercent, message: "Curve target applied")
     }
 
-    private var fanModeReverted: Bool {
-        guard didRunLiveControl, let mode = monitor.snapshot.fan?.mode else { return false }
-        return mode != FanContestedRules.manualModeValue
+    private var fanTargetOutOfSync: Bool {
+        guard didRunLiveControl,
+            let fan = monitor.snapshot.fan,
+            let targetRPM = currentLiveTargetRPM
+        else {
+            return false
+        }
+        return FanContestedRules.isContested(
+            mode: fan.mode,
+            actualRPM: fan.currentRPM,
+            targetRPM: targetRPM
+        )
     }
 
     private func bindContestedState() {
@@ -489,18 +508,25 @@ final class AppModel: ObservableObject {
             lastActionMessage = "Applying..."
         }
         do {
-            _ = try await helperService.setPercent(
+            let result = try await helperService.setPercent(
                 boundedPercent,
                 allowDangerous: settings.dangerousRangesUnlocked,
                 allowZero: boundedPercent == 0 && settings.dangerousRangesUnlocked
+            )
+            log.info(
+                "fan target applied mode=\(self.settings.controlMode.rawValue, privacy: .public) percent=\(boundedPercent, privacy: .public) actualRPM=\(result.actualRPM ?? -1, privacy: .public) smcMode=\(result.mode ?? -1, privacy: .public) contested=\(result.contested, privacy: .public)"
             )
             didRunLiveControl = true
             if settings.controlMode == .curve {
                 lastAppliedCurvePercent = boundedPercent
             }
+            if showsApplyingState {
+                lastActionMessage = result.message
+            }
             _ = await monitor.refreshNow()
         } catch {
             lastActionMessage = error.localizedDescription
+            log.error("fan target apply failed: \(error.localizedDescription, privacy: .public)")
         }
         fanApplyInFlight = false
         if showsApplyingState {
@@ -533,5 +559,18 @@ final class AppModel: ObservableObject {
         settings.manualPercent = minimumFanPercent
         suppressManualApply = false
         isManualControlActive = false
+    }
+
+    private func activateSelectedModeAfterHelperReady() {
+        if pendingModeActivationAfterHelperReady {
+            pendingModeActivationAfterHelperReady = false
+            activateSelectedModeIfNeeded()
+            return
+        }
+
+        if settings.controlMode == .curve {
+            log.info("starting persisted curve mode after helper became ready")
+            startCurveRun()
+        }
     }
 }

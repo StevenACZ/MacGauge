@@ -17,6 +17,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Verified helper write: `setPercent` now reads back `F0Md`/`F0Ac` after writing
   and re-asserts manual mode plus the target (bounded retry) when the system
   reverts it, returning the actual RPM, mode, and contested flag.
+- App/helper diagnostic logging for fan writes, including requested percent,
+  target RPM, actual RPM, SMC mode, helper state, and re-assert reasons.
 
 ### Changed
 
@@ -35,12 +37,21 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   README; dev install, helper authorization, and reload after a dev update are
   handled by `make install-dev` plus Settings > Safety and System Settings >
   Login Items, with no terminal command needed.
+- The app now treats missing helper protocol fields as a stale helper instead of
+  assuming the daemon is ready, and Settings > Safety offers a helper reload
+  path through ServiceManagement.
+- Manual/Curve popovers show a helper warning when fan targets are only previews
+  because the privileged helper is not ready or needs reload.
 
 ### Fixed
 
 - Fixed the Curve mode RPM display reporting the computed target (e.g. 1133 RPM)
   while the fan physically spun much faster: the popover now shows the real
   measured RPM and warns when the system is overriding the curve.
+- Fixed persisted Curve mode showing a target after app launch without starting
+  the curve-application loop once the helper becomes ready.
+- Fixed curve re-assertion missing the case where actual RPM stays far below the
+  requested target at the same curve percentage.
 
 ## [0.2.0] - 2026-06-26
 

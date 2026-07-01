@@ -2,9 +2,11 @@ import Darwin
 import Foundation
 import M4FanCore
 import SystemConfiguration
+import os
 
 private let toolPath = "/Library/PrivilegedHelperTools/\(HelperPaths.label)"
 private let plistPath = "/Library/LaunchDaemons/\(HelperPaths.launchDaemonPlistName)"
+private let helperLog = Logger(subsystem: "com.stevenacz.M4FanControl", category: "helper")
 
 @main
 struct M4FanHelper {
@@ -165,6 +167,7 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
             let command = try decoder.decode(HelperCommand.self, from: commandData)
             response = try execute(command)
         } catch {
+            helperLog.error("command failed: \(error.localizedDescription, privacy: .public)")
             response = HelperResponse(id: "unknown", ok: false, message: error.localizedDescription)
         }
 
@@ -179,11 +182,13 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
     private func execute(_ command: HelperCommand) throws -> HelperResponse {
         switch command.action {
         case .ping:
+            helperLog.debug("ping")
             return HelperResponse(id: command.id, ok: true, message: "helper ready")
         case .setPercent:
             guard let percent = command.percent else {
                 throw M4FanError("Missing percent.")
             }
+            helperLog.info("setPercent requested fan=\(command.fanIndex, privacy: .public) percent=\(percent, privacy: .public)")
             try safety.validate(
                 percent: percent,
                 allowDangerous: command.allowDangerous,
@@ -195,6 +200,9 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
             let rpm = try controller.targetRPM(forPercent: percent, fan: fan)
             try safety.validate(rpm: rpm, fan: fan, percent: percent, allowDangerous: command.allowDangerous)
             let result = try controller.setTargetRPMVerified(index: command.fanIndex, rpm: rpm)
+            helperLog.info(
+                "setPercent applied fan=\(command.fanIndex, privacy: .public) targetRPM=\(rpm, privacy: .public) actualRPM=\(result.actualRPM ?? -1, privacy: .public) mode=\(result.mode ?? -1, privacy: .public) contested=\(result.contested, privacy: .public) strategy=\(result.strategy.rawValue, privacy: .public)"
+            )
             return HelperResponse(
                 id: command.id,
                 ok: true,
@@ -211,9 +219,11 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, M4FanHelperXPCProto
                 try controller.returnToAutomatic(index: fan.index)
             }
             try controller.resetForceTestIfAvailable()
+            helperLog.info("automatic control restored")
             return HelperResponse(id: command.id, ok: true, message: "Automatic control restored")
         case .removeLegacyHelper:
             let message = removeLegacyHelper()
+            helperLog.info("legacy helper cleanup: \(message, privacy: .public)")
             return HelperResponse(id: command.id, ok: true, message: message)
         }
     }

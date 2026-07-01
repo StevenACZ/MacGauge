@@ -167,10 +167,12 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 - Manual slider auto-applies after a short debounce only when the helper is already authorized; `Auto` remains explicit.
 - Curve mode runs continuously until the user switches modes, sampling a fresh temperature snapshot on each tick.
 - A warning banner appears in the popover when the system is overriding the requested fan target (fan mode reverted or actual RPM far above target); Curve mode also re-applies the target when the fan mode reverts, not only when the temperature changes.
+- A helper warning appears in the popover when Manual or Curve targets are only previews because the privileged helper is not ready or needs reload.
+- The app logs helper readiness, Curve re-assert decisions, requested percent, target RPM, actual RPM, and SMC mode through macOS unified logging for future diagnosis.
 - Settings window with Celsius/Fahrenheit, start at login, restore on quit, manual target, draggable/editable curve points with 0-100 C and 0-100% axes, color thresholds, icon animation, helper authorization, and safety toggle for edge ranges.
 - Start at login uses `SMAppService.mainApp`; macOS may require approval in System Settings.
 - Privileged fan writes from the app use the helper's XPC Mach service after the one-time Safety authorization.
-- Manual and curve writes are verified: the helper reads back the fan mode and actual RPM after each write and re-asserts manual mode plus the target (bounded retry) when `thermalmonitord` reverts it.
+- Manual and curve writes are verified: the helper reads back the fan mode and actual RPM after each write and re-asserts manual mode plus the target (bounded retry) when `thermalmonitord` reverts it or the fan drifts far from the requested RPM.
 - The locked-helper Settings button opens the Safety tab directly.
 - No Accessibility permission is requested.
 
@@ -191,5 +193,7 @@ Authorize the helper once from the app Settings > Safety tab. Manual slider and 
 The app and dev flow does not require terminal `sudo` or `launchctl`. `make install-dev` signs with Apple Development, installs to `~/Applications/M4FanControl.app`, and relaunches the app; the helper is authorized and managed from Settings > Safety.
 
 After a dev update, the running helper daemon loads the new binary on its next restart — reboot, or toggle the M4FanControl helper off and on in System Settings > Login Items > Allow in Background. No `sudo launchctl kickstart` or terminal command is needed.
+
+If Settings > Safety reports "Helper needs reload", click **Reload Helper**. The app re-registers the bundled daemon through ServiceManagement and opens the normal macOS approval flow when macOS requires it.
 
 To remove the helper, toggle it off in System Settings > Login Items > Allow in Background.

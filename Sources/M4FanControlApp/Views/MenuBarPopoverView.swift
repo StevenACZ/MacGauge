@@ -18,6 +18,9 @@ struct MenuBarPopoverView: View {
             header
             Divider()
             controlBar
+            if showsHelperWarning {
+                helperWarning
+            }
             if model.controlContested {
                 contestedWarning
             }
@@ -35,7 +38,11 @@ struct MenuBarPopoverView: View {
     }
 
     private var popoverHeight: CGFloat {
-        PopoverLayout.height(for: settings.controlMode, contested: model.controlContested)
+        PopoverLayout.height(
+            for: settings.controlMode,
+            contested: model.controlContested,
+            helperWarning: showsHelperWarning
+        )
     }
 
     private var header: some View {
@@ -186,7 +193,7 @@ struct MenuBarPopoverView: View {
     private var contestedWarning: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
-            Text("System is overriding the fan target")
+            Text("Fan RPM is not matching the requested target")
                 .font(.callout)
             Spacer()
         }
@@ -194,5 +201,27 @@ struct MenuBarPopoverView: View {
         .padding(.vertical, 7)
         .background(.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .foregroundStyle(.orange)
+    }
+
+    private var showsHelperWarning: Bool {
+        !helperService.isReady
+    }
+
+    private var helperWarning: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lock.shield")
+            Text(helperService.statusSummary)
+                .font(.callout)
+                .lineLimit(1)
+            Spacer()
+            Button("Safety") {
+                model.openSettings(tab: .safety)
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(.blue.opacity(0.13), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .foregroundStyle(.blue)
     }
 }

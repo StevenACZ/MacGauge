@@ -36,8 +36,11 @@ public enum FanContestedRules {
 
     public static func isContested(mode: Int?, actualRPM: Double?, targetRPM: Double?) -> Bool {
         let modeReverted = mode.map { $0 != manualModeValue } ?? false
-        let runaway = (actualRPM ?? 0) - (targetRPM ?? 0) > contestedRPMThreshold
-        return modeReverted || runaway
+        let targetMissed =
+            actualRPM.flatMap { actual in
+                targetRPM.map { target in abs(actual - target) > contestedRPMThreshold }
+            } ?? false
+        return modeReverted || targetMissed
     }
 }
 
