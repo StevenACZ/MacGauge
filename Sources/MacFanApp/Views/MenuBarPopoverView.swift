@@ -15,39 +15,69 @@ struct MenuBarPopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            header
+            identityHeader
+            metrics
             Divider()
-            controlBar
-            if showsHelperBanner {
-                helperBanner
+            if monitor.snapshot.isFanless {
+                fanlessNotice
+            } else {
+                controlBar
+                if showsHelperBanner {
+                    helperBanner
+                        .transition(bannerTransition)
+                }
+                if model.controlContested {
+                    StatusBanner(
+                        severity: .warning,
+                        icon: "exclamationmark.triangle.fill",
+                        message: "Fan RPM is not matching the requested target"
+                    )
                     .transition(bannerTransition)
+                }
+                modeContent
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            if model.controlContested {
-                StatusBanner(
-                    severity: .warning,
-                    icon: "exclamationmark.triangle.fill",
-                    message: "Fan RPM is not matching the requested target"
-                )
-                .transition(bannerTransition)
-            }
-            modeContent
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+            Divider()
             footer
-                .padding(.top, 4)
         }
-        .padding(20)
-        .frame(width: PopoverLayout.width)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(width: Theme.Layout.panelWidth)
         .fixedSize(horizontal: false, vertical: true)
-        .animation(PopoverLayout.modeTransitionAnimation, value: settings.controlMode)
-        .animation(PopoverLayout.modeTransitionAnimation, value: model.controlContested)
-        .animation(PopoverLayout.modeTransitionAnimation, value: helperService.state)
+        .animation(Theme.Anim.mode, value: settings.controlMode)
+        .animation(Theme.Anim.mode, value: model.controlContested)
+        .animation(Theme.Anim.mode, value: helperService.state)
+        .animation(Theme.Anim.mode, value: monitor.snapshot.isFanless)
     }
 
     private var bannerTransition: AnyTransition {
         .move(edge: .top).combined(with: .opacity)
     }
 
-    private var header: some View {
+    private var identityHeader: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(temperatureTint.opacity(0.15))
+                Image(systemName: "fan.fill")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(temperatureTint)
+            }
+            .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("MacFan")
+                    .font(.headline)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var metrics: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(AppFormatters.temperaturePrecise(monitor.snapshot.temperatureCelsius, unit: settings.temperatureUnit))
@@ -57,23 +87,37 @@ struct MenuBarPopoverView: View {
                     .animation(.default, value: monitor.snapshot.temperatureCelsius)
                     .frame(minWidth: 132, alignment: .leading)
                 Spacer()
-                Text(AppFormatters.rpm(headerRPM))
-                    .font(.system(.title3, design: .rounded, weight: .medium))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.default, value: headerRPM)
-                    .frame(minWidth: 96, alignment: .trailing)
+                if !monitor.snapshot.isFanless {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text(AppFormatters.rpm(headerRPM))
+                            .font(.system(.title3, design: .rounded, weight: .medium))
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                            .animation(.default, value: headerRPM)
+                        Text(headerRPMLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
-            HStack {
-                Text(monitor.snapshot.chip)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(headerRPMLabel)
-                    .foregroundStyle(.secondary)
+            if monitor.snapshot.fanCount > 1 {
+                HStack(spacing: 6) {
+                    ForEach(monitor.snapshot.fans, id: \.index) { fan in
+                        FanRPMChip(fan: fan)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .font(.caption)
         }
+    }
+
+    private var fanlessNotice: some View {
+        StatusBanner(
+            severity: .info,
+            icon: "leaf.fill",
+            message: "This Mac is passively cooled and has no controllable fans."
+        )
     }
 
     private var controlBar: some View {
@@ -132,6 +176,7 @@ struct MenuBarPopoverView: View {
                 isDisabled: !helperService.isReady || model.isWriting
             )
             .opacity(model.isManualControlActive ? 1 : 0.58)
+            .animation(Theme.Anim.easeOut, value: model.isManualControlActive)
         }
     }
 
@@ -165,27 +210,34 @@ struct MenuBarPopoverView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 10) {
-            Button {
+        VStack(spacing: 2) {
+            ActionRow(icon: "gearshape", title: "Settings") {
                 model.openSettings()
-            } label: {
-                Label("Settings", systemImage: "gearshape")
-                    .padding(.horizontal, 2)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-
-            Spacer()
-
-            Button {
+            ActionRow(icon: "power", title: "Quit MacFan", isDestructive: true) {
                 model.quit()
-            } label: {
-                Label("Exit", systemImage: "power")
-                    .padding(.horizontal, 2)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .tint(.red)
+        }
+    }
+
+    private var subtitle: String {
+        let chip = monitor.snapshot.chip
+        if monitor.snapshot.isFanless {
+            return chip
+        }
+        let count = monitor.snapshot.fanCount
+        guard count > 0 else { return chip }
+        return count == 1 ? "\(chip) · 1 fan" : "\(chip) · \(count) fans"
+    }
+
+    private var temperatureTint: Color {
+        switch settings.visualRules.band(for: monitor.snapshot.temperatureCelsius) {
+        case .normal:
+            return Theme.accent
+        case .medium:
+            return .orange
+        case .hot:
+            return .red
         }
     }
 
@@ -296,7 +348,14 @@ struct StatusBanner: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(severity.tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Layout.rowRadius + 1, style: .continuous)
+                .fill(severity.tint.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Layout.rowRadius + 1, style: .continuous)
+                        .strokeBorder(severity.tint.opacity(0.18), lineWidth: 1)
+                )
+        )
         .foregroundStyle(severity.tint)
     }
 }

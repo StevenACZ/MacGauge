@@ -20,9 +20,33 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            selectedTabContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        ZStack(alignment: .top) {
+            tabContent(
+                GeneralSettingsTab(
+                    settings: settings,
+                    loginManager: loginManager,
+                    setLaunchAtLogin: model.setLaunchAtLogin
+                ),
+                tab: .general
+            )
+            tabContent(
+                ControlSettingsTab(
+                    model: model,
+                    settings: settings,
+                    monitor: model.monitor,
+                    helperService: helperService
+                ),
+                tab: .control
+            )
+            tabContent(DisplaySettingsTab(settings: settings), tab: .display)
+            tabContent(
+                SafetySettingsTab(
+                    model: model,
+                    settings: settings,
+                    helperService: helperService
+                ),
+                tab: .safety
+            )
         }
         .padding(.leading, 20)
         .padding(.trailing, 12)
@@ -43,39 +67,27 @@ struct SettingsView: View {
             }
 
             ToolbarItem(placement: .confirmationAction) {
-                Button("Cerrar") {
+                Button("Close") {
                     closeSettingsWindow()
                 }
             }
         }
-        .tint(.blue)
+        .tint(Theme.accent)
     }
 
-    @ViewBuilder
-    private var selectedTabContent: some View {
-        switch selectedTab {
-        case .general:
-            GeneralSettingsTab(
-                settings: settings,
-                loginManager: loginManager,
-                setLaunchAtLogin: model.setLaunchAtLogin
-            )
-        case .control:
-            ControlSettingsTab(
-                model: model,
-                settings: settings,
-                monitor: model.monitor,
-                helperService: helperService
-            )
-        case .display:
-            DisplaySettingsTab(settings: settings)
-        case .safety:
-            SafetySettingsTab(
-                model: model,
-                settings: settings,
-                helperService: helperService
-            )
-        }
+    // Tabs stay alive behind an opacity toggle so per-tab state (scroll
+    // position, pending edits) survives switching; only the active tab is
+    // visible and hit-testable.
+    private func tabContent(_ content: some View, tab: SettingsTab) -> some View {
+        let isSelected = selectedTab == tab
+        return
+            content
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .opacity(isSelected ? 1 : 0)
+            .scaleEffect(isSelected ? 1 : 0.98)
+            .allowsHitTesting(isSelected)
+            .accessibilityHidden(!isSelected)
+            .animation(Theme.Anim.smooth, value: selectedTab)
     }
 
     private func closeSettingsWindow() {

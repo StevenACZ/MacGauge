@@ -6,6 +6,9 @@ struct ManualPercentSlider: View {
     var step: Double = 1
     var isDisabled: Bool = false
 
+    @State private var isHovered = false
+    @State private var isDragging = false
+
     private let trackHeight: CGFloat = 6
     private let thumbDiameter: CGFloat = 18
 
@@ -31,7 +34,13 @@ struct ManualPercentSlider: View {
                 Circle()
                     .fill(Color.white)
                     .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 0.5))
-                    .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
+                    .shadow(
+                        color: .black.opacity(isDragging ? 0.28 : 0.18),
+                        radius: isDragging ? 4 : 2,
+                        y: 1
+                    )
+                    .scaleEffect(thumbScale)
+                    .animation(Theme.Anim.hover, value: thumbScale)
                     .frame(width: thumbDiameter, height: thumbDiameter)
                     .position(x: thumbCenter, y: centerY)
             }
@@ -41,13 +50,20 @@ struct ManualPercentSlider: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
                         guard !isDisabled else { return }
+                        isDragging = true
                         let f = max(0, min(1, (drag.location.x - thumbDiameter / 2) / max(1, travel)))
                         let raw = range.lowerBound + f * (range.upperBound - range.lowerBound)
                         value = Self.snap(raw, step: step, in: range)
                     }
+                    .onEnded { _ in
+                        isDragging = false
+                    }
             )
         }
         .frame(height: thumbDiameter)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Manual fan target"))
         .accessibilityValue(Text("\(Int(value.rounded())) percent"))
@@ -62,6 +78,12 @@ struct ManualPercentSlider: View {
                 break
             }
         }
+    }
+
+    private var thumbScale: CGFloat {
+        if isDragging { return 1.18 }
+        if isHovered && !isDisabled { return 1.1 }
+        return 1.0
     }
 
     private static func fraction(of value: Double, in range: ClosedRange<Double>) -> CGFloat {
