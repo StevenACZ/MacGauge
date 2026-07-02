@@ -8,9 +8,9 @@ struct ControlSettingsTab: View {
 
     var body: some View {
         SettingsPane {
-            SettingsSurface(icon: "fanblades", title: "Control") {
-                SettingsRow(title: "Mode") {
-                    Picker("Default mode", selection: $settings.controlMode) {
+            SettingsSurface(icon: "fanblades", title: "settings.control.title".localized) {
+                SettingsRow(title: "settings.control.mode".localized) {
+                    Picker("settings.control.default_mode".localized, selection: $settings.controlMode) {
                         ForEach(FanControlMode.allCases) { mode in
                             Text(mode.label).tag(mode)
                         }
@@ -21,7 +21,7 @@ struct ControlSettingsTab: View {
 
                 SettingsDivider()
 
-                SettingsRow(title: "Update tick") {
+                SettingsRow(title: "settings.control.update_tick".localized) {
                     Stepper(value: $settings.controlTickSeconds, in: AppSettingsStore.controlTickRange, step: 0.5) {
                         Text(AppFormatters.seconds(settings.controlTickSeconds))
                             .monospacedDigit()
@@ -54,10 +54,10 @@ private struct ManualControlSection: View {
     @ObservedObject var helperService: HelperCommandService
 
     var body: some View {
-        SettingsSurface(icon: "slider.horizontal.3", title: "Manual Target") {
+        SettingsSurface(icon: "slider.horizontal.3", title: "settings.control.manual_target".localized) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Target")
+                    Text("settings.control.target".localized)
                         .font(.callout.weight(.semibold))
                     Spacer()
                     Text("\(AppFormatters.percent(model.manualDisplayPercent)) / \(AppFormatters.approximateRPM(model.manualTargetRPM))")
@@ -80,7 +80,7 @@ private struct CurveControlSection: View {
 
     var body: some View {
         Group {
-            SettingsSurface(icon: "point.3.connected.trianglepath.dotted", title: "Curve Points") {
+            SettingsSurface(icon: "point.3.connected.trianglepath.dotted", title: "settings.control.curve_points".localized) {
                 let sortedPoints = settings.curvePoints.sorted { $0.temperatureCelsius < $1.temperatureCelsius }
 
                 ForEach(Array(sortedPoints.enumerated()), id: \.element.id) { index, point in
@@ -105,11 +105,11 @@ private struct CurveControlSection: View {
                     Button {
                         settings.addCurvePoint()
                     } label: {
-                        Label("Add Point", systemImage: "plus")
+                        Label("settings.control.add_point".localized, systemImage: "plus")
                     }
                     .disabled(model.isWriting)
 
-                    Button("Reset") {
+                    Button("settings.control.reset".localized) {
                         settings.resetCurveDefaults()
                     }
                     .disabled(model.isWriting)
@@ -119,7 +119,7 @@ private struct CurveControlSection: View {
             }
             .disabled(model.isWriting)
 
-            SettingsSurface(icon: "chart.line.uptrend.xyaxis", title: "Preview") {
+            SettingsSurface(icon: "chart.line.uptrend.xyaxis", title: "settings.control.preview".localized) {
                 CurvePreview(
                     points: settings.curvePoints,
                     currentTemperature: monitor.snapshot.temperatureCelsius,
@@ -155,7 +155,7 @@ private struct CurvePointRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            TextField("Temp", value: boundedTemperatureBinding, format: .number)
+            TextField("settings.control.temp_placeholder".localized, value: boundedTemperatureBinding, format: .number)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 58)
             Text("C")
@@ -180,8 +180,8 @@ private struct CurvePointRow: View {
             .buttonStyle(.plain)
             .foregroundStyle(canRemove ? Color.red : Color.secondary)
             .disabled(!canRemove || isWriting)
-            .help(canRemove ? "Delete point" : "Keep at least two points")
-            .accessibilityLabel("Delete curve point")
+            .help(canRemove ? "settings.control.delete_point".localized : "settings.control.keep_two_points".localized)
+            .accessibilityLabel("settings.control.delete_curve_point".localized)
         }
         .padding(.vertical, 2)
     }

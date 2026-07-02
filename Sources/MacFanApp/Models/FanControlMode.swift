@@ -8,8 +8,8 @@ enum FanControlMode: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .manual: "Manual"
-        case .curve: "Curve"
+        case .manual: "mode.manual".localized
+        case .curve: "mode.curve".localized
         }
     }
 }

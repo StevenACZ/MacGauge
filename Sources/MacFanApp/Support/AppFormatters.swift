@@ -7,7 +7,7 @@ enum AppFormatters {
     }
 
     static func temperaturePrecise(_ celsius: Double?, unit: TemperatureUnit) -> String {
-        guard let celsius else { return "Unavailable" }
+        guard let celsius else { return "formatter.temperature_unavailable".localized }
         return String(format: "%.1f %@", unit.convert(celsius: celsius), unit.suffix)
     }
 

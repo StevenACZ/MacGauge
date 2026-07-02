@@ -52,7 +52,7 @@ struct FanRPMChip: View {
             Image(systemName: "fan.fill")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            Text(fan.name ?? "Fan \(fan.index + 1)")
+            Text(fan.name ?? "popover.fan_fallback".localized(fan.index + 1))
                 .foregroundStyle(.secondary)
             Text(AppFormatters.rpm(fan.currentRPM))
                 .monospacedDigit()

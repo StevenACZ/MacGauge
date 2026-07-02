@@ -3,12 +3,14 @@ import SwiftUI
 struct ColorPresetPicker: View {
     @Binding var selection: String
 
-    private let presets = [
-        ColorPreset(name: "White", hex: "#FFFFFF"),
-        ColorPreset(name: "Green", hex: "#30D158"),
-        ColorPreset(name: "Yellow", hex: "#FFD60A"),
-        ColorPreset(name: "Red", hex: "#FF453A"),
-    ]
+    private var presets: [ColorPreset] {
+        [
+            ColorPreset(name: "color.white".localized, hex: "#FFFFFF"),
+            ColorPreset(name: "color.green".localized, hex: "#30D158"),
+            ColorPreset(name: "color.yellow".localized, hex: "#FFD60A"),
+            ColorPreset(name: "color.red".localized, hex: "#FF453A"),
+        ]
+    }
 
     var body: some View {
         HStack(spacing: 9) {
@@ -56,21 +58,21 @@ struct HelperStatusBadge: View {
     private var title: String {
         switch state {
         case .ready:
-            return "Authorized"
+            return "helper.state.authorized".localized
         case .needsApproval:
-            return "Approval needed"
+            return "helper.state.approval_needed".localized
         case .needsAuthorization:
-            return "Not authorized"
+            return "helper.state.not_authorized".localized
         case .unavailable:
-            return "Unavailable"
+            return "helper.state.unavailable".localized
         case .stale:
-            return "Reload needed"
+            return "helper.state.reload_needed".localized
         case .reloading:
-            return "Reloading"
+            return "helper.state.reloading".localized
         case .failed:
-            return "Failed"
+            return "helper.state.failed".localized
         case .unknown:
-            return "Checking"
+            return "helper.state.checking".localized
         }
     }
 

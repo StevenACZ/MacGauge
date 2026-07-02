@@ -7,8 +7,8 @@ struct SafetySettingsTab: View {
 
     var body: some View {
         SettingsPane {
-            SettingsSurface(icon: "lock.shield", title: "Safety") {
-                SettingsRow(title: "Unlock edge ranges") {
+            SettingsSurface(icon: "lock.shield", title: "settings.safety.title".localized) {
+                SettingsRow(title: "settings.safety.unlock_ranges".localized) {
                     Toggle("", isOn: $settings.dangerousRangesUnlocked)
                         .labelsHidden()
                         .toggleStyle(.switch)
@@ -16,7 +16,7 @@ struct SafetySettingsTab: View {
 
                 SettingsDivider()
 
-                SettingsRow(title: "Privileged helper") {
+                SettingsRow(title: "settings.safety.privileged_helper".localized) {
                     HStack(spacing: 12) {
                         if helperService.isRecovering {
                             ProgressView()
@@ -44,7 +44,7 @@ struct SafetySettingsTab: View {
                     Button {
                         model.restoreAutomatic()
                     } label: {
-                        Label("Restore Automatic Now", systemImage: "arrow.triangle.2.circlepath")
+                        Label("settings.safety.restore_automatic".localized, systemImage: "arrow.triangle.2.circlepath")
                     }
                     .disabled(!helperService.isReady || model.isWriting)
 
@@ -60,11 +60,11 @@ struct SafetySettingsTab: View {
     private var authorizeButtonTitle: String {
         switch helperService.state {
         case .needsApproval:
-            return "Open Settings"
+            return "settings.safety.open_settings".localized
         case .stale, .unavailable, .failed:
-            return "Fix Helper"
+            return "settings.safety.fix_helper".localized
         case .unknown, .needsAuthorization, .ready, .reloading:
-            return "Authorize"
+            return "settings.safety.authorize".localized
         }
     }
 

@@ -5,6 +5,7 @@ struct MenuBarPopoverView: View {
     @ObservedObject private var settings: AppSettingsStore
     @ObservedObject private var monitor: FanMonitor
     @ObservedObject private var helperService: HelperCommandService
+    @ObservedObject private var localization = LocalizationManager.shared
 
     init(model: AppModel) {
         self.model = model
@@ -30,7 +31,7 @@ struct MenuBarPopoverView: View {
                     StatusBanner(
                         severity: .warning,
                         icon: "exclamationmark.triangle.fill",
-                        message: "Fan RPM is not matching the requested target"
+                        message: "banner.contested".localized
                     )
                     .transition(bannerTransition)
                 }
@@ -48,6 +49,7 @@ struct MenuBarPopoverView: View {
         .animation(Theme.Anim.mode, value: model.controlContested)
         .animation(Theme.Anim.mode, value: helperService.state)
         .animation(Theme.Anim.mode, value: monitor.snapshot.isFanless)
+        .id(localization.language)
     }
 
     private var bannerTransition: AnyTransition {
@@ -116,13 +118,13 @@ struct MenuBarPopoverView: View {
         StatusBanner(
             severity: .info,
             icon: "leaf.fill",
-            message: "This Mac is passively cooled and has no controllable fans."
+            message: "banner.fanless".localized
         )
     }
 
     private var controlBar: some View {
         HStack(spacing: 12) {
-            Picker("Mode", selection: $settings.controlMode) {
+            Picker("popover.mode".localized, selection: $settings.controlMode) {
                 ForEach(FanControlMode.allCases) { mode in
                     Text(mode.label).tag(mode)
                 }
@@ -137,7 +139,7 @@ struct MenuBarPopoverView: View {
                 Button {
                     model.restoreAutomatic()
                 } label: {
-                    Label("Auto", systemImage: "arrow.triangle.2.circlepath")
+                    Label("popover.auto".localized, systemImage: "arrow.triangle.2.circlepath")
                 }
                 .disabled(!helperService.isReady || model.isWriting)
             }
@@ -160,7 +162,7 @@ struct MenuBarPopoverView: View {
     private var manualContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Target")
+                Text("popover.target".localized)
                 Spacer()
                 Text("\(AppFormatters.percent(model.manualDisplayPercent)) / \(AppFormatters.rpm(model.manualTargetRPM))")
                     .foregroundStyle(.secondary)
@@ -183,7 +185,7 @@ struct MenuBarPopoverView: View {
     private var curveContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Curve target")
+                Text("popover.curve_target".localized)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text(
@@ -211,10 +213,10 @@ struct MenuBarPopoverView: View {
 
     private var footer: some View {
         VStack(spacing: 2) {
-            ActionRow(icon: "gearshape", title: "Settings") {
+            ActionRow(icon: "gearshape", title: "popover.settings".localized) {
                 model.openSettings()
             }
-            ActionRow(icon: "power", title: "Quit MacFan", isDestructive: true) {
+            ActionRow(icon: "power", title: "popover.quit".localized, isDestructive: true) {
                 model.quit()
             }
         }
@@ -227,7 +229,9 @@ struct MenuBarPopoverView: View {
         }
         let count = monitor.snapshot.fanCount
         guard count > 0 else { return chip }
-        return count == 1 ? "\(chip) · 1 fan" : "\(chip) · \(count) fans"
+        return count == 1
+            ? "popover.subtitle.one_fan".localized(chip)
+            : "popover.subtitle.fans".localized(chip, count)
     }
 
     private var temperatureTint: Color {
@@ -251,7 +255,7 @@ struct MenuBarPopoverView: View {
     }
 
     private var headerRPMLabel: String {
-        settings.controlMode == .curve ? "Actual" : "Current"
+        settings.controlMode == .curve ? "popover.rpm.actual".localized : "popover.rpm.current".localized
     }
 
     private var showsHelperBanner: Bool {
@@ -296,11 +300,11 @@ struct MenuBarPopoverView: View {
         case .unknown, .ready, .reloading:
             return nil
         case .needsApproval:
-            return "Approve"
+            return "banner.action.approve".localized
         case .needsAuthorization:
-            return "Authorize"
+            return "banner.action.authorize".localized
         case .stale, .unavailable, .failed:
-            return "Fix"
+            return "banner.action.fix".localized
         }
     }
 }

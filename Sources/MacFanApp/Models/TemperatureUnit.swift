@@ -8,8 +8,8 @@ enum TemperatureUnit: String, CaseIterable, Identifiable, Codable {
 
     var label: String {
         switch self {
-        case .celsius: "Celsius"
-        case .fahrenheit: "Fahrenheit"
+        case .celsius: "unit.celsius".localized
+        case .fahrenheit: "unit.fahrenheit".localized
         }
     }
 

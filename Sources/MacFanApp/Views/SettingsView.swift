@@ -5,6 +5,7 @@ struct SettingsView: View {
     @ObservedObject private var settings: AppSettingsStore
     @ObservedObject private var loginManager: LaunchAtLoginManager
     @ObservedObject private var helperService: HelperCommandService
+    @ObservedObject private var localization = LocalizationManager.shared
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: SettingsTab
 
@@ -67,12 +68,13 @@ struct SettingsView: View {
             }
 
             ToolbarItem(placement: .confirmationAction) {
-                Button("Close") {
+                Button("settings.close".localized) {
                     closeSettingsWindow()
                 }
             }
         }
         .tint(Theme.accent)
+        .id(localization.language)
     }
 
     // Tabs stay alive behind an opacity toggle so per-tab state (scroll

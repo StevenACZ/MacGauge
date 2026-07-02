@@ -29,21 +29,21 @@ final class HelperCommandService: ObservableObject {
     var statusSummary: String {
         switch state {
         case .unknown:
-            return "Checking helper..."
+            return "helper.status.checking".localized
         case .ready:
-            return "Helper ready"
+            return "helper.status.ready".localized
         case .needsAuthorization:
-            return "Authorize the helper to enable fan control"
+            return "helper.status.needs_authorization".localized
         case .needsApproval:
-            return "Approve MacFan in System Settings > Login Items"
+            return "helper.status.needs_approval".localized
         case .unavailable:
-            return "Helper not responding; recovering automatically"
+            return "helper.status.unavailable".localized
         case .stale:
-            return "Helper is outdated; reloading it automatically"
+            return "helper.status.stale".localized
         case .reloading:
-            return "Reloading helper..."
+            return "helper.status.reloading".localized
         case .failed:
-            return "Helper failed; use Fix in Settings > Safety"
+            return "helper.status.failed".localized
         }
     }
 
@@ -95,7 +95,7 @@ final class HelperCommandService: ObservableObject {
         case .ready:
             return
         case .needsApproval:
-            throw MacFanError("Approve MacFan in System Settings; the app detects it automatically.")
+            throw MacFanError("helper.error.approve_in_settings".localized)
         default:
             throw MacFanError(statusSummary)
         }
@@ -230,7 +230,7 @@ final class HelperCommandService: ObservableObject {
             if userInitiated {
                 SMAppService.openSystemSettingsLoginItems()
             }
-            throw MacFanError("Approve MacFan in System Settings; the app detects it automatically.")
+            throw MacFanError("helper.error.approve_in_settings".localized)
         case .notFound:
             setState(.failed)
             throw MacFanError("macOS could not find the bundled LaunchDaemon plist.")
@@ -491,12 +491,12 @@ private struct HelperResponseError: LocalizedError {
 
 private struct HelperUnavailableError: LocalizedError {
     var errorDescription: String? {
-        "Helper did not respond."
+        "helper.error.no_response".localized
     }
 }
 
 private struct HelperStaleError: LocalizedError {
     var errorDescription: String? {
-        "Helper is outdated; the app reloads it automatically."
+        "helper.error.outdated".localized
     }
 }

@@ -65,8 +65,8 @@ struct ManualPercentSlider: View {
             isHovered = hovering
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Manual fan target"))
-        .accessibilityValue(Text("\(Int(value.rounded())) percent"))
+        .accessibilityLabel(Text("slider.accessibility.label".localized))
+        .accessibilityValue(Text("slider.accessibility.value".localized(Int(value.rounded()))))
         .accessibilityAdjustableAction { direction in
             guard !isDisabled else { return }
             switch direction {

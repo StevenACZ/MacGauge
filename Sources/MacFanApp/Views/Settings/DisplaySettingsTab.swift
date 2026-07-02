@@ -5,8 +5,8 @@ struct DisplaySettingsTab: View {
 
     var body: some View {
         SettingsPane {
-            SettingsSurface(icon: "paintpalette", title: "Display") {
-                SettingsRow(title: "Animate fan icon") {
+            SettingsSurface(icon: "paintpalette", title: "settings.display.title".localized) {
+                SettingsRow(title: "settings.display.animate_icon".localized) {
                     Toggle("", isOn: $settings.animateFanIcon)
                         .labelsHidden()
                         .toggleStyle(.switch)
@@ -15,8 +15,8 @@ struct DisplaySettingsTab: View {
                 SettingsDivider()
 
                 visualThresholdRow(
-                    title: "Normal",
-                    thresholdLabel: "Up to",
+                    title: "settings.display.normal".localized,
+                    thresholdLabel: "settings.display.up_to".localized,
                     value: $settings.normalUpperCelsius,
                     colorHex: colorHexBinding(\.normalColorHex)
                 )
@@ -24,7 +24,7 @@ struct DisplaySettingsTab: View {
                 SettingsDivider()
 
                 visualBandRow(
-                    title: "Medium",
+                    title: "settings.display.medium".localized,
                     rangeText: "\(Int(settings.normalUpperCelsius.rounded()))-\(Int(settings.hotLowerCelsius.rounded())) C",
                     colorHex: colorHexBinding(\.mediumColorHex)
                 )
@@ -32,8 +32,8 @@ struct DisplaySettingsTab: View {
                 SettingsDivider()
 
                 visualThresholdRow(
-                    title: "Hot",
-                    thresholdLabel: "From",
+                    title: "settings.display.hot".localized,
+                    thresholdLabel: "settings.display.from".localized,
                     value: $settings.hotLowerCelsius,
                     colorHex: colorHexBinding(\.hotColorHex)
                 )

@@ -8,6 +8,7 @@ final class StatusItemController: NSObject {
     private let statusItem: NSStatusItem
     private let popover: NSPopover
     private let model: AppModel
+    private var hostingController: NSHostingController<MenuBarPopoverView>?
     private var cancellables = Set<AnyCancellable>()
     private var animationTimer: Timer?
     private var rotation: CGFloat = 0
@@ -26,6 +27,7 @@ final class StatusItemController: NSObject {
         let hostingController = NSHostingController(rootView: MenuBarPopoverView(model: model))
         hostingController.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hostingController
+        self.hostingController = hostingController
 
         if let button = statusItem.button {
             button.target = self
@@ -51,6 +53,16 @@ final class StatusItemController: NSObject {
             self?.updateStatusItem(snapshot: model.monitor.snapshot)
         }
         .store(in: &cancellables)
+
+        // Rebuild the popover root when the app language changes so every
+        // string in the menu-bar panel re-resolves immediately.
+        LocalizationManager.shared.$bundle
+            .dropFirst()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.hostingController?.rootView = MenuBarPopoverView(model: self.model)
+            }
+            .store(in: &cancellables)
 
         updateStatusItem(snapshot: model.monitor.snapshot)
     }

@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "MacFan",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v13)
     ],
@@ -11,7 +12,7 @@ let package = Package(
         .library(name: "MacFanCore", targets: ["MacFanCore"]),
         .executable(name: "macfan", targets: ["MacFanCLI"]),
         .executable(name: "MacFan", targets: ["MacFanApp"]),
-        .executable(name: "MacFanHelper", targets: ["MacFanHelper"])
+        .executable(name: "MacFanHelper", targets: ["MacFanHelper"]),
     ],
     targets: [
         .target(
@@ -26,24 +27,28 @@ let package = Package(
         ),
         .executableTarget(
             name: "MacFanApp",
-            dependencies: ["MacFanCore"]
+            dependencies: ["MacFanCore"],
+            resources: [
+                .process("Resources")
+            ]
         ),
         .executableTarget(
             name: "MacFanHelper",
             dependencies: ["MacFanCore"],
             linkerSettings: [
                 .linkedFramework("SystemConfiguration"),
-                .unsafeFlags([
-                    "-Xlinker", "-sectcreate",
-                    "-Xlinker", "__TEXT",
-                    "-Xlinker", "__info_plist",
-                    "-Xlinker", "Resources/MacFanHelperInfo.plist"
-                ], .when(platforms: [.macOS]))
+                .unsafeFlags(
+                    [
+                        "-Xlinker", "-sectcreate",
+                        "-Xlinker", "__TEXT",
+                        "-Xlinker", "__info_plist",
+                        "-Xlinker", "Resources/MacFanHelperInfo.plist",
+                    ], .when(platforms: [.macOS])),
             ]
         ),
         .testTarget(
             name: "MacFanCoreTests",
             dependencies: ["MacFanCore"]
-        )
+        ),
     ]
 )

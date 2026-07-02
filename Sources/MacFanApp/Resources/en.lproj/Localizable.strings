@@ -1,0 +1,136 @@
+/* MacFan — English strings */
+
+/* Popover */
+"popover.subtitle.one_fan" = "%@ · 1 fan";
+"popover.subtitle.fans" = "%@ · %d fans";
+"popover.mode" = "Mode";
+"popover.auto" = "Auto";
+"popover.target" = "Target";
+"popover.curve_target" = "Curve target";
+"popover.rpm.actual" = "Actual";
+"popover.rpm.current" = "Current";
+"popover.settings" = "Settings";
+"popover.quit" = "Quit MacFan";
+"popover.fan_fallback" = "Fan %d";
+
+/* Banners */
+"banner.contested" = "Fan RPM is not matching the requested target";
+"banner.fanless" = "This Mac is passively cooled and has no controllable fans.";
+"banner.action.approve" = "Approve";
+"banner.action.authorize" = "Authorize";
+"banner.action.fix" = "Fix";
+
+/* Modes and units */
+"mode.manual" = "Manual";
+"mode.curve" = "Curve";
+"unit.celsius" = "Celsius";
+"unit.fahrenheit" = "Fahrenheit";
+
+/* Settings window */
+"settings.close" = "Close";
+"settings.tab.general" = "General";
+"settings.tab.control" = "Control";
+"settings.tab.display" = "Display";
+"settings.tab.safety" = "Safety";
+
+/* General tab */
+"settings.general.title" = "General";
+"settings.general.temperature" = "Temperature";
+"settings.general.temperature_unit" = "Temperature unit";
+"settings.general.language" = "Language";
+"settings.general.launch_at_login" = "Start at login";
+"settings.general.restore_on_quit" = "Restore on quit";
+
+/* Control tab */
+"settings.control.title" = "Control";
+"settings.control.mode" = "Mode";
+"settings.control.default_mode" = "Default mode";
+"settings.control.update_tick" = "Update tick";
+"settings.control.manual_target" = "Manual Target";
+"settings.control.target" = "Target";
+"settings.control.curve_points" = "Curve Points";
+"settings.control.temp_placeholder" = "Temp";
+"settings.control.add_point" = "Add Point";
+"settings.control.reset" = "Reset";
+"settings.control.preview" = "Preview";
+"settings.control.delete_point" = "Delete point";
+"settings.control.keep_two_points" = "Keep at least two points";
+"settings.control.delete_curve_point" = "Delete curve point";
+
+/* Display tab */
+"settings.display.title" = "Display";
+"settings.display.animate_icon" = "Animate fan icon";
+"settings.display.normal" = "Normal";
+"settings.display.medium" = "Medium";
+"settings.display.hot" = "Hot";
+"settings.display.up_to" = "Up to";
+"settings.display.from" = "From";
+
+/* Safety tab */
+"settings.safety.title" = "Safety";
+"settings.safety.unlock_ranges" = "Unlock edge ranges";
+"settings.safety.privileged_helper" = "Privileged helper";
+"settings.safety.restore_automatic" = "Restore Automatic Now";
+"settings.safety.open_settings" = "Open Settings";
+"settings.safety.fix_helper" = "Fix Helper";
+"settings.safety.authorize" = "Authorize";
+
+/* Color presets (accessibility) */
+"color.white" = "White";
+"color.green" = "Green";
+"color.yellow" = "Yellow";
+"color.red" = "Red";
+
+/* Helper status badge (accessibility) */
+"helper.state.authorized" = "Authorized";
+"helper.state.approval_needed" = "Approval needed";
+"helper.state.not_authorized" = "Not authorized";
+"helper.state.unavailable" = "Unavailable";
+"helper.state.reload_needed" = "Reload needed";
+"helper.state.reloading" = "Reloading";
+"helper.state.failed" = "Failed";
+"helper.state.checking" = "Checking";
+
+/* Helper status summaries */
+"helper.status.checking" = "Checking helper...";
+"helper.status.ready" = "Helper ready";
+"helper.status.needs_authorization" = "Authorize the helper to enable fan control";
+"helper.status.needs_approval" = "Approve MacFan in System Settings > Login Items";
+"helper.status.unavailable" = "Helper not responding; recovering automatically";
+"helper.status.stale" = "Helper is outdated; reloading it automatically";
+"helper.status.reloading" = "Reloading helper...";
+"helper.status.failed" = "Helper failed; use Fix in Settings > Safety";
+
+/* Helper errors (user-facing) */
+"helper.error.approve_in_settings" = "Approve MacFan in System Settings; the app detects it automatically.";
+"helper.error.no_response" = "Helper did not respond.";
+"helper.error.outdated" = "Helper is outdated; the app reloads it automatically.";
+
+/* App status messages */
+"status.ready" = "Ready";
+"status.checking_helper" = "Checking helper...";
+"status.helper_ready" = "Helper ready";
+"status.helper_ready_cleanup" = "Helper ready. %@";
+"status.restoring_automatic" = "Restoring automatic...";
+"status.applying" = "Applying...";
+"status.apply_queued" = "Apply queued";
+"status.applying_after_slider" = "Applying after slider settles...";
+"status.manual_applied" = "Manual target applied";
+"status.curve_applied" = "Curve target applied";
+"status.login_enabled" = "Start at login enabled";
+"status.login_disabled" = "Start at login disabled";
+"status.login_failed" = "Login item failed: %@";
+
+/* Curve preview (help + accessibility) */
+"curve.help.drag_point" = "Drag curve point";
+"curve.help.point" = "Curve point";
+"curve.accessibility.point" = "Curve point";
+"curve.accessibility.point_value" = "%d C, %d percent";
+"curve.accessibility.preview" = "Curve preview";
+
+/* Manual slider (accessibility) */
+"slider.accessibility.label" = "Manual fan target";
+"slider.accessibility.value" = "%d percent";
+
+/* Formatters */
+"formatter.temperature_unavailable" = "Unavailable";

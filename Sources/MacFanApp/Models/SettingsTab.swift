@@ -10,10 +10,10 @@ enum SettingsTab: CaseIterable, Hashable, Identifiable {
 
     var label: String {
         switch self {
-        case .general: "General"
-        case .control: "Control"
-        case .display: "Display"
-        case .safety: "Safety"
+        case .general: "settings.tab.general".localized
+        case .control: "settings.tab.control".localized
+        case .display: "settings.tab.display".localized
+        case .safety: "settings.tab.safety".localized
         }
     }
 }

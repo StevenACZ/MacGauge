@@ -13,7 +13,7 @@ final class AppModel: ObservableObject {
 
     @Published var isWriting = false
     @Published var isApplyingFanTarget = false
-    @Published var lastActionMessage = "Ready"
+    @Published var lastActionMessage = "status.ready".localized
     @Published var isManualControlActive = false
     @Published private(set) var controlContested = false
 
@@ -113,15 +113,15 @@ final class AppModel: ObservableObject {
 
     func authorizeHelper() {
         isWriting = true
-        lastActionMessage = "Checking helper..."
+        lastActionMessage = "status.checking_helper".localized
         Task {
             do {
                 try await helperService.userRepair()
                 let cleanupMessage = (try? await helperService.removeLegacyHelper()) ?? "No legacy helper found."
                 lastActionMessage =
                     cleanupMessage == "No legacy helper found."
-                    ? "Helper ready"
-                    : "Helper ready. \(cleanupMessage)"
+                    ? "status.helper_ready".localized
+                    : "status.helper_ready_cleanup".localized(cleanupMessage)
                 log.info("helper repaired cleanup=\(cleanupMessage, privacy: .public)")
                 activateSelectedModeAfterHelperReady()
             } catch {
@@ -143,7 +143,7 @@ final class AppModel: ObservableObject {
         }
         let percent = manualDisplayPercent
         isManualControlActive = true
-        applyManualPercent(percent: percent, message: "Manual target applied")
+        applyManualPercent(percent: percent, message: "status.manual_applied".localized)
     }
 
     func restoreAutomatic() {
@@ -154,7 +154,7 @@ final class AppModel: ObservableObject {
         stopCurveRun(message: nil)
         pendingFanTargetApply = nil
         isWriting = true
-        lastActionMessage = "Restoring automatic..."
+        lastActionMessage = "status.restoring_automatic".localized
         Task {
             do {
                 lastActionMessage = try await helperService.restoreAutomatic()
@@ -204,10 +204,10 @@ final class AppModel: ObservableObject {
     func setLaunchAtLogin(_ enabled: Bool) {
         do {
             try loginManager.setEnabled(enabled)
-            lastActionMessage = enabled ? "Start at login enabled" : "Start at login disabled"
+            lastActionMessage = enabled ? "status.login_enabled".localized : "status.login_disabled".localized
         } catch {
             loginManager.refresh()
-            lastActionMessage = "Login item failed: \(error.localizedDescription)"
+            lastActionMessage = "status.login_failed".localized(error.localizedDescription)
         }
     }
 
@@ -365,13 +365,13 @@ final class AppModel: ObservableObject {
         isManualControlActive = true
         let boundedPercent = boundedManualPercent(percent)
         let fireDate = debounceWindow.fireDate(after: Date())
-        lastActionMessage = "Applying after slider settles..."
+        lastActionMessage = "status.applying_after_slider".localized
         manualApplyTask = Task { [weak self] in
             let delay = max(0, fireDate.timeIntervalSinceNow)
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                self?.applyManualPercent(percent: boundedPercent, message: "Manual target applied")
+                self?.applyManualPercent(percent: boundedPercent, message: "status.manual_applied".localized)
             }
         }
     }
@@ -403,14 +403,14 @@ final class AppModel: ObservableObject {
             return
         }
         guard !fanApplyInFlight else {
-            pendingFanTargetApply = (boundedPercent, "Curve target applied")
+            pendingFanTargetApply = (boundedPercent, "status.curve_applied".localized)
             log.debug("curve apply queued; percent=\(boundedPercent, privacy: .public)")
             return
         }
         log.info(
             "curve applying percent=\(boundedPercent, privacy: .public) targetRPM=\(self.curveTargetRPM ?? -1, privacy: .public) reason=\(targetOutOfSync ? "target-out-of-sync" : "percent-change", privacy: .public)"
         )
-        await applyManualPercentAsync(percent: boundedPercent, message: "Curve target applied")
+        await applyManualPercentAsync(percent: boundedPercent, message: "status.curve_applied".localized)
     }
 
     private var fanTargetOutOfSync: Bool {
@@ -484,7 +484,7 @@ final class AppModel: ObservableObject {
         if fanApplyInFlight {
             pendingFanTargetApply = (boundedPercent, message)
             if showsApplyingState {
-                lastActionMessage = "Apply queued"
+                lastActionMessage = "status.apply_queued".localized
             }
             return
         }
@@ -492,7 +492,7 @@ final class AppModel: ObservableObject {
         fanApplyInFlight = true
         if showsApplyingState {
             isApplyingFanTarget = true
-            lastActionMessage = "Applying..."
+            lastActionMessage = "status.applying".localized
         }
         do {
             let result = try await helperService.setPercent(

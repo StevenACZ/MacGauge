@@ -48,7 +48,9 @@ struct CurvePreview: View {
                     Text("\(Int(tick))")
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(.secondary)
-                        .position(x: xAxisLabelX(for: tick, plotRect: plotRect, viewWidth: proxy.size.width), y: plotRect.maxY + CurvePreviewLayout.xAxisLabelOffset)
+                        .position(
+                            x: xAxisLabelX(for: tick, plotRect: plotRect, viewWidth: proxy.size.width),
+                            y: plotRect.maxY + CurvePreviewLayout.xAxisLabelOffset)
                 }
 
                 ForEach(axisTicks, id: \.self) { tick in
@@ -102,9 +104,14 @@ struct CurvePreview: View {
                                     updatePoint(point.moved(to: value.location, in: proxy.size, percentRange: percentRange))
                                 }
                         )
-                        .help(isEditingEnabled ? "Drag curve point" : "Curve point")
-                        .accessibilityLabel("Curve point")
-                        .accessibilityValue("\(Int(point.temperatureCelsius.rounded())) C, \(Int(point.percent.rounded())) percent")
+                        .help(isEditingEnabled ? "curve.help.drag_point".localized : "curve.help.point".localized)
+                        .accessibilityLabel("curve.accessibility.point".localized)
+                        .accessibilityValue(
+                            "curve.accessibility.point_value".localized(
+                                Int(point.temperatureCelsius.rounded()),
+                                Int(point.percent.rounded())
+                            )
+                        )
                 }
 
                 if let marker {
@@ -131,7 +138,7 @@ struct CurvePreview: View {
                 }
             }
         }
-        .accessibilityLabel("Curve preview")
+        .accessibilityLabel("curve.accessibility.preview".localized)
     }
 
     private var sortedPoints: [CurvePoint] {
@@ -153,7 +160,7 @@ struct CurvePreview: View {
 
     private func currentMarker(in size: CGSize) -> CGPoint? {
         guard let temperature = currentTemperature,
-              let percent = targetPercent
+            let percent = targetPercent
         else {
             return nil
         }
@@ -211,8 +218,8 @@ struct CurvePreview: View {
     }
 }
 
-private extension CurvePoint {
-    func moved(to location: CGPoint, in size: CGSize, percentRange: ClosedRange<Double>) -> CurvePoint {
+extension CurvePoint {
+    fileprivate func moved(to location: CGPoint, in size: CGSize, percentRange: ClosedRange<Double>) -> CurvePoint {
         let plotRect = curvePreviewPlotRect(in: size)
         let clampedX = min(max(location.x, plotRect.minX), plotRect.maxX)
         let clampedY = min(max(location.y, plotRect.minY), plotRect.maxY)
