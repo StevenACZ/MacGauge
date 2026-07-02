@@ -3,47 +3,47 @@
 import PackageDescription
 
 let package = Package(
-    name: "M4FanControl",
+    name: "MacFan",
     platforms: [
         .macOS(.v13)
     ],
     products: [
-        .library(name: "M4FanCore", targets: ["M4FanCore"]),
-        .executable(name: "m4fan", targets: ["M4FanCLI"]),
-        .executable(name: "M4FanControl", targets: ["M4FanControlApp"]),
-        .executable(name: "M4FanHelper", targets: ["M4FanHelper"])
+        .library(name: "MacFanCore", targets: ["MacFanCore"]),
+        .executable(name: "macfan", targets: ["MacFanCLI"]),
+        .executable(name: "MacFan", targets: ["MacFanApp"]),
+        .executable(name: "MacFanHelper", targets: ["MacFanHelper"])
     ],
     targets: [
         .target(
-            name: "M4FanCore",
+            name: "MacFanCore",
             linkerSettings: [
                 .linkedFramework("IOKit")
             ]
         ),
         .executableTarget(
-            name: "M4FanCLI",
-            dependencies: ["M4FanCore"]
+            name: "MacFanCLI",
+            dependencies: ["MacFanCore"]
         ),
         .executableTarget(
-            name: "M4FanControlApp",
-            dependencies: ["M4FanCore"]
+            name: "MacFanApp",
+            dependencies: ["MacFanCore"]
         ),
         .executableTarget(
-            name: "M4FanHelper",
-            dependencies: ["M4FanCore"],
+            name: "MacFanHelper",
+            dependencies: ["MacFanCore"],
             linkerSettings: [
                 .linkedFramework("SystemConfiguration"),
                 .unsafeFlags([
                     "-Xlinker", "-sectcreate",
                     "-Xlinker", "__TEXT",
                     "-Xlinker", "__info_plist",
-                    "-Xlinker", "Resources/M4FanHelperInfo.plist"
+                    "-Xlinker", "Resources/MacFanHelperInfo.plist"
                 ], .when(platforms: [.macOS]))
             ]
         ),
         .testTarget(
-            name: "M4FanCoreTests",
-            dependencies: ["M4FanCore"]
+            name: "MacFanCoreTests",
+            dependencies: ["MacFanCore"]
         )
     ]
 )

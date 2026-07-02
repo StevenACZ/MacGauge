@@ -1,4 +1,4 @@
-# M4FanControl
+# MacFan
 
 Personal SwiftPM fan-control app and CLI for Steven's Apple Silicon M4 Pro Mac.
 
@@ -41,14 +41,14 @@ Practical implications:
 ## Build the CLI
 
 ```sh
-cd /Users/steven/Desktop/Proyectos/M4FanControl
+cd /Users/steven/Desktop/Proyectos/MacFan
 swift build
 ```
 
 ## Build and open the menu bar app
 
 ```sh
-cd /Users/steven/Desktop/Proyectos/M4FanControl
+cd /Users/steven/Desktop/Proyectos/MacFan
 ./script/build_and_run.sh
 ```
 
@@ -61,7 +61,7 @@ Build the app bundle without opening it:
 This stages the app at:
 
 ```text
-/Users/steven/Desktop/Proyectos/M4FanControl/dist/M4FanControl.app
+/Users/steven/Desktop/Proyectos/MacFan/dist/MacFan.app
 ```
 
 Install a copy to `~/Applications` and open it:
@@ -71,17 +71,17 @@ make install-dev
 ```
 
 `make install-dev` signs the local bundle with Apple Development, installs it to
-`~/Applications/M4FanControl.app`, and relaunches it for fast iteration.
+`~/Applications/MacFan.app`, and relaunches it for fast iteration.
 
 The app bundle includes:
 
-- `Contents/Resources/m4fan` for CLI compatibility.
-- `Contents/MacOS/M4FanHelper` for the privileged helper executable.
-- `Contents/Library/LaunchDaemons/com.stevenacz.M4FanControl.XPCHelper.plist` for SMAppService registration.
+- `Contents/Resources/macfan` for CLI compatibility.
+- `Contents/MacOS/MacFanHelper` for the privileged helper executable.
+- `Contents/Library/LaunchDaemons/com.stevenacz.MacFan.XPCHelper.plist` for SMAppService registration.
 
 Authorize the helper explicitly from Settings > Safety before using manual or curve controls. macOS may require one approval from that action. Slider, curve, restore automatic, launch, and status refresh never request administrator approval; if the helper is not ready, live controls stay locked until authorization is completed.
 
-The helper warning's Settings button opens directly to the Safety tab. The current app helper identity is `com.stevenacz.M4FanControl.XPCHelper`. This intentionally avoids the older local helper label `com.stevenacz.M4FanControl.Helper`, which may still exist on Steven's Mac from pre-XPC builds. After `XPCHelper` is authorized, the app asks it to remove that legacy helper.
+The helper warning's Settings button opens directly to the Safety tab. The current app helper identity is `com.stevenacz.MacFan.XPCHelper`. This intentionally avoids the older local helper label `com.stevenacz.MacFan.Helper`, which may still exist on Steven's Mac from pre-XPC builds. After `XPCHelper` is authorized, the app asks it to remove that legacy helper.
 
 Local script builds are ad-hoc signed by default outside `make install-dev`.
 For a stricter local signing test, set `SIGN_IDENTITY` before staging:
@@ -93,11 +93,11 @@ SIGN_IDENTITY="Developer ID Application: Example" ./script/build_and_run.sh stag
 ## Read-only commands
 
 ```sh
-.build/debug/m4fan status
-.build/debug/m4fan fans
-.build/debug/m4fan temps
-.build/debug/m4fan temps --all
-.build/debug/m4fan doctor
+.build/debug/macfan status
+.build/debug/macfan fans
+.build/debug/macfan temps
+.build/debug/macfan temps --all
+.build/debug/macfan doctor
 ```
 
 `status` prints the detected model, chip string, macOS version, process thermal state, fan count, representative SMC temperature, and fan RPM data when available.
@@ -114,10 +114,10 @@ tested Mac, the old representative reading jumped between about `40 C` and
 These do not write to the SMC:
 
 ```sh
-.build/debug/m4fan set --fan 0 --percent 45
-.build/debug/m4fan set --fan 0 --rpm 3000
-.build/debug/m4fan auto
-.build/debug/m4fan curve --fan 0 --points 40:40,60:50 --once
+.build/debug/macfan set --fan 0 --percent 45
+.build/debug/macfan set --fan 0 --rpm 3000
+.build/debug/macfan auto
+.build/debug/macfan curve --fan 0 --points 40:40,60:50 --once
 ```
 
 ## Manual live test
@@ -127,20 +127,20 @@ This CLI path is for controlled low-level testing only. It is not the normal app
 Use a moderate fan percentage first. Do not test 0 RPM or maximum in automation.
 
 ```sh
-cd /Users/steven/Desktop/Proyectos/M4FanControl
-sudo .build/debug/m4fan set --fan 0 --percent 45 --live --i-understand
+cd /Users/steven/Desktop/Proyectos/MacFan
+sudo .build/debug/macfan set --fan 0 --percent 45 --live --i-understand
 ```
 
 Return to automatic control:
 
 ```sh
-sudo .build/debug/m4fan auto --live --i-understand
+sudo .build/debug/macfan auto --live --i-understand
 ```
 
 If the live command reports `notPrivileged`, `badCommand`, or a firmware error, do not keep retrying aggressively. Capture the exact output and run:
 
 ```sh
-.build/debug/m4fan doctor
+.build/debug/macfan doctor
 ```
 
 ## Curve demo
@@ -148,13 +148,13 @@ If the live command reports `notPrivileged`, `badCommand`, or a firmware error, 
 Dry-run once:
 
 ```sh
-.build/debug/m4fan curve --fan 0 --points 40:40,60:50 --once
+.build/debug/macfan curve --fan 0 --points 40:40,60:50 --once
 ```
 
 Live for 60 seconds with automatic restore on exit:
 
 ```sh
-sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live --i-understand
+sudo .build/debug/macfan curve --fan 0 --points 40:40,60:50 --duration 60 --live --i-understand
 ```
 
 ## Menu bar app features
@@ -178,8 +178,8 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 
 ## Limitations
 
-- Sensor names on Apple Silicon are not fully mapped. M4FanControl uses a tested stable sensor subset for its representative app temperature and falls back to broader plausible thermal-mass keys when needed.
-- The helper command path is XPC-based under `com.stevenacz.M4FanControl.XPCHelper`. The SwiftPM bundling script creates the right SMAppService layout, but a fully production-grade distribution should use a stable Apple signing identity and notarized bundle.
+- Sensor names on Apple Silicon are not fully mapped. MacFan uses a tested stable sensor subset for its representative app temperature and falls back to broader plausible thermal-mass keys when needed.
+- The helper command path is XPC-based under `com.stevenacz.MacFan.XPCHelper`. The SwiftPM bundling script creates the right SMAppService layout, but a fully production-grade distribution should use a stable Apple signing identity and notarized bundle.
 - Continuous curve control is driven by the app and sends narrow percentage target commands through the helper.
 - `thermalmonitord` and firmware behavior can vary by M4 Pro/Max/base model and macOS release.
 - Under heavy thermal load, `thermalmonitord` can reclaim fan control even after a successful manual write; the app detects this (fan mode reverted or actual RPM far above target), shows a warning, and re-asserts the target on the next tick, but cannot guarantee the firmware never overrides the system.
@@ -190,9 +190,9 @@ sudo .build/debug/m4fan curve --fan 0 --points 40:40,60:50 --duration 60 --live 
 
 Authorize the helper once from the app Settings > Safety tab. Manual slider and curve changes do not prompt for approval.
 
-The app and dev flow does not require terminal `sudo` or `launchctl`. `make install-dev` signs with Apple Development, installs to `~/Applications/M4FanControl.app`, and relaunches the app; the helper is authorized and managed from Settings > Safety.
+The app and dev flow does not require terminal `sudo` or `launchctl`. `make install-dev` signs with Apple Development, installs to `~/Applications/MacFan.app`, and relaunches the app; the helper is authorized and managed from Settings > Safety.
 
-After a dev update, the running helper daemon loads the new binary on its next restart — reboot, or toggle the M4FanControl helper off and on in System Settings > Login Items > Allow in Background. No `sudo launchctl kickstart` or terminal command is needed.
+After a dev update, the running helper daemon loads the new binary on its next restart — reboot, or toggle the MacFan helper off and on in System Settings > Login Items > Allow in Background. No `sudo launchctl kickstart` or terminal command is needed.
 
 If Settings > Safety reports "Helper needs reload", click **Reload Helper**. The app re-registers the bundled daemon through ServiceManagement and opens the normal macOS approval flow when macOS requires it.
 

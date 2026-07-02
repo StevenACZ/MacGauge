@@ -2,10 +2,10 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="M4FanControl"
-CLI_NAME="m4fan"
-HELPER_NAME="M4FanHelper"
-BUNDLE_ID="com.stevenacz.M4FanControl"
+APP_NAME="MacFan"
+CLI_NAME="macfan"
+HELPER_NAME="MacFanHelper"
+BUNDLE_ID="com.stevenacz.MacFan"
 MIN_SYSTEM_VERSION="13.0"
 APP_VERSION="0.2.0"
 APP_BUILD="4"
@@ -21,7 +21,7 @@ APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 INSTALL_DIR="$HOME/Applications"
 INSTALLED_APP="$INSTALL_DIR/$APP_NAME.app"
-HELPER_PLIST_SRC="$ROOT_DIR/Resources/LaunchDaemons/com.stevenacz.M4FanControl.XPCHelper.plist"
+HELPER_PLIST_SRC="$ROOT_DIR/Resources/LaunchDaemons/com.stevenacz.MacFan.XPCHelper.plist"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 usage() {
@@ -61,7 +61,7 @@ stage_bundle() {
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
   <key>CFBundleDisplayName</key>
-  <string>M4 Fan Control</string>
+  <string>MacFan</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

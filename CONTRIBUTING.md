@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve M4FanControl.
+Thanks for helping improve MacFan.
 
 ## Setup
 

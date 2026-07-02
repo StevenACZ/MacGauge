@@ -1,8 +1,8 @@
-# M4FanControl Agent Guide
+# MacFan Agent Guide
 
 ## Scope
 
-This guide applies to `/Users/steven/Desktop/Proyectos/M4FanControl`.
+This guide applies to `/Users/steven/Desktop/Proyectos/MacFan`.
 
 ## Communication
 
@@ -21,10 +21,10 @@ This guide applies to `/Users/steven/Desktop/Proyectos/M4FanControl`.
 ## Architecture
 
 - Prefer SwiftPM-first workflows unless an Xcode project is intentionally added.
-- Keep SMC, fan, temperature, and curve logic in `M4FanCore`.
-- Keep CLI behavior in `M4FanCLI`.
-- Keep menu bar app code in `M4FanControlApp`.
-- Share hardware logic through `M4FanCore`; do not duplicate SMC key handling in UI code.
+- Keep SMC, fan, temperature, and curve logic in `MacFanCore`.
+- Keep CLI behavior in `MacFanCLI`.
+- Keep menu bar app code in `MacFanApp`.
+- Share hardware logic through `MacFanCore`; do not duplicate SMC key handling in UI code.
 
 ## macOS App Patterns
 
@@ -46,7 +46,7 @@ make ci-check
 - `make ci-check` runs lint, `swift build`, and `swift test`.
 - Use `./script/build_and_run.sh stage` / `run` for the GUI app bundle.
 - Use `make install-dev` for routine local app testing on Steven's Mac. It
-  signs with Apple Development, installs to `~/Applications/M4FanControl.app`,
+  signs with Apple Development, installs to `~/Applications/MacFan.app`,
   and relaunches the app.
 - Use `make format` / `make lint` before commits; optional Lefthook via
   `make hooks-install`.

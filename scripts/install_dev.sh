@@ -6,7 +6,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_DST="$HOME/Applications/M4FanControl.app"
+APP_DST="$HOME/Applications/MacFan.app"
 
 cd "$ROOT"
 
