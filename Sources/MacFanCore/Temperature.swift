@@ -48,7 +48,7 @@ public final class TemperatureReader {
         let plausible = readings.filter { $0.celsius >= 20 && $0.celsius <= 110 }
         let preferredPrefixes = [
             "TC", "TG", "TPD", "TPC", "TPM", "TPS",
-            "TRD", "TTD", "Ts", "Tm", "Tpx", "Tf"
+            "TRD", "TTD", "Ts", "Tm", "Tp", "Tf",
         ]
         let preferred = plausible.filter { reading in
             preferredPrefixes.contains { reading.key.hasPrefix($0) }
@@ -59,10 +59,10 @@ public final class TemperatureReader {
     private func readTemperature(key: String) throws -> TemperatureReading? {
         let value = try smc.readKey(key)
         guard ["flt ", "sp78"].contains(value.info.typeName),
-              let celsius = value.number,
-              celsius.isFinite,
-              celsius >= -20,
-              celsius <= 130
+            let celsius = value.number,
+            celsius.isFinite,
+            celsius >= -20,
+            celsius <= 130
         else {
             return nil
         }
@@ -78,7 +78,7 @@ enum TemperatureEstimator {
         "TTD5", "TTDX",
         "Ts0E", "Ts0I", "Tsx1",
         "TfC2", "TfC4",
-        "Tg05", "Tg1V"
+        "Tg05", "Tg1V",
     ]
 
     static func representativeTemperature(from readings: [TemperatureReading]) -> Double? {
@@ -100,7 +100,8 @@ enum TemperatureEstimator {
 
     static func representativeReadings(from readings: [TemperatureReading]) -> [TemperatureReading] {
         let preferredKeys = Set(preferredThermalMassKeys)
-        return readings
+        return
+            readings
             .filter { preferredKeys.contains($0.key) && $0.celsius.isFinite && $0.celsius >= 20 && $0.celsius <= 110 }
             .sorted { $0.key < $1.key }
     }
@@ -111,7 +112,10 @@ enum TemperatureEstimator {
             || key.hasPrefix("TTD")
             || key.hasPrefix("Ts")
             || key.hasPrefix("TfC")
-            || key.hasPrefix("Tg") {
+            || key.hasPrefix("Tg")
+            // M1/M2 generations expose die sensors as Tp?? keys.
+            || key.hasPrefix("Tp")
+        {
             return true
         }
         return ["TPCP", "TPMP", "TPSP", "TSCE", "TSCW"].contains(key)

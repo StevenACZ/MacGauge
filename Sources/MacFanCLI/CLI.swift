@@ -157,21 +157,39 @@ struct CLI {
     private func setFan() throws {
         let smc = try SMCClient()
         let controller = FanController(smc: smc)
-        let fanIndex = try parsed.int("fan", default: 0)
-        let fan = try controller.fanInfo(index: fanIndex)
-        let target = try targetRPM(controller: controller, fan: fan)
+        let fans: [FanInfo]
+        if let fanValue = parsed.value("fan") {
+            guard let index = Int(fanValue) else {
+                throw CLIError("Invalid fan index: \(fanValue)")
+            }
+            fans = [try controller.fanInfo(index: index)]
+        } else {
+            fans = try controller.allFans()
+        }
+        guard !fans.isEmpty else {
+            throw CLIError("This Mac reports no controllable fans.")
+        }
 
-        try validateTarget(target, fan: fan)
+        var plans: [(fan: FanInfo, target: Double)] = []
+        for fan in fans {
+            let target = try targetRPM(controller: controller, fan: fan)
+            try validateTarget(target, fan: fan)
+            plans.append((fan, target))
+        }
 
         if !parsed.has("live") {
-            stdoutLine("[dry-run] Would set fan \(fanIndex) to \(Int(target.rounded())) RPM.")
+            for plan in plans {
+                stdoutLine("[dry-run] Would set fan \(plan.fan.index) to \(Int(plan.target.rounded())) RPM.")
+            }
             stdoutLine("[dry-run] Add --live --i-understand and run with sudo to write to SMC.")
             return
         }
 
         try requireLivePermission()
-        let strategy = try controller.setTargetRPM(index: fanIndex, rpm: target)
-        stdoutLine("Set fan \(fanIndex) target to \(Int(target.rounded())) RPM using \(strategy.rawValue).")
+        for plan in plans {
+            let strategy = try controller.setTargetRPM(index: plan.fan.index, rpm: plan.target)
+            stdoutLine("Set fan \(plan.fan.index) target to \(Int(plan.target.rounded())) RPM using \(strategy.rawValue).")
+        }
         stdoutLine("Use 'sudo .build/debug/macfan auto --live --i-understand' to return to automatic control.")
     }
 
@@ -209,12 +227,22 @@ struct CLI {
         let smc = try SMCClient()
         let controller = FanController(smc: smc)
         let reader = TemperatureReader(smc: smc)
-        let fanIndex = try parsed.int("fan", default: 0)
         let curve = try FanCurve.parse(parsed.value("points"))
         let interval = try parsed.double("interval") ?? 5.0
         let duration = try parsed.double("duration")
         let once = parsed.has("once")
-        let fan = try controller.fanInfo(index: fanIndex)
+        let fans: [FanInfo]
+        if let fanValue = parsed.value("fan") {
+            guard let index = Int(fanValue) else {
+                throw CLIError("Invalid fan index: \(fanValue)")
+            }
+            fans = [try controller.fanInfo(index: index)]
+        } else {
+            fans = try controller.allFans()
+        }
+        guard !fans.isEmpty else {
+            throw CLIError("This Mac reports no controllable fans.")
+        }
         let live = parsed.has("live")
 
         if live {
@@ -228,9 +256,11 @@ struct CLI {
         var wroteLive = false
         defer {
             if live, wroteLive, !parsed.has("no-restore-auto") {
-                try? controller.returnToAutomatic(index: fanIndex)
+                for fan in fans {
+                    try? controller.returnToAutomatic(index: fan.index)
+                }
                 try? controller.resetForceTestIfAvailable()
-                stderrLine("restored fan \(fanIndex) to automatic control")
+                stderrLine("restored fan(s) \(fans.map { String($0.index) }.joined(separator: ", ")) to automatic control")
             }
         }
 
@@ -239,15 +269,20 @@ struct CLI {
                 throw CLIError("No representative SMC temperature available for curve control.")
             }
             let percent = curve.percent(for: temp)
-            let rpm = try controller.targetRPM(forPercent: percent, fan: fan)
-            try validateTarget(rpm, fan: fan, percent: percent, fromCurve: true)
+            for fan in fans {
+                let rpm = try controller.targetRPM(forPercent: percent, fan: fan)
+                try validateTarget(rpm, fan: fan, percent: percent, fromCurve: true)
 
-            if live {
-                let strategy = try controller.setTargetRPM(index: fanIndex, rpm: rpm)
-                wroteLive = true
-                stdoutLine("temp=\(formatCelsius(temp)) target=\(formatPercent(percent)) rpm=\(Int(rpm.rounded())) strategy=\(strategy.rawValue)")
-            } else {
-                stdoutLine("[dry-run] temp=\(formatCelsius(temp)) target=\(formatPercent(percent)) rpm=\(Int(rpm.rounded()))")
+                if live {
+                    let strategy = try controller.setTargetRPM(index: fan.index, rpm: rpm)
+                    wroteLive = true
+                    stdoutLine(
+                        "fan=\(fan.index) temp=\(formatCelsius(temp)) target=\(formatPercent(percent)) rpm=\(Int(rpm.rounded())) strategy=\(strategy.rawValue)"
+                    )
+                } else {
+                    stdoutLine(
+                        "[dry-run] fan=\(fan.index) temp=\(formatCelsius(temp)) target=\(formatPercent(percent)) rpm=\(Int(rpm.rounded()))")
+                }
             }
 
             if once { break }
@@ -271,10 +306,14 @@ struct CLI {
         stdoutLine("Ftst available: \(controller.forceTestAvailable() ? "yes" : "no")")
 
         for fan in fans {
-            stdoutLine("Fan \(fan.index): modeKey=\(fan.modeKey ?? "unavailable") mode=\(fan.mode.map(String.init) ?? "unavailable") current=\(formatRPM(fan.currentRPM))")
+            stdoutLine(
+                "Fan \(fan.index): modeKey=\(fan.modeKey ?? "unavailable") mode=\(fan.mode.map(String.init) ?? "unavailable") current=\(formatRPM(fan.currentRPM))"
+            )
         }
 
-        stdoutLine("Write readiness: \(SystemInfo.isRoot ? "root process; live writes may be attempted with explicit flags" : "not root; live writes should fail")")
+        stdoutLine(
+            "Write readiness: \(SystemInfo.isRoot ? "root process; live writes may be attempted with explicit flags" : "not root; live writes should fail")"
+        )
     }
 
     private func printFans(_ fans: [FanInfo]) {
@@ -310,7 +349,8 @@ struct CLI {
         }
 
         if rpm == 0 && !parsed.has("allow-zero") {
-            throw CLIError("0 RPM is dangerous. Add --allow-zero --allow-dangerous only after Steven explicitly approves live zero-RPM testing.")
+            throw CLIError(
+                "0 RPM is dangerous. Add --allow-zero --allow-dangerous only after Steven explicitly approves live zero-RPM testing.")
         }
 
         let belowRecommended = fan.minRPM.map { rpm < $0 } ?? false
@@ -321,7 +361,9 @@ struct CLI {
         if (belowRecommended || aboveRecommended || percentDanger || curveDanger) && !parsed.has("allow-dangerous") {
             let minText = formatRPM(fan.minRPM)
             let maxText = formatRPM(fan.maxRPM)
-            throw CLIError("Target \(Int(rpm.rounded())) RPM is outside the conservative safe band (min \(minText), max \(maxText), percent \(percent.map(formatPercent) ?? "n/a")). Add --allow-dangerous only for approved manual testing.")
+            throw CLIError(
+                "Target \(Int(rpm.rounded())) RPM is outside the conservative safe band (min \(minText), max \(maxText), percent \(percent.map(formatPercent) ?? "n/a")). Add --allow-dangerous only for approved manual testing."
+            )
         }
     }
 

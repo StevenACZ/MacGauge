@@ -8,7 +8,7 @@ import os
 private let toolPath = "/Library/PrivilegedHelperTools/\(HelperPaths.label)"
 private let plistPath = "/Library/LaunchDaemons/\(HelperPaths.launchDaemonPlistName)"
 private let helperLog = Logger(subsystem: "com.stevenacz.MacFan", category: "helper")
-private let helperVersion = "3.0"
+private let helperVersion = "4.0"
 
 @main
 struct MacFanHelper {
@@ -205,7 +205,6 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
             guard let percent = command.percent else {
                 throw MacFanError("Missing percent.")
             }
-            helperLog.info("setPercent requested fan=\(command.fanIndex, privacy: .public) percent=\(percent, privacy: .public)")
             try safety.validate(
                 percent: percent,
                 allowDangerous: command.allowDangerous,
@@ -213,20 +212,48 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
             )
             let smc = try SMCClient()
             let controller = FanController(smc: smc)
-            let fan = try controller.fanInfo(index: command.fanIndex)
-            let rpm = try controller.targetRPM(forPercent: percent, fan: fan)
-            try safety.validate(rpm: rpm, fan: fan, percent: percent, allowDangerous: command.allowDangerous)
-            let result = try controller.setTargetRPMVerified(index: command.fanIndex, rpm: rpm)
+            let fans: [FanInfo]
+            if let indexes = command.fanIndexes {
+                fans = try indexes.map { try controller.fanInfo(index: $0) }
+            } else {
+                fans = try controller.allFans()
+            }
+            guard !fans.isEmpty else {
+                throw MacFanError("This Mac reports no controllable fans.")
+            }
             helperLog.info(
-                "setPercent applied fan=\(command.fanIndex, privacy: .public) targetRPM=\(rpm, privacy: .public) actualRPM=\(result.actualRPM ?? -1, privacy: .public) mode=\(result.mode ?? -1, privacy: .public) contested=\(result.contested, privacy: .public) strategy=\(result.strategy.rawValue, privacy: .public)"
+                "setPercent requested fans=\(fans.map(\.index), privacy: .public) percent=\(percent, privacy: .public)"
             )
+            var results: [HelperFanResult] = []
+            for fan in fans {
+                let rpm = try controller.targetRPM(forPercent: percent, fan: fan)
+                try safety.validate(rpm: rpm, fan: fan, percent: percent, allowDangerous: command.allowDangerous)
+                let result = try controller.setTargetRPMVerified(index: fan.index, rpm: rpm)
+                helperLog.info(
+                    "setPercent applied fan=\(fan.index, privacy: .public) targetRPM=\(rpm, privacy: .public) actualRPM=\(result.actualRPM ?? -1, privacy: .public) mode=\(result.mode ?? -1, privacy: .public) contested=\(result.contested, privacy: .public) strategy=\(result.strategy.rawValue, privacy: .public)"
+                )
+                results.append(
+                    HelperFanResult(
+                        index: fan.index,
+                        targetRPM: rpm,
+                        actualRPM: result.actualRPM,
+                        mode: result.mode,
+                        contested: result.contested
+                    )
+                )
+            }
+            let summary =
+                results
+                .map { "fan \($0.index) → \(Int($0.targetRPM.rounded())) RPM" }
+                .joined(separator: ", ")
             return HelperResponse(
                 id: command.id,
                 ok: true,
-                message: "Set fan \(command.fanIndex) to \(Int(rpm.rounded())) RPM (\(result.strategy.rawValue))",
-                actualRPM: result.actualRPM,
-                mode: result.mode,
-                contested: result.contested
+                message: "Set \(summary)",
+                actualRPM: results.first?.actualRPM,
+                mode: results.first?.mode,
+                contested: results.contains { $0.contested },
+                fans: results
             )
         case .automatic:
             let smc = try SMCClient()

@@ -6,10 +6,14 @@ struct FanSnapshot: Sendable {
     var chip = SystemInfo.chipName
     var thermalState = SystemInfo.thermalState
     var temperatureCelsius: Double?
-    var fan: FanInfo?
-    var fanCount = 0
+    var fans: [FanInfo] = []
     var error: String?
     var updatedAt: Date?
+
+    var fan: FanInfo? { fans.first }
+    var fanCount: Int { fans.count }
+    /// True once a successful read confirmed the machine has no fans (e.g. MacBook Air).
+    var isFanless: Bool { error == nil && updatedAt != nil && fans.isEmpty }
 }
 
 @MainActor
@@ -111,8 +115,7 @@ final class FanMonitor: ObservableObject {
                     chip: SystemInfo.chipName,
                     thermalState: SystemInfo.thermalState,
                     temperatureCelsius: try temperatureReader.representativeTemperature(),
-                    fan: fans.first,
-                    fanCount: fans.count,
+                    fans: fans,
                     error: nil,
                     updatedAt: Date()
                 )
@@ -136,7 +139,7 @@ extension FanSnapshot {
             || fanCount != other.fanCount
             || error != other.error
             || valueChanged(temperatureCelsius, other.temperatureCelsius, tolerance: 0.2)
-            || fanChanged(fan, other.fan)
+            || zip(fans, other.fans).contains { fanChanged($0, $1) }
     }
 
     private func fanChanged(_ lhs: FanInfo?, _ rhs: FanInfo?) -> Bool {

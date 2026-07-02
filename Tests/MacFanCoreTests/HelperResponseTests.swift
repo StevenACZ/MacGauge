@@ -44,6 +44,34 @@ import Testing
     #expect(decoded.id == command.id)
 }
 
+@Test func helperCommandDefaultsToAllFans() throws {
+    let command = HelperCommand(action: .setPercent, percent: 50)
+    let data = try JSONEncoder().encode(command)
+    let decoded = try JSONDecoder().decode(HelperCommand.self, from: data)
+    #expect(decoded.fanIndexes == nil)
+    #expect(decoded.percent == 50)
+}
+
+@Test func helperResponseRoundTripsPerFanResults() throws {
+    let response = HelperResponse(
+        id: "a",
+        ok: true,
+        message: "ok",
+        actualRPM: 2100,
+        mode: 1,
+        contested: true,
+        fans: [
+            HelperFanResult(index: 0, targetRPM: 2000, actualRPM: 2100, mode: 1, contested: false),
+            HelperFanResult(index: 1, targetRPM: 2200, actualRPM: 3400, mode: 0, contested: true),
+        ]
+    )
+    let data = try JSONEncoder().encode(response)
+    let decoded = try JSONDecoder().decode(HelperResponse.self, from: data)
+    #expect(decoded.fans?.count == 2)
+    #expect(decoded.fans?[1].contested == true)
+    #expect(decoded.fans?[0].targetRPM == 2000)
+}
+
 @Test func legacyDaemonWouldRejectUnknownAction() throws {
     // A protocol-2 daemon fails to decode actions it does not know, replying
     // ok=false; the app treats that as "shutdown unsupported" and re-registers.

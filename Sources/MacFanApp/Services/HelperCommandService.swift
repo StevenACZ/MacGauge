@@ -311,13 +311,14 @@ final class HelperCommandService: ObservableObject {
         let actualRPM: Double?
         let mode: Int?
         let contested: Bool
+        let fans: [HelperFanResult]
     }
 
     func setPercent(_ percent: Double, allowDangerous: Bool, allowZero: Bool) async throws -> SetPercentResult {
         let response = try await sendReadyCommand(
             .init(
                 action: .setPercent,
-                fanIndex: 0,
+                fanIndexes: nil,
                 percent: percent,
                 allowDangerous: allowDangerous,
                 allowZero: allowZero
@@ -327,7 +328,8 @@ final class HelperCommandService: ObservableObject {
             message: response.message,
             actualRPM: response.actualRPM,
             mode: response.mode,
-            contested: response.contested ?? false
+            contested: response.contested ?? false,
+            fans: response.fans ?? []
         )
     }
 

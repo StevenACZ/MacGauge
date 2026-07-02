@@ -11,7 +11,8 @@ public enum HelperAction: String, Codable, Sendable {
 public struct HelperCommand: Codable, Sendable {
     public var id: String
     public var action: HelperAction
-    public var fanIndex: Int
+    /// Fans the command applies to; nil means every fan the SMC reports.
+    public var fanIndexes: [Int]?
     public var percent: Double?
     public var allowDangerous: Bool
     public var allowZero: Bool
@@ -20,7 +21,7 @@ public struct HelperCommand: Codable, Sendable {
     public init(
         id: String = UUID().uuidString,
         action: HelperAction,
-        fanIndex: Int = 0,
+        fanIndexes: [Int]? = nil,
         percent: Double? = nil,
         allowDangerous: Bool = false,
         allowZero: Bool = false,
@@ -28,7 +29,7 @@ public struct HelperCommand: Codable, Sendable {
     ) {
         self.id = id
         self.action = action
-        self.fanIndex = fanIndex
+        self.fanIndexes = fanIndexes
         self.percent = percent
         self.allowDangerous = allowDangerous
         self.allowZero = allowZero
@@ -36,8 +37,24 @@ public struct HelperCommand: Codable, Sendable {
     }
 }
 
+public struct HelperFanResult: Codable, Sendable {
+    public var index: Int
+    public var targetRPM: Double
+    public var actualRPM: Double?
+    public var mode: Int?
+    public var contested: Bool
+
+    public init(index: Int, targetRPM: Double, actualRPM: Double?, mode: Int?, contested: Bool) {
+        self.index = index
+        self.targetRPM = targetRPM
+        self.actualRPM = actualRPM
+        self.mode = mode
+        self.contested = contested
+    }
+}
+
 public struct HelperResponse: Codable, Sendable {
-    public static let currentProtocolVersion = 3
+    public static let currentProtocolVersion = 4
 
     public var id: String
     public var ok: Bool
@@ -48,6 +65,8 @@ public struct HelperResponse: Codable, Sendable {
     public var actualRPM: Double?
     public var mode: Int?
     public var contested: Bool?
+    /// Per-fan write results; the flat fields above mirror the first fan.
+    public var fans: [HelperFanResult]?
 
     public init(
         id: String,
@@ -58,7 +77,8 @@ public struct HelperResponse: Codable, Sendable {
         helperVersion: String? = nil,
         actualRPM: Double? = nil,
         mode: Int? = nil,
-        contested: Bool? = nil
+        contested: Bool? = nil,
+        fans: [HelperFanResult]? = nil
     ) {
         self.id = id
         self.ok = ok
@@ -69,5 +89,6 @@ public struct HelperResponse: Codable, Sendable {
         self.actualRPM = actualRPM
         self.mode = mode
         self.contested = contested
+        self.fans = fans
     }
 }

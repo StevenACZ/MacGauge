@@ -56,19 +56,23 @@ final class AppModel: ObservableObject {
         monitor.snapshot.fan?.currentRPM
     }
 
+    var fans: [FanInfo] {
+        monitor.snapshot.fans
+    }
+
     var manualDisplayPercent: Double {
         boundedManualPercent(settings.manualPercent)
     }
 
     var minimumFanPercent: Double {
-        guard let fan = monitor.snapshot.fan,
-            let minRPM = fan.minRPM,
-            let maxRPM = fan.maxRPM,
-            maxRPM > 0
-        else {
+        let floors = monitor.snapshot.fans.compactMap { fan -> Double? in
+            guard let minRPM = fan.minRPM, let maxRPM = fan.maxRPM, maxRPM > 0 else { return nil }
+            return min(100, minRPM / maxRPM * 100)
+        }
+        guard let strictestFloor = floors.max() else {
             return settings.dangerousRangesUnlocked ? 0 : 20
         }
-        return max(settings.dangerousRangesUnlocked ? 0 : 20, min(100, minRPM / maxRPM * 100))
+        return max(settings.dangerousRangesUnlocked ? 0 : 20, strictestFloor)
     }
 
     var manualPercentRange: ClosedRange<Double> {
@@ -410,17 +414,10 @@ final class AppModel: ObservableObject {
     }
 
     private var fanTargetOutOfSync: Bool {
-        guard didRunLiveControl,
-            let fan = monitor.snapshot.fan,
-            let targetRPM = currentLiveTargetRPM
-        else {
+        guard didRunLiveControl, let percent = currentLivePercent else {
             return false
         }
-        return FanContestedRules.isContested(
-            mode: fan.mode,
-            actualRPM: fan.currentRPM,
-            targetRPM: targetRPM
-        )
+        return anyFanContested(fans: monitor.snapshot.fans, percent: percent)
     }
 
     private func bindContestedState() {
@@ -432,22 +429,39 @@ final class AppModel: ObservableObject {
     }
 
     private func evaluateControlContested(for snapshot: FanSnapshot) {
-        guard didRunLiveControl, let fan = snapshot.fan else {
+        guard didRunLiveControl, !snapshot.fans.isEmpty, let percent = currentLivePercent else {
             contestedStreak = 0
             controlContested = false
             return
         }
-        let contested = FanContestedRules.isContested(
-            mode: fan.mode,
-            actualRPM: fan.currentRPM,
-            targetRPM: currentLiveTargetRPM
-        )
+        let contested = anyFanContested(fans: snapshot.fans, percent: percent)
         if contested {
             contestedStreak += 1
         } else {
             contestedStreak = 0
         }
         controlContested = contestedStreak >= contestedStreakLimit
+    }
+
+    // Each fan has its own RPM limits, so the live percent must be converted
+    // to a per-fan target before the contested comparison.
+    private func anyFanContested(fans: [FanInfo], percent: Double) -> Bool {
+        fans.contains { fan in
+            FanContestedRules.isContested(
+                mode: fan.mode,
+                actualRPM: fan.currentRPM,
+                targetRPM: try? targetRules.targetRPM(forPercent: percent, fan: fan)
+            )
+        }
+    }
+
+    private var currentLivePercent: Double? {
+        switch settings.controlMode {
+        case .manual:
+            return manualDisplayPercent
+        case .curve:
+            return effectiveCurveTargetPercent
+        }
     }
 
     private var currentLiveTargetRPM: Double? {
