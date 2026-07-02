@@ -2,13 +2,16 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="M4FanControl"
-CLI_NAME="m4fan"
-HELPER_NAME="M4FanHelper"
-BUNDLE_ID="com.stevenacz.M4FanControl"
+APP_NAME="MacFan"
+# The app's SwiftPM product; distinct from "macfan" (CLI) because the two
+# would collide case-insensitively in the build directory.
+APP_PRODUCT="MacFanApp"
+CLI_NAME="macfan"
+HELPER_NAME="MacFanHelper"
+BUNDLE_ID="com.stevenacz.MacFan"
 MIN_SYSTEM_VERSION="13.0"
-APP_VERSION="0.2.0"
-APP_BUILD="3"
+APP_VERSION="1.0.0"
+APP_BUILD="5"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -21,7 +24,7 @@ APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 INSTALL_DIR="$HOME/Applications"
 INSTALLED_APP="$INSTALL_DIR/$APP_NAME.app"
-HELPER_PLIST_SRC="$ROOT_DIR/Resources/LaunchDaemons/com.stevenacz.M4FanControl.XPCHelper.plist"
+HELPER_PLIST_SRC="$ROOT_DIR/Resources/LaunchDaemons/com.stevenacz.MacFan.XPCHelper.plist"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 usage() {
@@ -33,7 +36,7 @@ kill_existing() {
 }
 
 stage_bundle() {
-  swift build -c "$CONFIG" --product "$APP_NAME"
+  swift build -c "$CONFIG" --product "$APP_PRODUCT"
   swift build -c "$CONFIG" --product "$CLI_NAME"
   swift build -c "$CONFIG" --product "$HELPER_NAME"
 
@@ -43,11 +46,20 @@ stage_bundle() {
   rm -rf "$APP_BUNDLE"
   mkdir -p "$APP_MACOS" "$APP_RESOURCES" "$APP_LAUNCH_DAEMONS"
 
-  cp "$build_dir/$APP_NAME" "$APP_BINARY"
+  cp "$build_dir/$APP_PRODUCT" "$APP_BINARY"
   cp "$build_dir/$CLI_NAME" "$APP_RESOURCES/$CLI_NAME"
   cp "$build_dir/$HELPER_NAME" "$APP_MACOS/$HELPER_NAME"
   cp "$HELPER_PLIST_SRC" "$APP_LAUNCH_DAEMONS/"
   chmod +x "$APP_BINARY" "$APP_RESOURCES/$CLI_NAME" "$APP_MACOS/$HELPER_NAME"
+
+  # SwiftPM target resources (localized strings). Bundle.module aborts at
+  # launch if this bundle is missing from Contents/Resources.
+  local resources_bundle="$build_dir/${APP_NAME}_${APP_NAME}App.bundle"
+  if [ ! -d "$resources_bundle" ]; then
+    echo "error: missing SwiftPM resources bundle at $resources_bundle" >&2
+    exit 1
+  fi
+  cp -R "$resources_bundle" "$APP_RESOURCES/"
 
   cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -61,7 +73,7 @@ stage_bundle() {
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
   <key>CFBundleDisplayName</key>
-  <string>M4 Fan Control</string>
+  <string>MacFan</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

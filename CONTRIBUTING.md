@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve M4FanControl.
+Thanks for helping improve MacFan.
 
 ## Setup
 
@@ -47,6 +47,6 @@ Include:
 
 ## Signing
 
-This is a private/local project. Contributor builds use ad-hoc or local signing.
-Maintainers configure Apple Development, helper installation, and release
-packaging outside any public distribution path.
+Contributor builds use ad-hoc or local signing; no certificates or Team IDs
+belong in the repo. Maintainers configure Apple Development, helper
+installation, and release packaging locally.

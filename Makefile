@@ -1,4 +1,4 @@
-.PHONY: help tools format format-all lint lint-all build test stage install-dev ci-check hooks-install
+.PHONY: help tools format format-all lint lint-all build test stage install-dev notarized-dmg ci-check hooks-install
 
 .DEFAULT_GOAL := help
 
@@ -7,7 +7,7 @@ SWIFT_FORMAT_CONFIG := .swift-format
 SWIFT_SOURCE_DIRS := Sources Tests
 
 help:
-	@printf "M4FanControl developer commands\n\n"
+	@printf "MacFan developer commands\n\n"
 	@printf "  make tools         Check required local tools\n"
 	@printf "  make format        Format changed Swift files with Xcode swift-format\n"
 	@printf "  make format-all    Format all Swift sources explicitly\n"
@@ -60,3 +60,7 @@ ci-check: lint build test
 hooks-install:
 	@command -v lefthook >/dev/null || { echo "lefthook is not installed. Install it with: brew install lefthook"; exit 69; }
 	lefthook install
+
+notarized-dmg:
+	@chmod +x scripts/package_notarized_dmg.sh
+	@scripts/package_notarized_dmg.sh

@@ -4,10 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.0.0] - 2026-07-02
+
+First public release, renamed from M4FanControl to MacFan.
 
 ### Added
 
+- Interactive fan curve editor: drag points on the chart with a live value
+  bubble, double-click to add a point, right-click to delete, gradient fill
+  under the curve, and compact per-point chips with a popover for precise
+  temperature/percent entry.
+- Notarized DMG release packaging (`make notarized-dmg`).
+- Universal Apple Silicon support: fans are enumerated dynamically, manual
+  and curve targets apply to every fan (each converted to its own RPM range),
+  and fanless Macs (MacBook Air) are shown as passively cooled instead of an
+  error. Helper protocol v4 carries per-fan write results.
+- English and Spanish localization following the system language, with an
+  in-app override in Settings > General.
+- Central UI theme (accent, layout metrics, animation springs), hover-filled
+  footer action rows, per-fan RPM chips, a temperature-tinted identity
+  header, a menu bar icon bounce on open, and animated settings tabs.
+- MIT license and public-safe contributor docs.
 - Standard Swift project workflow tooling: shared formatting config, Makefile
   checks, optional Lefthook hooks, and contributor/security docs.
 - `make install-dev` / `scripts/install_dev.sh` for Apple Development signed
@@ -17,9 +34,22 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Verified helper write: `setPercent` now reads back `F0Md`/`F0Ac` after writing
   and re-asserts manual mode plus the target (bounded retry) when the system
   reverts it, returning the actual RPM, mode, and contested flag.
+- App/helper diagnostic logging for fan writes, including requested percent,
+  target RPM, actual RPM, SMC mode, helper state, and re-assert reasons.
 
 ### Changed
 
+- Renamed the project from M4FanControl to MacFan: package, targets, bundle
+  identifiers (`com.stevenacz.MacFan`), helper daemon label, CLI binary
+  (`macfan`), scripts, and docs. Installing over an old M4FanControl build
+  requires authorizing the renamed helper once from Settings > Safety and
+  removing the old app from System Settings > Login Items.
+- Temperature discovery now also covers the `Tp` die sensors used by M1/M2
+  generations.
+- CLI `set` and `curve` apply to all fans by default; `--fan` limits them to
+  one.
+- The update tick setting is no longer exposed in Settings and keeps its 1 s
+  default.
 - Simplified the menu bar popover footer to only Settings and Exit by removing
   the helper-readiness shield notice from Manual and Curve content.
 - Curve mode popover header now shows the measured actual fan RPM (labeled
@@ -35,12 +65,21 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   README; dev install, helper authorization, and reload after a dev update are
   handled by `make install-dev` plus Settings > Safety and System Settings >
   Login Items, with no terminal command needed.
+- The app now treats missing helper protocol fields as a stale helper instead of
+  assuming the daemon is ready, and Settings > Safety offers a helper reload
+  path through ServiceManagement.
+- Manual/Curve popovers show a helper warning when fan targets are only previews
+  because the privileged helper is not ready or needs reload.
 
 ### Fixed
 
 - Fixed the Curve mode RPM display reporting the computed target (e.g. 1133 RPM)
   while the fan physically spun much faster: the popover now shows the real
   measured RPM and warns when the system is overriding the curve.
+- Fixed persisted Curve mode showing a target after app launch without starting
+  the curve-application loop once the helper becomes ready.
+- Fixed curve re-assertion missing the case where actual RPM stays far below the
+  requested target at the same curve percentage.
 
 ## [0.2.0] - 2026-06-26
 

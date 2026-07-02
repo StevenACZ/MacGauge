@@ -1,0 +1,140 @@
+/* MacFan — Spanish strings */
+
+/* Popover */
+"popover.subtitle.one_fan" = "%@ · 1 ventilador";
+"popover.subtitle.fans" = "%@ · %d ventiladores";
+"popover.mode" = "Modo";
+"popover.auto" = "Auto";
+"popover.target" = "Objetivo";
+"popover.curve_target" = "Objetivo de curva";
+"popover.rpm.actual" = "Real";
+"popover.rpm.current" = "Actual";
+"popover.settings" = "Configuración";
+"popover.quit" = "Salir de MacFan";
+"popover.fan_fallback" = "Ventilador %d";
+
+/* Banners */
+"banner.contested" = "Las RPM del ventilador no coinciden con el objetivo solicitado";
+"banner.fanless" = "Esta Mac tiene enfriamiento pasivo y no cuenta con ventiladores controlables.";
+"banner.action.approve" = "Aprobar";
+"banner.action.authorize" = "Autorizar";
+"banner.action.fix" = "Reparar";
+
+/* Modes and units */
+"mode.manual" = "Manual";
+"mode.curve" = "Curva";
+"unit.celsius" = "Celsius";
+"unit.fahrenheit" = "Fahrenheit";
+
+/* Settings window */
+"settings.close" = "Cerrar";
+"settings.tab.general" = "General";
+"settings.tab.control" = "Control";
+"settings.tab.display" = "Pantalla";
+"settings.tab.safety" = "Seguridad";
+
+/* General tab */
+"settings.general.title" = "General";
+"settings.general.temperature" = "Temperatura";
+"settings.general.temperature_unit" = "Unidad de temperatura";
+"settings.general.language" = "Idioma";
+"settings.general.launch_at_login" = "Iniciar al iniciar sesión";
+"settings.general.restore_on_quit" = "Restaurar al salir";
+
+/* Control tab */
+"settings.control.title" = "Control";
+"settings.control.mode" = "Modo";
+"settings.control.default_mode" = "Modo predeterminado";
+"settings.control.manual_target" = "Objetivo manual";
+"settings.control.target" = "Objetivo";
+"settings.control.curve_points" = "Puntos de curva";
+"settings.control.temp_placeholder" = "Temp";
+"settings.control.add_point" = "Agregar punto";
+"settings.control.reset" = "Restablecer";
+"settings.control.preview" = "Vista previa";
+"settings.control.delete_point" = "Eliminar punto";
+"settings.control.keep_two_points" = "Mantén al menos dos puntos";
+"settings.control.delete_curve_point" = "Eliminar punto de curva";
+"settings.control.fan_curve" = "Curva del ventilador";
+"settings.control.curve_hint" = "Arrastra los puntos · doble clic para agregar · clic derecho para eliminar";
+"settings.control.temperature" = "Temperatura";
+"settings.control.fan_speed" = "Velocidad";
+"curve.delete_point" = "Eliminar punto";
+
+/* Display tab */
+"settings.display.title" = "Pantalla";
+"settings.display.animate_icon" = "Animar ícono del ventilador";
+"settings.display.normal" = "Normal";
+"settings.display.medium" = "Media";
+"settings.display.hot" = "Caliente";
+"settings.display.up_to" = "Hasta";
+"settings.display.from" = "Desde";
+
+/* Safety tab */
+"settings.safety.title" = "Seguridad";
+"settings.safety.unlock_ranges" = "Desbloquear rangos extremos";
+"settings.safety.privileged_helper" = "Asistente con privilegios";
+"settings.safety.restore_automatic" = "Restaurar automático ahora";
+"settings.safety.open_settings" = "Abrir Configuración";
+"settings.safety.fix_helper" = "Reparar asistente";
+"settings.safety.authorize" = "Autorizar";
+
+/* Color presets (accessibility) */
+"color.white" = "Blanco";
+"color.green" = "Verde";
+"color.yellow" = "Amarillo";
+"color.red" = "Rojo";
+
+/* Helper status badge (accessibility) */
+"helper.state.authorized" = "Autorizado";
+"helper.state.approval_needed" = "Requiere aprobación";
+"helper.state.not_authorized" = "No autorizado";
+"helper.state.unavailable" = "No disponible";
+"helper.state.reload_needed" = "Requiere recarga";
+"helper.state.reloading" = "Recargando";
+"helper.state.failed" = "Falló";
+"helper.state.checking" = "Comprobando";
+
+/* Helper status summaries */
+"helper.status.checking" = "Comprobando el asistente…";
+"helper.status.ready" = "Asistente listo";
+"helper.status.needs_authorization" = "Autoriza el asistente para habilitar el control de ventiladores";
+"helper.status.needs_approval" = "Aprueba MacFan en Configuración del Sistema > Elementos de inicio";
+"helper.status.unavailable" = "El asistente no responde; se está recuperando automáticamente";
+"helper.status.stale" = "El asistente está desactualizado; se está recargando automáticamente";
+"helper.status.reloading" = "Recargando el asistente…";
+"helper.status.failed" = "El asistente falló; usa Reparar en Configuración > Seguridad";
+
+/* Helper errors (user-facing) */
+"helper.error.approve_in_settings" = "Aprueba MacFan en Configuración del Sistema; la app lo detecta automáticamente.";
+"helper.error.no_response" = "El asistente no respondió.";
+"helper.error.outdated" = "El asistente está desactualizado; la app lo recarga automáticamente.";
+
+/* App status messages */
+"status.ready" = "Listo";
+"status.checking_helper" = "Comprobando el asistente…";
+"status.helper_ready" = "Asistente listo";
+"status.helper_ready_cleanup" = "Asistente listo. %@";
+"status.restoring_automatic" = "Restaurando automático…";
+"status.applying" = "Aplicando…";
+"status.apply_queued" = "Aplicación en cola";
+"status.applying_after_slider" = "Aplicando cuando el deslizador se detenga…";
+"status.manual_applied" = "Objetivo manual aplicado";
+"status.curve_applied" = "Objetivo de curva aplicado";
+"status.login_enabled" = "Inicio al iniciar sesión activado";
+"status.login_disabled" = "Inicio al iniciar sesión desactivado";
+"status.login_failed" = "Falló el elemento de inicio: %@";
+
+/* Curve preview (help + accessibility) */
+"curve.help.drag_point" = "Arrastra el punto de curva";
+"curve.help.point" = "Punto de curva";
+"curve.accessibility.point" = "Punto de curva";
+"curve.accessibility.point_value" = "%d C, %d por ciento";
+"curve.accessibility.preview" = "Vista previa de la curva";
+
+/* Manual slider (accessibility) */
+"slider.accessibility.label" = "Objetivo manual del ventilador";
+"slider.accessibility.value" = "%d por ciento";
+
+/* Formatters */
+"formatter.temperature_unavailable" = "No disponible";
