@@ -3,6 +3,9 @@ set -euo pipefail
 
 MODE="${1:-run}"
 APP_NAME="MacFan"
+# The app's SwiftPM product; distinct from "macfan" (CLI) because the two
+# would collide case-insensitively in the build directory.
+APP_PRODUCT="MacFanApp"
 CLI_NAME="macfan"
 HELPER_NAME="MacFanHelper"
 BUNDLE_ID="com.stevenacz.MacFan"
@@ -33,7 +36,7 @@ kill_existing() {
 }
 
 stage_bundle() {
-  swift build -c "$CONFIG" --product "$APP_NAME"
+  swift build -c "$CONFIG" --product "$APP_PRODUCT"
   swift build -c "$CONFIG" --product "$CLI_NAME"
   swift build -c "$CONFIG" --product "$HELPER_NAME"
 
@@ -43,11 +46,20 @@ stage_bundle() {
   rm -rf "$APP_BUNDLE"
   mkdir -p "$APP_MACOS" "$APP_RESOURCES" "$APP_LAUNCH_DAEMONS"
 
-  cp "$build_dir/$APP_NAME" "$APP_BINARY"
+  cp "$build_dir/$APP_PRODUCT" "$APP_BINARY"
   cp "$build_dir/$CLI_NAME" "$APP_RESOURCES/$CLI_NAME"
   cp "$build_dir/$HELPER_NAME" "$APP_MACOS/$HELPER_NAME"
   cp "$HELPER_PLIST_SRC" "$APP_LAUNCH_DAEMONS/"
   chmod +x "$APP_BINARY" "$APP_RESOURCES/$CLI_NAME" "$APP_MACOS/$HELPER_NAME"
+
+  # SwiftPM target resources (localized strings). Bundle.module aborts at
+  # launch if this bundle is missing from Contents/Resources.
+  local resources_bundle="$build_dir/${APP_NAME}_${APP_NAME}App.bundle"
+  if [ ! -d "$resources_bundle" ]; then
+    echo "error: missing SwiftPM resources bundle at $resources_bundle" >&2
+    exit 1
+  fi
+  cp -R "$resources_bundle" "$APP_RESOURCES/"
 
   cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

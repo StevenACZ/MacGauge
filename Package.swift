@@ -11,7 +11,9 @@ let package = Package(
     products: [
         .library(name: "MacFanCore", targets: ["MacFanCore"]),
         .executable(name: "macfan", targets: ["MacFanCLI"]),
-        .executable(name: "MacFan", targets: ["MacFanApp"]),
+        // Named MacFanApp because a "MacFan" product would collide with the
+        // "macfan" CLI binary on case-insensitive filesystems.
+        .executable(name: "MacFanApp", targets: ["MacFanApp"]),
         .executable(name: "MacFanHelper", targets: ["MacFanHelper"]),
     ],
     targets: [
