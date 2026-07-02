@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.1] - 2026-07-02
+
+### Fixed
+
+- Fixed the app crashing at launch on every Mac except the machine it was built
+  on: the SwiftPM-generated `Bundle.module` accessor never looked inside the
+  installed app's `Contents/Resources`, so resolving the localized strings
+  bundle aborted before the menu bar icon could appear. The app now loads the
+  resources bundle from the packaged app first and keeps the SwiftPM accessor
+  only as a development fallback.
+
 ## [1.0.0] - 2026-07-02
 
 First public release, renamed from M4FanControl to MacFan.
