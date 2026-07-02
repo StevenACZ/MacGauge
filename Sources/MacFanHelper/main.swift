@@ -151,12 +151,7 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
         }
 
         if let requirement = Self.clientCodeSigningRequirement {
-            do {
-                try connection.setCodeSigningRequirement(requirement)
-            } catch {
-                helperLog.error("rejected client: signing requirement setup failed")
-                return false
-            }
+            connection.setCodeSigningRequirement(requirement)
         }
 
         connection.exportedInterface = NSXPCInterface(with: MacFanHelperXPCProtocol.self)

@@ -4,10 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.0.0] - 2026-07-02
+
+First public release, renamed from M4FanControl to MacFan.
 
 ### Added
 
+- Interactive fan curve editor: drag points on the chart with a live value
+  bubble, double-click to add a point, right-click to delete, gradient fill
+  under the curve, and compact per-point chips with a popover for precise
+  temperature/percent entry.
+- Notarized DMG release packaging (`make notarized-dmg`).
 - Universal Apple Silicon support: fans are enumerated dynamically, manual
   and curve targets apply to every fan (each converted to its own RPM range),
   and fanless Macs (MacBook Air) are shown as passively cooled instead of an
@@ -41,6 +48,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   generations.
 - CLI `set` and `curve` apply to all fans by default; `--fan` limits them to
   one.
+- The update tick setting is no longer exposed in Settings and keeps its 1 s
+  default.
 - Simplified the menu bar popover footer to only Settings and Exit by removing
   the helper-readiness shield notice from Manual and Curve content.
 - Curve mode popover header now shows the measured actual fan RPM (labeled

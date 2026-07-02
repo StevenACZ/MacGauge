@@ -46,8 +46,8 @@ public struct FanCurve {
         let points = try source.split(separator: ",").map { item -> (Double, Double) in
             let pieces = item.split(separator: ":")
             guard pieces.count == 2,
-                  let temperature = Double(pieces[0]),
-                  let percent = Double(pieces[1])
+                let temperature = Double(pieces[0]),
+                let percent = Double(pieces[1])
             else {
                 throw MacFanError("Invalid curve point '\(item)'. Use temp:percent, for example 40:40,60:50.")
             }

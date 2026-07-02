@@ -77,10 +77,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             y: visibleFrame.midY - windowSize.height / 2
         )
 
-        window.setFrameOrigin(NSPoint(
-            x: clamp(centeredOrigin.x, lower: visibleFrame.minX, upper: visibleFrame.maxX - windowSize.width),
-            y: clamp(centeredOrigin.y, lower: visibleFrame.minY, upper: visibleFrame.maxY - windowSize.height)
-        ))
+        window.setFrameOrigin(
+            NSPoint(
+                x: clamp(centeredOrigin.x, lower: visibleFrame.minX, upper: visibleFrame.maxX - windowSize.width),
+                y: clamp(centeredOrigin.y, lower: visibleFrame.minY, upper: visibleFrame.maxY - windowSize.height)
+            ))
     }
 
     private func screenForSettingsWindow(_ window: NSWindow) -> NSScreen {

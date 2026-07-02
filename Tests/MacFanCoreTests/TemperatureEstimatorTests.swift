@@ -1,4 +1,5 @@
 import Testing
+
 @testable import MacFanCore
 
 @Test func temperatureEstimatorUsesPreferredThermalMassSensors() {
@@ -11,7 +12,7 @@ import Testing
         TemperatureReading(key: "TTD5", type: "flt ", celsius: 62),
         TemperatureReading(key: "Ts0E", type: "flt ", celsius: 63),
         TemperatureReading(key: "TfC2", type: "flt ", celsius: 64),
-        TemperatureReading(key: "Tg05", type: "flt ", celsius: 68)
+        TemperatureReading(key: "Tg05", type: "flt ", celsius: 68),
     ])
 
     #expect(result == 64)
@@ -28,7 +29,7 @@ import Testing
         TemperatureReading(key: "Tg04", type: "flt ", celsius: 90),
         TemperatureReading(key: "TPCP", type: "flt ", celsius: 69),
         TemperatureReading(key: "TSCW", type: "flt ", celsius: 70),
-        TemperatureReading(key: "TPSP", type: "flt ", celsius: 70)
+        TemperatureReading(key: "TPSP", type: "flt ", celsius: 70),
     ])
 
     #expect(abs((result ?? 0) - 71.4285) < 0.001)
@@ -40,7 +41,7 @@ import Testing
         TemperatureReading(key: "TA1P", type: "flt ", celsius: 40),
         TemperatureReading(key: "TB0T", type: "flt ", celsius: 50),
         TemperatureReading(key: "TB1T", type: "flt ", celsius: 60),
-        TemperatureReading(key: "TB2T", type: "flt ", celsius: 110)
+        TemperatureReading(key: "TB2T", type: "flt ", celsius: 110),
     ])
 
     #expect(result == 50)

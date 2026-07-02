@@ -257,7 +257,8 @@ enum SMCCodec {
         switch typeName {
         case "flt ":
             guard bytes.count >= 4 else { return nil }
-            let raw = UInt32(bytes[0])
+            let raw =
+                UInt32(bytes[0])
                 | (UInt32(bytes[1]) << 8)
                 | (UInt32(bytes[2]) << 16)
                 | (UInt32(bytes[3]) << 24)
@@ -279,7 +280,8 @@ enum SMCCodec {
             return Double(raw)
         case "ui32":
             guard bytes.count >= 4 else { return nil }
-            let raw = (UInt32(bytes[0]) << 24)
+            let raw =
+                (UInt32(bytes[0]) << 24)
                 | (UInt32(bytes[1]) << 16)
                 | (UInt32(bytes[2]) << 8)
                 | UInt32(bytes[3])
@@ -297,7 +299,7 @@ enum SMCCodec {
                 UInt8(raw & 0xff),
                 UInt8((raw >> 8) & 0xff),
                 UInt8((raw >> 16) & 0xff),
-                UInt8((raw >> 24) & 0xff)
+                UInt8((raw >> 24) & 0xff),
             ]
         case "fpe2":
             let raw = UInt16(max(0, value * 4.0).rounded())
@@ -313,7 +315,7 @@ enum SMCCodec {
                 UInt8((raw >> 24) & 0xff),
                 UInt8((raw >> 16) & 0xff),
                 UInt8((raw >> 8) & 0xff),
-                UInt8(raw & 0xff)
+                UInt8(raw & 0xff),
             ]
         default:
             let raw = Float(value).bitPattern
@@ -321,7 +323,7 @@ enum SMCCodec {
                 UInt8(raw & 0xff),
                 UInt8((raw >> 8) & 0xff),
                 UInt8((raw >> 16) & 0xff),
-                UInt8((raw >> 24) & 0xff)
+                UInt8((raw >> 24) & 0xff),
             ]
         }
     }
@@ -342,7 +344,7 @@ func fourCCString(_ value: UInt32) -> String {
         UInt8((value >> 24) & 0xff),
         UInt8((value >> 16) & 0xff),
         UInt8((value >> 8) & 0xff),
-        UInt8(value & 0xff)
+        UInt8(value & 0xff),
     ]
     return String(bytes: bytes, encoding: .ascii) ?? "????"
 }
@@ -352,7 +354,7 @@ func bytesFromTuple(_ tuple: SMCBytes) -> [UInt8] {
         tuple.0, tuple.1, tuple.2, tuple.3, tuple.4, tuple.5, tuple.6, tuple.7,
         tuple.8, tuple.9, tuple.10, tuple.11, tuple.12, tuple.13, tuple.14, tuple.15,
         tuple.16, tuple.17, tuple.18, tuple.19, tuple.20, tuple.21, tuple.22, tuple.23,
-        tuple.24, tuple.25, tuple.26, tuple.27, tuple.28, tuple.29, tuple.30, tuple.31
+        tuple.24, tuple.25, tuple.26, tuple.27, tuple.28, tuple.29, tuple.30, tuple.31,
     ]
 }
 

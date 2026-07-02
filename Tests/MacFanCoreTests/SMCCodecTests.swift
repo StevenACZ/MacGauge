@@ -1,4 +1,5 @@
 import Testing
+
 @testable import MacFanCore
 
 @Test func encodesAndDecodesFloatValues() throws {

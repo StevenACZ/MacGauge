@@ -36,7 +36,13 @@ explicit approval: a one-time helper authorization in the app, or deliberate
 - Apple Silicon Mac (M1 or later).
 - macOS 13 Ventura or later.
 
-## Build the menu bar app
+## Install
+
+Download the latest notarized DMG from
+[Releases](https://github.com/StevenACZ/MacFan/releases), open it, and drag
+MacFan to Applications.
+
+## Build from source
 
 ```sh
 git clone https://github.com/StevenACZ/MacFan.git

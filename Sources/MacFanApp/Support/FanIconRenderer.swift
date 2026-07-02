@@ -60,7 +60,7 @@ enum FanIconRenderer {
             Int((green * 255).rounded()),
             Int((blue * 255).rounded()),
             Int((alpha * 255).rounded()),
-            roundedRotation
+            roundedRotation,
         ]
         .map(String.init)
         .joined(separator: ":")
