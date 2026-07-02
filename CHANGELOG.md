@@ -8,6 +8,16 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Universal Apple Silicon support: fans are enumerated dynamically, manual
+  and curve targets apply to every fan (each converted to its own RPM range),
+  and fanless Macs (MacBook Air) are shown as passively cooled instead of an
+  error. Helper protocol v4 carries per-fan write results.
+- English and Spanish localization following the system language, with an
+  in-app override in Settings > General.
+- Central UI theme (accent, layout metrics, animation springs), hover-filled
+  footer action rows, per-fan RPM chips, a temperature-tinted identity
+  header, a menu bar icon bounce on open, and animated settings tabs.
+- MIT license and public-safe contributor docs.
 - Standard Swift project workflow tooling: shared formatting config, Makefile
   checks, optional Lefthook hooks, and contributor/security docs.
 - `make install-dev` / `scripts/install_dev.sh` for Apple Development signed
@@ -22,6 +32,15 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Renamed the project from M4FanControl to MacFan: package, targets, bundle
+  identifiers (`com.stevenacz.MacFan`), helper daemon label, CLI binary
+  (`macfan`), scripts, and docs. Installing over an old M4FanControl build
+  requires authorizing the renamed helper once from Settings > Safety and
+  removing the old app from System Settings > Login Items.
+- Temperature discovery now also covers the `Tp` die sensors used by M1/M2
+  generations.
+- CLI `set` and `curve` apply to all fans by default; `--fan` limits them to
+  one.
 - Simplified the menu bar popover footer to only Settings and Exit by removing
   the helper-readiness shield notice from Manual and Curve content.
 - Curve mode popover header now shows the measured actual fan RPM (labeled

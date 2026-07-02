@@ -350,7 +350,7 @@ struct CLI {
 
         if rpm == 0 && !parsed.has("allow-zero") {
             throw CLIError(
-                "0 RPM is dangerous. Add --allow-zero --allow-dangerous only after Steven explicitly approves live zero-RPM testing.")
+                "0 RPM is dangerous. Add --allow-zero --allow-dangerous only for deliberate, supervised zero-RPM testing.")
         }
 
         let belowRecommended = fan.minRPM.map { rpm < $0 } ?? false
@@ -380,7 +380,7 @@ struct CLI {
     private func printHelp() {
         stdoutLine(
             """
-            macfan - personal Apple Silicon fan-control CLI for Steven's M4 Pro Mac
+            macfan - Apple Silicon fan-control CLI
 
             Read-only commands:
               macfan status
@@ -388,11 +388,11 @@ struct CLI {
               macfan temps [--all]
               macfan doctor
 
-            Dry-run write commands:
-              macfan set --fan 0 --percent 45
+            Dry-run write commands (all fans unless --fan is given):
+              macfan set --percent 45
               macfan set --fan 0 --rpm 3000
               macfan auto
-              macfan curve --fan 0 --points 40:40,60:50 --once
+              macfan curve --points 40:40,60:50 --once
 
             Live write commands require sudo plus explicit flags:
               sudo .build/debug/macfan set --fan 0 --percent 45 --live --i-understand

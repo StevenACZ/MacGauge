@@ -1,199 +1,150 @@
 # MacFan
 
-Personal SwiftPM fan-control app and CLI for Steven's Apple Silicon M4 Pro Mac.
+Fan control and thermal monitoring for Apple Silicon Macs (M1 and later),
+built as a Swift Package: a menu bar app, a CLI, and a narrow privileged
+helper.
 
-This is private/local software, not a public universal app. It defaults to read-only monitoring and keeps live SMC writes behind explicit approval.
+MacFan defaults to read-only monitoring. Live SMC writes always sit behind
+explicit approval: a one-time helper authorization in the app, or deliberate
+`sudo` flags in the CLI.
 
-## Safety model
+> **Warning**
+> Fan control can interfere with macOS thermal management and, in the worst
+> case, damage hardware. Keep an eye on temperatures during manual tests and
+> return to automatic control when you are done. Use at your own risk.
 
-- Read-only commands run as the normal user.
-- Write commands are dry-run by default.
-- Live writes require `sudo`, `--live`, and `--i-understand`.
-- 0 RPM requires `--allow-zero --allow-dangerous` and should only be used after explicit manual approval.
-- Targets below reported minimum, above reported maximum, <=10%, or >=95% require `--allow-dangerous`.
-- `curve` restores automatic mode on normal exit where possible unless `--no-restore-auto` is provided.
-- The menu bar app registers a narrow SMAppService LaunchDaemon helper only from Settings > Safety. It does not store passwords.
-- After the helper is approved, manual slider, curve, and automatic-restore commands use a privileged XPC Mach service, not Terminal, `sudo`, shell scripts, AppleScript, or command files.
-- Manual slider and curve changes never trigger administrator approval or install the helper implicitly.
+## Features
 
-Fan control can damage hardware or interfere with macOS thermal management. Keep Activity Monitor or another temperature monitor visible during manual tests and return to automatic control after testing.
+- Menu bar app with live temperature and per-fan RPM.
+- Manual mode: percentage slider applied to every fan, each converted to its
+  own RPM range.
+- Curve mode: editable temperature→percent curve applied continuously, with a
+  live preview chart.
+- Works on any Apple Silicon Mac: desktops and laptops with one or more fans
+  are controlled together; fanless Macs (MacBook Air) are detected and shown
+  as passively cooled.
+- Contested-control detection: a warning appears when `thermalmonitord`
+  overrides the requested target, and the app re-asserts it.
+- Verified writes: the helper reads back fan mode and actual RPM after each
+  write and retries when the system reverts it.
+- English and Spanish UI, following the system language with an in-app
+  override.
+- No Accessibility permission, no analytics, no network access.
 
-## Current Apple Silicon state
+## Requirements
 
-Apple does not publish a public fan-control API for macOS. This CLI talks to the private `AppleSMC` IOKit service.
+- Apple Silicon Mac (M1 or later).
+- macOS 13 Ventura or later.
 
-References checked on June 24, 2026:
-
-- [`agoodkind/macos-smc-fan`](https://github.com/agoodkind/macos-smc-fan): current Apple Silicon SMC fan-control research, including M4/M5 behavior, `Ftst`, and the need for a privileged helper for persistent writes.
-- [`exelban/stats#2928`](https://github.com/exelban/stats/issues/2928): M3/M4+ manual fan control can appear to succeed while `thermalmonitord` immediately overrides writes unless `Ftst`/manual mode is handled.
-- [Asahi Linux SMC docs](https://asahilinux.org/docs/hw/soc/smc/): Apple Silicon SMC exposes many four-character keys for fans, temperatures, power, and other hardware state.
-- [`beltex/SMCKit`](https://github.com/beltex/SMCKit): older Swift SMC interface and key format reference, primarily Intel-era but still useful for IOKit structure and legacy formats.
-- [`dkorunic/iSMC`](https://github.com/dkorunic/iSMC): current macOS SMC CLI reference for decoding sensors and fan data.
-
-Practical implications:
-
-- Reading fan RPM and many temperature-like SMC keys usually works without root.
-- Apple Silicon fan keys use 4-byte little-endian floats for RPM/temperature on modern hardware, while Intel-era tools often use fixed-point formats.
-- On tested M4 hardware, `thermalmonitord` can keep fans in system mode (`F0Md = 3`) and block manual writes until `Ftst = 1` lets the system yield control.
-- A persistent, polished app should use a privileged helper daemon installed through Apple's ServiceManagement path. A production helper generally needs proper signing and a Developer ID certificate.
-- The app's live manual and curve controls require the explicitly authorized local helper; CLI live writes remain experimental and require deliberate `sudo` flags.
-
-## Build the CLI
+## Build the menu bar app
 
 ```sh
-cd /Users/steven/Desktop/Proyectos/MacFan
-swift build
+git clone https://github.com/StevenACZ/MacFan.git
+cd MacFan
+make stage            # builds dist/MacFan.app (ad-hoc signed)
+./script/build_and_run.sh run
 ```
 
-## Build and open the menu bar app
-
-```sh
-cd /Users/steven/Desktop/Proyectos/MacFan
-./script/build_and_run.sh
-```
-
-Build the app bundle without opening it:
-
-```sh
-./script/build_and_run.sh stage
-```
-
-This stages the app at:
-
-```text
-/Users/steven/Desktop/Proyectos/MacFan/dist/MacFan.app
-```
-
-Install a copy to `~/Applications` and open it:
+For a signed local install to `~/Applications` (requires an Apple Development
+identity in your keychain):
 
 ```sh
 make install-dev
 ```
 
-`make install-dev` signs the local bundle with Apple Development, installs it to
-`~/Applications/MacFan.app`, and relaunches it for fast iteration.
+Authorize the helper from Settings > Safety before using Manual or Curve
+modes. macOS may ask for one approval in System Settings > Login Items. The
+slider, curve, and restore-automatic actions never prompt again after that.
 
-The app bundle includes:
+## Safety model
 
-- `Contents/Resources/macfan` for CLI compatibility.
-- `Contents/MacOS/MacFanHelper` for the privileged helper executable.
-- `Contents/Library/LaunchDaemons/com.stevenacz.MacFan.XPCHelper.plist` for SMAppService registration.
+- Read-only commands run as the normal user.
+- CLI write commands are dry-run by default; live writes require `sudo`,
+  `--live`, and `--i-understand`.
+- 0 RPM requires `--allow-zero --allow-dangerous`. Targets below the reported
+  minimum, above the maximum, ≤10%, or ≥95% require `--allow-dangerous`.
+- The app registers a narrow SMAppService LaunchDaemon helper only from
+  Settings > Safety. It exposes only fan-control actions over XPC, verifies
+  its clients' code signature, and never stores passwords.
+- `curve` (CLI) restores automatic mode on exit unless `--no-restore-auto` is
+  given; the app can restore automatic control on quit.
 
-Authorize the helper explicitly from Settings > Safety before using manual or curve controls. macOS may require one approval from that action. Slider, curve, restore automatic, launch, and status refresh never request administrator approval; if the helper is not ready, live controls stay locked until authorization is completed.
+## CLI
 
-The helper warning's Settings button opens directly to the Safety tab. The current app helper identity is `com.stevenacz.MacFan.XPCHelper`. This intentionally avoids the older local helper label `com.stevenacz.MacFan.Helper`, which may still exist on Steven's Mac from pre-XPC builds. After `XPCHelper` is authorized, the app asks it to remove that legacy helper.
-
-Local script builds are ad-hoc signed by default outside `make install-dev`.
-For a stricter local signing test, set `SIGN_IDENTITY` before staging:
+Read-only:
 
 ```sh
-SIGN_IDENTITY="Developer ID Application: Example" ./script/build_and_run.sh stage
-```
-
-## Read-only commands
-
-```sh
-.build/debug/macfan status
+.build/debug/macfan status    # model, chip, fans, representative temperature
 .build/debug/macfan fans
-.build/debug/macfan temps
-.build/debug/macfan temps --all
+.build/debug/macfan temps [--all]
 .build/debug/macfan doctor
 ```
 
-`status` prints the detected model, chip string, macOS version, process thermal state, fan count, representative SMC temperature, and fan RPM data when available.
-
-`temps` uses a compact thermal-mass sensor set chosen from live M4 Pro SMC
-sampling. It avoids cold surface/zone readings and unstable hot-spot spikes by
-using selected die/performance/GPU-adjacent sensors with a trimmed mean. On the
-tested Mac, the old representative reading jumped between about `40 C` and
-`73 C` over 25 one-second samples; the current representative stayed within
-`52.8-55.2 C` over 30 one-second samples.
-
-## Dry-run write commands
-
-These do not write to the SMC:
+Dry-run writes (no SMC access):
 
 ```sh
-.build/debug/macfan set --fan 0 --percent 45
-.build/debug/macfan set --fan 0 --rpm 3000
+.build/debug/macfan set --percent 45          # all fans
+.build/debug/macfan set --fan 0 --rpm 3000    # one fan
 .build/debug/macfan auto
-.build/debug/macfan curve --fan 0 --points 40:40,60:50 --once
+.build/debug/macfan curve --points 40:40,60:50 --once
 ```
 
-## Manual live test
-
-This CLI path is for controlled low-level testing only. It is not the normal app flow.
-
-Use a moderate fan percentage first. Do not test 0 RPM or maximum in automation.
+Live writes (controlled low-level testing only — the app is the normal flow):
 
 ```sh
-cd /Users/steven/Desktop/Proyectos/MacFan
-sudo .build/debug/macfan set --fan 0 --percent 45 --live --i-understand
-```
-
-Return to automatic control:
-
-```sh
+sudo .build/debug/macfan set --percent 45 --live --i-understand
 sudo .build/debug/macfan auto --live --i-understand
 ```
 
-If the live command reports `notPrivileged`, `badCommand`, or a firmware error, do not keep retrying aggressively. Capture the exact output and run:
+## How it works
 
-```sh
-.build/debug/macfan doctor
-```
+Apple does not publish a fan-control API for macOS. MacFan talks to the
+private `AppleSMC` IOKit service:
 
-## Curve demo
+- Fan state lives in per-fan four-character keys (`F0Ac`, `F0Tg`, `F0Mn`,
+  `F0Mx`, `F0Md`, …) discovered through `FNum`.
+- On recent Apple Silicon (observed on M3/M4), `thermalmonitord` can hold
+  fans in system mode and block manual writes until `Ftst = 1` lets the
+  system yield control; it can also reclaim control under heavy thermal
+  load. MacFan detects this, warns, and re-asserts the target, but cannot
+  guarantee the firmware never wins.
+- The representative temperature uses a trimmed mean over stable die-level
+  thermal-mass sensors, with a broad plausible-key fallback for hardware
+  where the preferred sensors are missing.
 
-Dry-run once:
-
-```sh
-.build/debug/macfan curve --fan 0 --points 40:40,60:50 --once
-```
-
-Live for 60 seconds with automatic restore on exit:
-
-```sh
-sudo .build/debug/macfan curve --fan 0 --points 40:40,60:50 --duration 60 --live --i-understand
-```
-
-## Menu bar app features
-
-- Compact status item showing representative temperature with colored fan icon/text.
-- Popover with Manual and Curve modes.
-- Curve popover view includes a live preview chart with current temperature and target percent/RPM. The Curve mode header shows the measured actual fan RPM (labeled "Actual"); the computed curve target remains in the "Curve target" row.
-- Configurable update tick, defaulting to 1 second, shared by live temperature/RPM refresh and curve target application.
-- The monitor reuses a persistent SMC IOKit connection on a serial `.userInitiated` queue so temperature/RPM readings stay fresh under heavy CPU/RAM load instead of reopening the connection every tick.
-- Manual slider auto-applies after a short debounce only when the helper is already authorized; `Auto` remains explicit.
-- Curve mode runs continuously until the user switches modes, sampling a fresh temperature snapshot on each tick.
-- A warning banner appears in the popover when the system is overriding the requested fan target (fan mode reverted or actual RPM far above target); Curve mode also re-applies the target when the fan mode reverts, not only when the temperature changes.
-- A helper warning appears in the popover when Manual or Curve targets are only previews because the privileged helper is not ready or needs reload.
-- The app logs helper readiness, Curve re-assert decisions, requested percent, target RPM, actual RPM, and SMC mode through macOS unified logging for future diagnosis.
-- Settings window with Celsius/Fahrenheit, start at login, restore on quit, manual target, draggable/editable curve points with 0-100 C and 0-100% axes, color thresholds, icon animation, helper authorization, and safety toggle for edge ranges.
-- Start at login uses `SMAppService.mainApp`; macOS may require approval in System Settings.
-- Privileged fan writes from the app use the helper's XPC Mach service after the one-time Safety authorization.
-- Manual and curve writes are verified: the helper reads back the fan mode and actual RPM after each write and re-asserts manual mode plus the target (bounded retry) when `thermalmonitord` reverts it or the fan drifts far from the requested RPM.
-- The locked-helper Settings button opens the Safety tab directly.
-- No Accessibility permission is requested.
+Useful references: [macos-smc-fan](https://github.com/agoodkind/macos-smc-fan),
+[exelban/stats#2928](https://github.com/exelban/stats/issues/2928),
+[Asahi Linux SMC docs](https://asahilinux.org/docs/hw/soc/smc/),
+[SMCKit](https://github.com/beltex/SMCKit),
+[iSMC](https://github.com/dkorunic/iSMC).
 
 ## Limitations
 
-- Sensor names on Apple Silicon are not fully mapped. MacFan uses a tested stable sensor subset for its representative app temperature and falls back to broader plausible thermal-mass keys when needed.
-- The helper command path is XPC-based under `com.stevenacz.MacFan.XPCHelper`. The SwiftPM bundling script creates the right SMAppService layout, but a fully production-grade distribution should use a stable Apple signing identity and notarized bundle.
-- Continuous curve control is driven by the app and sends narrow percentage target commands through the helper.
-- `thermalmonitord` and firmware behavior can vary by M4 Pro/Max/base model and macOS release.
-- Under heavy thermal load, `thermalmonitord` can reclaim fan control even after a successful manual write; the app detects this (fan mode reverted or actual RPM far above target), shows a warning, and re-asserts the target on the next tick, but cannot guarantee the firmware never overrides the system.
-- Reported `F0Mn`/`F0Mx` values are guidelines, not guaranteed physical limits.
-- Live write paths are experimental and intentionally noisy about permission and safety failures.
+- Sensor names differ between chip generations and are not fully mapped;
+  MacFan falls back to broad plausible thermal-mass keys when the preferred
+  set is missing.
+- Reported fan minimum/maximum values are guidelines, not guaranteed physical
+  limits.
+- `thermalmonitord` and firmware behavior vary by model and macOS release.
+- A production-grade distribution needs a stable Developer ID identity and a
+  notarized bundle; local script builds are ad-hoc signed.
 
 ## Helper management
 
-Authorize the helper once from the app Settings > Safety tab. Manual slider and curve changes do not prompt for approval.
+Authorize once from Settings > Safety. After a dev update the app detects a
+stale helper and repairs it automatically; the Safety tab shows live status
+and a non-destructive Fix button. To remove the helper, toggle it off in
+System Settings > Login Items > Allow in Background.
 
-The app and dev flow does not require terminal `sudo` or `launchctl`. `make install-dev` signs with Apple Development, installs to `~/Applications/MacFan.app`, and relaunches the app; the helper is authorized and managed from Settings > Safety.
+## Development
 
-After a dev update, the running helper daemon loads the new binary on its next restart — reboot, or toggle the MacFan helper off and on in System Settings > Login Items > Allow in Background. No `sudo launchctl kickstart` or terminal command is needed.
+```sh
+make ci-check   # lint + build + tests
+make format
+```
 
-If Settings > Safety reports "Helper needs reload", click **Reload Helper**. The app re-registers the bundled daemon through ServiceManagement and opens the normal macOS approval flow when macOS requires it.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
 
-To remove the helper, toggle it off in System Settings > Login Items > Allow in Background.
+## License
+
+[MIT](LICENSE)
