@@ -8,6 +8,12 @@ struct CurvePreview: View {
     let isEditingEnabled: Bool
     let animatesLiveMarker: Bool
     let updatePoint: (CurvePoint) -> Void
+    let addPoint: ((_ temperatureCelsius: Double, _ percent: Double) -> Void)?
+    let deletePoint: ((UUID) -> Void)?
+    let canDeletePoints: Bool
+
+    @State private var hoveredPointID: UUID?
+    @State private var draggedPointID: UUID?
 
     init(
         points: [CurvePoint],
@@ -16,7 +22,10 @@ struct CurvePreview: View {
         percentRange: ClosedRange<Double>,
         isEditingEnabled: Bool,
         animatesLiveMarker: Bool = false,
-        updatePoint: @escaping (CurvePoint) -> Void
+        updatePoint: @escaping (CurvePoint) -> Void,
+        addPoint: ((_ temperatureCelsius: Double, _ percent: Double) -> Void)? = nil,
+        deletePoint: ((UUID) -> Void)? = nil,
+        canDeletePoints: Bool = false
     ) {
         self.points = points
         self.currentTemperature = currentTemperature
@@ -25,6 +34,9 @@ struct CurvePreview: View {
         self.isEditingEnabled = isEditingEnabled
         self.animatesLiveMarker = animatesLiveMarker
         self.updatePoint = updatePoint
+        self.addPoint = addPoint
+        self.deletePoint = deletePoint
+        self.canDeletePoints = canDeletePoints
     }
 
     var body: some View {
@@ -36,6 +48,7 @@ struct CurvePreview: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color.primary.opacity(0.045))
+                    .gesture(doubleClickToAdd(in: proxy.size), including: addPoint == nil ? .none : .all)
 
                 ForEach(axisTicks, id: \.self) { tick in
                     Path { path in
@@ -67,6 +80,8 @@ struct CurvePreview: View {
                         .position(x: plotRect.minX - 20, y: yPosition(forPercent: tick, in: plotRect))
                 }
 
+                curveArea(plotted: plotted, plotRect: plotRect)
+
                 Path { path in
                     guard let first = plotted.first else { return }
                     path.move(to: first)
@@ -74,44 +89,13 @@ struct CurvePreview: View {
                         path.addLine(to: point)
                     }
                 }
-                .stroke(.secondary, style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
-
-                ForEach(Array(plotted.enumerated()), id: \.offset) { _, point in
-                    Circle()
-                        .fill(.blue)
-                        .frame(width: 8, height: 8)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.72), lineWidth: 1)
-                        )
-                        .position(point)
-                }
+                .stroke(
+                    Theme.accent,
+                    style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round)
+                )
 
                 ForEach(sortedPoints) { point in
-                    Circle()
-                        .fill(Color.accentColor.opacity(isEditingEnabled ? 0.92 : 0.45))
-                        .frame(width: 14, height: 14)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.82), lineWidth: 1.4)
-                        )
-                        .shadow(color: .black.opacity(isEditingEnabled ? 0.22 : 0), radius: 2, y: 1)
-                        .position(position(for: point, in: proxy.size))
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    guard isEditingEnabled else { return }
-                                    updatePoint(point.moved(to: value.location, in: proxy.size, percentRange: percentRange))
-                                }
-                        )
-                        .help(isEditingEnabled ? "curve.help.drag_point".localized : "curve.help.point".localized)
-                        .accessibilityLabel("curve.accessibility.point".localized)
-                        .accessibilityValue(
-                            "curve.accessibility.point_value".localized(
-                                Int(point.temperatureCelsius.rounded()),
-                                Int(point.percent.rounded())
-                            )
-                        )
+                    handle(for: point, in: proxy.size)
                 }
 
                 if let marker {
@@ -139,6 +123,114 @@ struct CurvePreview: View {
             }
         }
         .accessibilityLabel("curve.accessibility.preview".localized)
+    }
+
+    // MARK: - Interactive pieces
+
+    private func handle(for point: CurvePoint, in size: CGSize) -> some View {
+        let isActive = hoveredPointID == point.id || draggedPointID == point.id
+        let position = position(for: point, in: size)
+
+        return Circle()
+            .fill(Theme.accent.opacity(isEditingEnabled ? 0.95 : 0.45))
+            .frame(width: 14, height: 14)
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.85), lineWidth: 1.4)
+            )
+            .scaleEffect(isActive && isEditingEnabled ? 1.35 : 1)
+            .shadow(color: .black.opacity(isEditingEnabled ? (isActive ? 0.3 : 0.2) : 0), radius: isActive ? 4 : 2, y: 1)
+            .overlay(alignment: .top) {
+                if isActive, isEditingEnabled {
+                    valueBubble(for: point)
+                        .offset(y: -30)
+                        .fixedSize()
+                }
+            }
+            .position(position)
+            .onHover { hovering in
+                hoveredPointID = hovering ? point.id : (hoveredPointID == point.id ? nil : hoveredPointID)
+            }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        guard isEditingEnabled else { return }
+                        draggedPointID = point.id
+                        updatePoint(point.moved(to: value.location, in: size, percentRange: percentRange))
+                    }
+                    .onEnded { _ in
+                        draggedPointID = nil
+                    }
+            )
+            .contextMenu {
+                if isEditingEnabled, let deletePoint {
+                    Button(role: .destructive) {
+                        deletePoint(point.id)
+                    } label: {
+                        Label("curve.delete_point".localized, systemImage: "trash")
+                    }
+                    .disabled(!canDeletePoints)
+                }
+            }
+            .help(isEditingEnabled ? "curve.help.drag_point".localized : "curve.help.point".localized)
+            .accessibilityLabel("curve.accessibility.point".localized)
+            .accessibilityValue(
+                "curve.accessibility.point_value".localized(
+                    Int(point.temperatureCelsius.rounded()),
+                    Int(point.percent.rounded())
+                )
+            )
+    }
+
+    private func valueBubble(for point: CurvePoint) -> some View {
+        Text("\(Int(point.temperatureCelsius.rounded()))°C · \(Int(point.percent.rounded()))%")
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Layout.badgeRadius, style: .continuous)
+                    .fill(.regularMaterial)
+                    .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
+            )
+    }
+
+    private func curveArea(plotted: [CGPoint], plotRect: CGRect) -> some View {
+        Path { path in
+            guard let first = plotted.first, let last = plotted.last else { return }
+            path.move(to: CGPoint(x: first.x, y: plotRect.maxY))
+            path.addLine(to: first)
+            for point in plotted.dropFirst() {
+                path.addLine(to: point)
+            }
+            path.addLine(to: CGPoint(x: last.x, y: plotRect.maxY))
+            path.closeSubpath()
+        }
+        .fill(
+            LinearGradient(
+                colors: [Theme.accent.opacity(0.22), Theme.accent.opacity(0.02)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .allowsHitTesting(false)
+    }
+
+    private func doubleClickToAdd(in size: CGSize) -> some Gesture {
+        SpatialTapGesture(count: 2)
+            .onEnded { value in
+                guard isEditingEnabled, let addPoint else { return }
+                let plotRect = curvePreviewPlotRect(in: size)
+                let clampedX = min(max(value.location.x, plotRect.minX), plotRect.maxX)
+                let clampedY = min(max(value.location.y, plotRect.minY), plotRect.maxY)
+                let range = CurvePoint.temperatureRange
+                let temperature =
+                    range.lowerBound + (clampedX - plotRect.minX) / max(1, plotRect.width)
+                    * (range.upperBound - range.lowerBound)
+                let rawPercent = (plotRect.maxY - clampedY) / max(1, plotRect.height) * 100
+                let percent = min(max(rawPercent, percentRange.lowerBound), percentRange.upperBound)
+                addPoint(temperature, percent)
+            }
     }
 
     private var sortedPoints: [CurvePoint] {

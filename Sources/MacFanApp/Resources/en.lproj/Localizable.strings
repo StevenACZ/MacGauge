@@ -45,7 +45,6 @@
 "settings.control.title" = "Control";
 "settings.control.mode" = "Mode";
 "settings.control.default_mode" = "Default mode";
-"settings.control.update_tick" = "Update tick";
 "settings.control.manual_target" = "Manual Target";
 "settings.control.target" = "Target";
 "settings.control.curve_points" = "Curve Points";
@@ -56,6 +55,11 @@
 "settings.control.delete_point" = "Delete point";
 "settings.control.keep_two_points" = "Keep at least two points";
 "settings.control.delete_curve_point" = "Delete curve point";
+"settings.control.fan_curve" = "Fan Curve";
+"settings.control.curve_hint" = "Drag points · double-click to add · right-click to delete";
+"settings.control.temperature" = "Temperature";
+"settings.control.fan_speed" = "Fan speed";
+"curve.delete_point" = "Delete point";
 
 /* Display tab */
 "settings.display.title" = "Display";

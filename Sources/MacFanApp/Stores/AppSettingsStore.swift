@@ -145,6 +145,15 @@ final class AppSettingsStore: ObservableObject {
         curvePoints = Self.normalizedCurvePoints(sorted + [newPoint])
     }
 
+    func addCurvePoint(temperatureCelsius: Double, percent: Double) {
+        let range = CurvePoint.temperatureRange
+        let point = CurvePoint(
+            temperatureCelsius: min(max(temperatureCelsius, range.lowerBound), range.upperBound).rounded(),
+            percent: min(max(percent, 0), 100).rounded()
+        )
+        curvePoints = Self.normalizedCurvePoints(curvePoints + [point])
+    }
+
     func removeCurvePoints(at offsets: IndexSet) {
         guard curvePoints.count - offsets.count >= 2 else { return }
         curvePoints.remove(atOffsets: offsets)
@@ -173,8 +182,8 @@ final class AppSettingsStore: ObservableObject {
 
     private static func loadCurvePoints(defaults: UserDefaults) -> [CurvePoint] {
         guard let data = defaults.data(forKey: Key.curvePoints),
-              let decoded = try? JSONDecoder().decode([CurvePoint].self, from: data),
-              decoded.count >= 2
+            let decoded = try? JSONDecoder().decode([CurvePoint].self, from: data),
+            decoded.count >= 2
         else {
             return defaultCurvePoints
         }
@@ -185,7 +194,7 @@ final class AppSettingsStore: ObservableObject {
         [
             CurvePoint(temperatureCelsius: 40, percent: 40),
             CurvePoint(temperatureCelsius: 60, percent: 50),
-            CurvePoint(temperatureCelsius: 80, percent: 80)
+            CurvePoint(temperatureCelsius: 80, percent: 80),
         ]
     }
 
@@ -197,7 +206,8 @@ final class AppSettingsStore: ObservableObject {
     private static func normalizedCurvePoints(_ points: [CurvePoint]) -> [CurvePoint] {
         guard !points.isEmpty else { return points }
 
-        var sorted = points
+        var sorted =
+            points
             .map { point in
                 CurvePoint(
                     id: point.id,

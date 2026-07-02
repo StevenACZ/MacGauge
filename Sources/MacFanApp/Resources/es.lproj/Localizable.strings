@@ -45,7 +45,6 @@
 "settings.control.title" = "Control";
 "settings.control.mode" = "Modo";
 "settings.control.default_mode" = "Modo predeterminado";
-"settings.control.update_tick" = "Intervalo de actualización";
 "settings.control.manual_target" = "Objetivo manual";
 "settings.control.target" = "Objetivo";
 "settings.control.curve_points" = "Puntos de curva";
@@ -56,6 +55,11 @@
 "settings.control.delete_point" = "Eliminar punto";
 "settings.control.keep_two_points" = "Mantén al menos dos puntos";
 "settings.control.delete_curve_point" = "Eliminar punto de curva";
+"settings.control.fan_curve" = "Curva del ventilador";
+"settings.control.curve_hint" = "Arrastra los puntos · doble clic para agregar · clic derecho para eliminar";
+"settings.control.temperature" = "Temperatura";
+"settings.control.fan_speed" = "Velocidad";
+"curve.delete_point" = "Eliminar punto";
 
 /* Display tab */
 "settings.display.title" = "Pantalla";
