@@ -29,7 +29,6 @@ final class MetricStatusItemController: NSObject {
     private let popover = NSPopover()
     private let configuration: Configuration
     private var labelHostingView: NSHostingView<AnyView>?
-    private var detailHostingController: NSHostingController<AnyView>?
     private var cancellables = Set<AnyCancellable>()
 
     init(configuration: Configuration) {
@@ -41,10 +40,10 @@ final class MetricStatusItemController: NSObject {
 
         popover.behavior = .transient
         popover.animates = true
-        let detailController = NSHostingController(rootView: configuration.makeDetail())
-        detailController.sizingOptions = [.preferredContentSize]
-        popover.contentViewController = detailController
-        detailHostingController = detailController
+        // Detail content is built on show and dropped on close: a hosting
+        // controller that merely exists keeps its whole SwiftUI graph live,
+        // re-rendering and animating on every stats tick while closed.
+        popover.delegate = self
 
         if let button = statusItem.button {
             button.target = self
@@ -81,7 +80,7 @@ final class MetricStatusItemController: NSObject {
 
     func rebuildViews() {
         labelHostingView?.rootView = wrappedLabel()
-        detailHostingController?.rootView = configuration.makeDetail()
+        (popover.contentViewController as? NSHostingController<AnyView>)?.rootView = configuration.makeDetail()
         updateLength()
     }
 
@@ -108,6 +107,9 @@ final class MetricStatusItemController: NSObject {
         } else {
             button.bounce()
             configuration.onPopoverOpen?()
+            let detailController = NSHostingController(rootView: configuration.makeDetail())
+            detailController.sizingOptions = [.preferredContentSize]
+            popover.contentViewController = detailController
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
@@ -126,5 +128,12 @@ final class MetricStatusItemController: NSObject {
         if abs(statusItem.length - width) > 0.5 {
             statusItem.length = width
         }
+    }
+}
+
+extension MetricStatusItemController: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        // Drop the SwiftUI graph so a closed popover costs nothing.
+        popover.contentViewController = nil
     }
 }

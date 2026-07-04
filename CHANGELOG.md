@@ -8,6 +8,13 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Performance mode (Settings > General): Efficient (the default) steps the
+  menu bar values and charts once per tick with no in-between animation
+  frames and keeps the fan icon still, with its color still tracking
+  temperature — the right choice for an app running in the background all
+  day. Full keeps every continuous animation: sliding charts, rolling
+  digits, and the 30 fps spinning fan icon.
+
 - Spacing control for the menu bar modules (Settings > Display): Together,
   Tight, Normal, or Wide. Tight, Normal, and Wide keep one independent menu
   bar item per module (own click, popover, and drag position) and trim or
@@ -33,6 +40,20 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Menu bar module animations polished: percent values and network rates roll
   with a numeric transition, chart colors cross-fade when the style or load
   band changes, and the network arrows dim while their direction is idle.
+
+### Fixed
+
+- Idle CPU usage: the menu bar modules kept a continuous animation pipeline
+  alive (sliding sparklines, rolling digits, and the 30 fps fan icon each
+  forced macOS to re-layout and re-snapshot the status items up to the
+  display refresh rate), holding the app at most of one CPU core around the
+  clock. In the Efficient performance mode the app now idles at a few
+  percent.
+- Closed popovers kept rendering: every popover's SwiftUI content (fan panel,
+  CPU/RAM/network details) was created at startup and stayed live while
+  closed, re-rendering charts and animations on every tick and keeping the
+  per-app process sampler polling. Popover content is now built when the
+  popover opens and released when it closes.
 
 ## [1.1.0] - 2026-07-03
 

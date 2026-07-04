@@ -25,7 +25,8 @@ struct PercentModuleStatusLabel: View {
             history: history,
             color: chartColor,
             graphWidth: graphWidth.width,
-            tickSeconds: settings.controlTickSeconds
+            tickSeconds: settings.controlTickSeconds,
+            animated: settings.performanceMode == .full
         )
         .padding(.horizontal, settings.moduleSpacing.padding)
         .frame(height: 22)
@@ -139,7 +140,8 @@ struct NetworkModuleStatusLabel: View {
             upload: stats.snapshot.uploadBytesPerSecond,
             download: stats.snapshot.downloadBytesPerSecond,
             upTint: arrowTints.up,
-            downTint: arrowTints.down
+            downTint: arrowTints.down,
+            animated: settings.performanceMode == .full
         )
         .padding(.horizontal, settings.moduleSpacing.padding)
         .frame(height: 22)
@@ -183,6 +185,7 @@ private struct PercentModuleSegment: View {
     let color: Color
     let graphWidth: CGFloat
     let tickSeconds: Double
+    let animated: Bool
 
     var body: some View {
         HStack(spacing: 3) {
@@ -198,7 +201,7 @@ private struct PercentModuleSegment: View {
                 }
                 .font(.system(size: 10.5, weight: .semibold))
                 .monospacedDigit()
-                .animation(Theme.Anim.smooth, value: percent.map { Int($0.rounded()) })
+                .animation(animated ? Theme.Anim.smooth : nil, value: percent.map { Int($0.rounded()) })
             }
 
             SparklineChart(
@@ -208,7 +211,8 @@ private struct PercentModuleSegment: View {
                 color: color,
                 fillOpacity: 0.45,
                 lineWidth: 1,
-                tickSeconds: tickSeconds
+                tickSeconds: tickSeconds,
+                animated: animated
             )
             .frame(width: graphWidth, height: 15)
             .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
@@ -223,6 +227,7 @@ private struct NetworkModuleSegment: View {
     let download: Double?
     let upTint: Color
     let downTint: Color
+    let animated: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -240,8 +245,8 @@ private struct NetworkModuleSegment: View {
                 .font(.system(size: 6.5, weight: .bold))
                 .foregroundStyle(tint)
                 .opacity(isActive ? 1 : 0.4)
-                .animation(Theme.Anim.smooth, value: isActive)
-                .animation(Theme.Anim.smooth, value: tint)
+                .animation(animated ? Theme.Anim.smooth : nil, value: isActive)
+                .animation(animated ? Theme.Anim.smooth : nil, value: tint)
             ZStack(alignment: .leading) {
                 Text(verbatim: "888 MB/s")
                     .hidden()
@@ -251,7 +256,7 @@ private struct NetworkModuleSegment: View {
             }
             .font(.system(size: 8.5, weight: .medium))
             .monospacedDigit()
-            .animation(Theme.Anim.smooth, value: AppFormatters.byteRateCompact(rate))
+            .animation(animated ? Theme.Anim.smooth : nil, value: AppFormatters.byteRateCompact(rate))
         }
     }
 }

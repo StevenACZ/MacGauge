@@ -38,6 +38,10 @@
 "settings.general.temperature" = "Temperature";
 "settings.general.temperature_unit" = "Temperature unit";
 "settings.general.language" = "Language";
+"settings.general.performance" = "Performance";
+"settings.general.performance.caption" = "Efficient pauses the continuous menu bar animations so MacGauge stays light running all day. Full plays every animation.";
+"performance.mode.efficient" = "Efficient";
+"performance.mode.full" = "Full";
 "settings.general.launch_at_login" = "Start at login";
 "settings.general.launch_at_login.caption" = "Opens MacGauge automatically when you log in.";
 "settings.general.restore_on_quit" = "Restore on quit";

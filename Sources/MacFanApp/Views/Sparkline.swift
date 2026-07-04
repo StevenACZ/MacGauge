@@ -11,6 +11,11 @@ struct SparklineChart: View {
     var fillOpacity: Double = 0.32
     var lineWidth: Double = 1.5
     let tickSeconds: Double
+    /// Whether new samples slide in over the tick. The slide runs almost the
+    /// whole tick, so a chart that is always receiving samples is effectively
+    /// always animating — menu bar charts pass false in Efficient mode and
+    /// step once per tick instead.
+    var animated: Bool = true
 
     var body: some View {
         let newestFirst = [Double](values.reversed())
@@ -37,7 +42,7 @@ struct SparklineChart: View {
             )
             .stroke(color.opacity(0.85), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
         }
-        .animation(.linear(duration: min(1, max(0.3, tickSeconds * 0.85))), value: values)
+        .animation(animated ? .linear(duration: min(1, max(0.3, tickSeconds * 0.85))) : nil, value: values)
         .allowsHitTesting(false)
     }
 }

@@ -44,6 +44,21 @@ struct GeneralSettingsTab: View {
                 SettingsDivider()
 
                 SettingsRow(
+                    title: "settings.general.performance".localized,
+                    subtitle: "settings.general.performance.caption".localized
+                ) {
+                    Picker("settings.general.performance".localized, selection: $settings.performanceMode) {
+                        ForEach(PerformanceMode.allCases) { mode in
+                            Text(mode.localizedName).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
+
+                SettingsDivider()
+
+                SettingsRow(
                     title: "settings.general.launch_at_login".localized,
                     subtitle: "settings.general.launch_at_login.caption".localized
                 ) {

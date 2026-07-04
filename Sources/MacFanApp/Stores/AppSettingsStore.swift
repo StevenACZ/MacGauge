@@ -27,6 +27,7 @@ final class AppSettingsStore: ObservableObject {
         static let memoryColorMode = "memoryModuleColorMode"
         static let networkColorMode = "networkModuleColorMode"
         static let fanColorStyle = "fanColorStyle"
+        static let performanceMode = "performanceMode"
     }
 
     static let controlTickRange: ClosedRange<Double> = 0.5...10
@@ -125,6 +126,10 @@ final class AppSettingsStore: ObservableObject {
         didSet { defaults.set(fanColorStyle.rawValue, forKey: Key.fanColorStyle) }
     }
 
+    @Published var performanceMode: PerformanceMode {
+        didSet { defaults.set(performanceMode.rawValue, forKey: Key.performanceMode) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -170,6 +175,7 @@ final class AppSettingsStore: ObservableObject {
         memoryColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.memoryColorMode) ?? "") ?? .multicolor
         networkColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.networkColorMode) ?? "") ?? .multicolor
         fanColorStyle = FanColorStyle(rawValue: defaults.string(forKey: Key.fanColorStyle) ?? "") ?? .temperature
+        performanceMode = PerformanceMode(rawValue: defaults.string(forKey: Key.performanceMode) ?? "") ?? .efficient
     }
 
     var curveCommandPoints: String {
