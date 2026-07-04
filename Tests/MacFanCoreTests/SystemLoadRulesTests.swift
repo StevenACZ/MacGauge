@@ -58,3 +58,36 @@ import Testing
     #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: nil, usedPercent: 95) == .high)
     #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: nil, usedPercent: nil) == .normal)
 }
+
+@Test func cpuLoadBandThresholds() {
+    #expect(SystemLoadRules.cpuLoadBand(forPercent: nil) == .normal)
+    #expect(SystemLoadRules.cpuLoadBand(forPercent: 0) == .normal)
+    #expect(SystemLoadRules.cpuLoadBand(forPercent: 59.9) == .normal)
+    #expect(SystemLoadRules.cpuLoadBand(forPercent: 60) == .elevated)
+    #expect(SystemLoadRules.cpuLoadBand(forPercent: 84.9) == .elevated)
+    #expect(SystemLoadRules.cpuLoadBand(forPercent: 85) == .high)
+    #expect(SystemLoadRules.cpuLoadBand(forPercent: 100) == .high)
+}
+
+@Test func memoryLoadBandMirrorsPressureLevel() {
+    #expect(SystemLoadRules.memoryLoadBand(forPressure: .normal) == .normal)
+    #expect(SystemLoadRules.memoryLoadBand(forPressure: .elevated) == .elevated)
+    #expect(SystemLoadRules.memoryLoadBand(forPressure: .high) == .high)
+}
+
+@Test func customLoadBandUsesConfiguredThresholds() {
+    #expect(SystemLoadRules.loadBand(forPercent: nil, normalUpperPercent: 10, hotLowerPercent: 60) == .normal)
+    #expect(SystemLoadRules.loadBand(forPercent: 9.9, normalUpperPercent: 10, hotLowerPercent: 60) == .normal)
+    #expect(SystemLoadRules.loadBand(forPercent: 10, normalUpperPercent: 10, hotLowerPercent: 60) == .elevated)
+    #expect(SystemLoadRules.loadBand(forPercent: 59.9, normalUpperPercent: 10, hotLowerPercent: 60) == .elevated)
+    #expect(SystemLoadRules.loadBand(forPercent: 60, normalUpperPercent: 10, hotLowerPercent: 60) == .high)
+}
+
+@Test func customLoadBandClampsAndOrdersThresholds() {
+    // Inverted pair: hot floor is lifted to the normal ceiling, never below.
+    #expect(SystemLoadRules.loadBand(forPercent: 50, normalUpperPercent: 80, hotLowerPercent: 20) == .normal)
+    #expect(SystemLoadRules.loadBand(forPercent: 90, normalUpperPercent: 80, hotLowerPercent: 20) == .high)
+    // Out-of-range thresholds clamp to 0...100.
+    #expect(SystemLoadRules.loadBand(forPercent: 5, normalUpperPercent: -10, hotLowerPercent: 150) == .elevated)
+    #expect(SystemLoadRules.loadBand(forPercent: 100, normalUpperPercent: 120, hotLowerPercent: 150) == .high)
+}

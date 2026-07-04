@@ -8,7 +8,6 @@ final class StatusItemController: NSObject {
     private let statusItem: NSStatusItem
     private let popover: NSPopover
     private let model: AppModel
-    private var hostingController: NSHostingController<MenuBarPopoverView>?
     private var cancellables = Set<AnyCancellable>()
     private var animationTimer: Timer?
     private var rotation: CGFloat = 0
@@ -19,8 +18,6 @@ final class StatusItemController: NSObject {
     private var lastFrameTime: CFTimeInterval?
     private let animationRules = FanAnimationRules()
 
-    private static let animationFrameInterval: TimeInterval = 1.0 / 30.0
-
     init(model: AppModel) {
         self.model = model
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -30,10 +27,11 @@ final class StatusItemController: NSObject {
 
         popover.behavior = .transient
         popover.animates = true
-        let hostingController = NSHostingController(rootView: MenuBarPopoverView(model: model))
-        hostingController.sizingOptions = [.preferredContentSize]
-        popover.contentViewController = hostingController
-        self.hostingController = hostingController
+        // Content is built on show and dropped on close: a hosting controller
+        // that merely exists keeps its whole SwiftUI graph live (sizing keeps
+        // the view loaded), re-rendering and animating on every monitor tick
+        // even while the popover is closed.
+        popover.delegate = self
 
         if let button = statusItem.button {
             button.target = self
@@ -53,6 +51,7 @@ final class StatusItemController: NSObject {
             model.settings.$normalColorHex.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$mediumColorHex.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$hotColorHex.map { _ in () }.eraseToAnyPublisher(),
+            model.settings.$fanColorStyle.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$animateFanIcon.map { _ in () }.eraseToAnyPublisher()
         )
         .sink { [weak self] _ in
@@ -60,13 +59,27 @@ final class StatusItemController: NSObject {
         }
         .store(in: &cancellables)
 
+        // $performanceMode publishes before the property is set, so the
+        // received value is what decides whether the fan spins up or coasts
+        // down right away.
+        model.settings.$performanceMode
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] mode in
+                guard let self else { return }
+                self.updateAnimation(snapshot: self.model.monitor.snapshot, mode: mode)
+            }
+            .store(in: &cancellables)
+
         // Rebuild the popover root when the app language changes so every
-        // string in the menu-bar panel re-resolves immediately.
+        // string in the menu-bar panel re-resolves immediately (closed
+        // popovers have no content and resolve strings on next open).
         LocalizationManager.shared.$bundle
             .dropFirst()
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.hostingController?.rootView = MenuBarPopoverView(model: self.model)
+                (self.popover.contentViewController as? NSHostingController<MenuBarPopoverView>)?
+                    .rootView = MenuBarPopoverView(model: self.model)
             }
             .store(in: &cancellables)
 
@@ -80,6 +93,9 @@ final class StatusItemController: NSObject {
         } else {
             button.bounce()
             model.refreshHelperState()
+            let controller = NSHostingController(rootView: MenuBarPopoverView(model: model))
+            controller.sizingOptions = [.preferredContentSize]
+            popover.contentViewController = controller
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
@@ -110,10 +126,14 @@ final class StatusItemController: NSObject {
         updateAnimation(snapshot: snapshot)
     }
 
-    private func updateAnimation(snapshot: FanSnapshot) {
+    private func updateAnimation(snapshot: FanSnapshot, mode: PerformanceMode? = nil) {
         let fan = snapshot.fan
+        // Every frame that lands a new image makes AppKit re-snapshot the
+        // status item (several ms each), so the continuous spin is a Full
+        // luxury; Efficient keeps the icon still and lets color carry state.
+        let spins = model.settings.animateFanIcon && (mode ?? model.settings.performanceMode) == .full
         targetRotationSpeed =
-            model.settings.animateFanIcon
+            spins
             ? animationRules.rotationDegreesPerSecond(
                 currentRPM: fan?.currentRPM,
                 targetRPM: fan?.targetRPM,
@@ -130,7 +150,7 @@ final class StatusItemController: NSObject {
     private func startAnimationTimerIfNeeded() {
         guard animationTimer == nil else { return }
         lastFrameTime = nil
-        let timer = Timer(timeInterval: Self.animationFrameInterval, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.stepAnimationFrame()
             }
@@ -177,6 +197,14 @@ final class StatusItemController: NSObject {
     }
 
     private func statusColor(for temperature: Double?) -> NSColor {
+        switch model.settings.fanColorStyle {
+        case .mono:
+            return .labelColor
+        case .gray:
+            return .secondaryLabelColor
+        case .temperature:
+            break
+        }
         switch model.settings.visualRules.band(for: temperature) {
         case .normal:
             return readableMenuBarColor(NSColor(hexString: model.settings.normalColorHex), fallback: .white)
@@ -204,5 +232,12 @@ final class StatusItemController: NSObject {
             brightness: liftedBrightness,
             alpha: alpha > 0 ? alpha : 1
         ).usingColorSpace(.sRGB) ?? fallback
+    }
+}
+
+extension StatusItemController: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        // Drop the SwiftUI graph so a closed popover costs nothing.
+        popover.contentViewController = nil
     }
 }

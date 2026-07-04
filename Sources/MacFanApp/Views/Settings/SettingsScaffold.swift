@@ -2,9 +2,14 @@ import SwiftUI
 
 enum SettingsLayout {
     static let trailingControlWidth: CGFloat = 220
+    /// Window width (680) minus the window's leading (20) and trailing (12)
+    /// paddings. Every tab is pinned to this width so one tab's rigid rows
+    /// can never widen the shared tab stack and eat the window margins.
+    static let contentWidth: CGFloat = 648
 }
 
 struct SettingsTrailingControl<Content: View>: View {
+    var width: CGFloat = SettingsLayout.trailingControlWidth
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -12,7 +17,7 @@ struct SettingsTrailingControl<Content: View>: View {
             Spacer(minLength: 0)
             content()
         }
-        .frame(width: SettingsLayout.trailingControlWidth, alignment: .trailing)
+        .frame(width: width, alignment: .trailing)
     }
 }
 
@@ -66,6 +71,10 @@ struct SettingsRow<Content: View>: View {
     let title: String
     var subtitle: String?
     var icon: String?
+    /// Narrow panes (next to the Display sidebar) pass a smaller width for
+    /// compact controls like toggles, so the text column keeps the room
+    /// instead of a mostly-empty reserved column.
+    var trailingWidth: CGFloat = SettingsLayout.trailingControlWidth
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -89,7 +98,7 @@ struct SettingsRow<Content: View>: View {
             }
 
             Spacer(minLength: 24)
-            SettingsTrailingControl {
+            SettingsTrailingControl(width: trailingWidth) {
                 content()
             }
         }

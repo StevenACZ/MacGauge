@@ -4,6 +4,107 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-07-04
+
+### Added
+
+- Performance mode (Settings > General): Efficient (the default) steps the
+  menu bar values and charts once per tick with no in-between animation
+  frames and keeps the fan icon still, with its color still tracking
+  temperature — the right choice for an app running in the background all
+  day. Full keeps every continuous animation: sliding charts, rolling
+  digits, and the 30 fps spinning fan icon.
+
+- Spacing control for the menu bar modules (Settings > Display): Together,
+  Tight, Normal, or Wide. Tight, Normal, and Wide keep one independent menu
+  bar item per module (own click, popover, and drag position) and trim or
+  grow the dead space around each; Together fuses the modules into a single
+  block so even the system's own gap between items disappears, while clicks
+  stay per-module — no whole-block highlight, and each click opens only that
+  module's popover anchored to it.
+- Per-module graph length for the CPU and memory charts: Compact, Medium, or
+  Long, chosen independently for each.
+- Per-module color style: Multicolor (the module's own tint), Mono (menu bar
+  label color), Gray, or By load — the chart takes the same normal/medium/hot
+  colors as the fan temperature bands as usage climbs (CPU by sustained
+  usage, memory by real memory pressure). The network arrows follow their own
+  selected style, and the fan item gets its own Temperature/Mono/Gray choice.
+
+- Show more / Show less in the CPU and RAM popovers: the top-processes list
+  expands from 5 to 15 rows and the popover grows with it, collapsing back
+  on reopen.
+- Customizable By-load colors per module: CPU and RAM get their own
+  0-100 % band editor (draggable thresholds plus a color per band, like the
+  temperature editor) so each user decides when the chart turns from calm
+  to warning to hot; the network module gets its own upload/download arrow
+  colors, and the color presets gain Orange and Blue. The CPU/RAM/network
+  detail popovers now follow the exact same configured colors instead of
+  their old fixed tints.
+- Simulated activity in the Settings > Display previews: CPU and memory
+  sweep from idle to ~95 % and back, and the network preview climbs from a
+  few KB/s into the MB/s range, so color styles and thresholds visibly trip
+  in real time while being adjusted — no need to load the Mac to test them.
+  The Modules section gets a preview of the whole enabled set, reacting
+  live to the spacing choice.
+
+### Changed
+
+- The CPU and RAM popovers now rank every process the user can read —
+  compilers, helpers, and daemons included, like Activity Monitor — instead
+  of only regular applications, so a heavy build no longer leaves MacGauge
+  looking like the top consumer by omission. Detail popover charts also
+  follow the performance mode, keeping MacGauge's own footprint honest while
+  the panel is open.
+- Settings > Display redesigned as a visual-configuration screen with a
+  section sidebar (fan & temperature, modules, CPU, RAM, network): one card
+  at a time instead of a long scroll, each with a live preview that reflects
+  the current style choices in real time, with the previews running while
+  the tab is open even if a module is hidden. The fan icon and the
+  temperature colors share one section, and each metric card is ordered for
+  live color testing — preview first, color style and band editor right
+  under it, graph length last.
+- The performance mode picker (Settings > General) became two selectable
+  cards with an icon and a one-line promise each — Efficient (light all
+  day) and Full (every animation) — and every General row gained an icon.
+- The CPU/RAM By-load bands now read Low / Medium / High — "hot" stays
+  exclusive to temperature, where it belongs.
+- The Modules section uses the pane's full width: toggle rows no longer
+  reserve a wide control column, so descriptions run in one or two lines
+  instead of wrapping next to a dead column.
+- Menu bar module animations polished: percent values and network rates roll
+  with a numeric transition, chart colors cross-fade when the style or load
+  band changes, and the network arrows dim while their direction is idle.
+
+### Fixed
+
+- Idle CPU usage: the menu bar modules kept a continuous animation pipeline
+  alive (sliding sparklines, rolling digits, and the 30 fps fan icon each
+  forced macOS to re-layout and re-snapshot the status items up to the
+  display refresh rate), holding the app at most of one CPU core around the
+  clock. In the Efficient performance mode the app now idles at a few
+  percent.
+- Closed popovers kept rendering: every popover's SwiftUI content (fan panel,
+  CPU/RAM/network details) was created at startup and stayed live while
+  closed, re-rendering charts and animations on every tick and keeping the
+  per-app process sampler polling. Popover content is now built when the
+  popover opens and released when it closes.
+- The CPU popover could stay on "Measuring..." forever: switching between the
+  CPU and RAM popovers let the closing view's teardown land after the opening
+  view's start and kill the shared process sampler. Start/stop is now
+  reference-counted, and the first real reading lands in half a second.
+- Settings > Display > Fan now says why the fan icon is not spinning in the
+  Efficient performance mode (notice + disabled toggle, and the preview stays
+  still), instead of showing an animation the menu bar would not play.
+- The settings window could drift away from its designed size — macOS can
+  resize even a user-non-resizable window programmatically (edge tiling,
+  toolbar reshapes), leaving the fixed-size content floating in dead space
+  with a clipped scroll bar. The window now pins its content size and snaps
+  back if anything resizes it.
+- Settings cards could lose their window margins on every tab: a wide
+  always-mounted row (the temperature band editor next to the sidebar)
+  pushed the shared tab stack past the window paddings. The rigid rows are
+  slimmer and every tab is pinned to the designed content width.
+
 ## [1.1.0] - 2026-07-03
 
 ### Added

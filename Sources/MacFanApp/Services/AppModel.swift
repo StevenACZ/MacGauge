@@ -308,7 +308,8 @@ final class AppModel: ObservableObject {
     }
 
     /// The system stats monitor only runs while at least one menu bar module
-    /// (CPU, RAM, network) is enabled.
+    /// (CPU, RAM, network) is enabled; the Display previews run on simulated
+    /// data instead.
     private func bindSystemModules() {
         Publishers.CombineLatest3(
             settings.$showsCPUModule,

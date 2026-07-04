@@ -38,6 +38,11 @@
 "settings.general.temperature" = "Temperatura";
 "settings.general.temperature_unit" = "Unidad de temperatura";
 "settings.general.language" = "Idioma";
+"settings.general.performance" = "Rendimiento";
+"performance.mode.efficient" = "Eficiente";
+"performance.mode.efficient.caption" = "Ligero todo el día — pausa las animaciones continuas de la barra de menús.";
+"performance.mode.full" = "Completo";
+"performance.mode.full.caption" = "Todas las animaciones, para Macs con potencia de sobra.";
 "settings.general.launch_at_login" = "Iniciar al iniciar sesión";
 "settings.general.launch_at_login.caption" = "Abre MacGauge automáticamente al iniciar sesión.";
 "settings.general.restore_on_quit" = "Restaurar al salir";
@@ -63,6 +68,7 @@
 "settings.display.preview.caption" = "Así se ve MacGauge en tu barra de menús ahora mismo.";
 "settings.display.animate_icon" = "Animar ícono del ventilador";
 "settings.display.animate_icon.caption" = "Las aspas giran con la velocidad real del ventilador.";
+"settings.display.animate_icon.efficient_notice" = "El modo de rendimiento Eficiente mantiene el ícono quieto. Cambia a Completo en Configuración > General para que gire.";
 "settings.display.bands.title" = "Colores por temperatura";
 "settings.display.bands.caption" = "La barra de menús cambia de color cuando la Mac se calienta. Arrastra los tiradores para ajustar los umbrales.";
 "settings.display.normal" = "Normal";
@@ -72,11 +78,42 @@
 "settings.display.from" = "Desde";
 "settings.display.menubar_modules" = "Módulos de la barra de menús";
 "settings.display.module_cpu" = "Uso de CPU";
-"settings.display.module_cpu.caption" = "Agrega su propio ítem con el uso en vivo; clic para ver núcleos y apps.";
+"settings.display.module_cpu.caption" = "Uso en vivo en la barra de menús; clic para ver núcleos y apps.";
 "settings.display.module_memory" = "Uso de memoria";
 "settings.display.module_memory.caption" = "Memoria usada y presión en vivo; clic para ver las apps que más consumen.";
 "settings.display.module_network" = "Actividad de red";
 "settings.display.module_network.caption" = "Bajada y subida en vivo; clic para ver IPs y totales de la sesión.";
+"settings.display.section.fan_temp" = "Ventilador y temp.";
+"settings.display.section.modules" = "Módulos";
+"settings.display.module.hidden_hint" = "Oculto ahora mismo — actívalo en Módulos.";
+"settings.display.modules.none_hint" = "Sin módulos activos — enciéndelos abajo.";
+"settings.display.preview.simulated" = "Vista previa simulada — mira cómo reaccionan tus estilos.";
+"settings.display.modules.spacing" = "Separación";
+"settings.display.modules.spacing.caption" = "Cuánto aire deja cada módulo en la barra de menús. Juntos los fusiona en un solo bloque, con clic por módulo igual.";
+"settings.display.modules.graph" = "Largo de gráfica";
+"settings.display.modules.graph.caption" = "Largo de la gráfica de este módulo.";
+"settings.display.modules.color" = "Estilo de color";
+"settings.display.modules.color.caption" = "Multicolor mantiene el tinte propio del módulo; Por carga pinta la gráfica con los colores y umbrales que configures abajo.";
+"settings.display.modules.color.caption.network" = "Las flechas de subida y bajada siguen el estilo elegido; Multicolor usa tus propios colores de abajo.";
+"settings.display.load_bands.caption" = "La gráfica toma estos colores según sube el uso. Arrastra los tiradores para ajustar los umbrales.";
+"settings.display.load.low" = "Bajo";
+"settings.display.load.medium" = "Medio";
+"settings.display.load.high" = "Alto";
+"settings.display.network.upload_color" = "Color de subida";
+"settings.display.network.download_color" = "Color de bajada";
+"fan.color.caption" = "Temperatura sigue tus colores de temperatura de abajo; Mono usa el color propio de la barra.";
+"module.color.temperature" = "Temperatura";
+"module.spacing.together" = "Juntos";
+"module.spacing.tight" = "Pegados";
+"module.spacing.regular" = "Normal";
+"module.spacing.roomy" = "Separados";
+"module.graph.compact" = "Compacta";
+"module.graph.medium" = "Mediana";
+"module.graph.wide" = "Larga";
+"module.color.multicolor" = "Multicolor";
+"module.color.mono" = "Mono";
+"module.color.gray" = "Gris";
+"module.color.load" = "Por carga";
 
 /* Safety tab */
 "settings.safety.privileged_helper" = "Asistente con privilegios";
@@ -101,7 +138,9 @@
 "color.white" = "Blanco";
 "color.green" = "Verde";
 "color.yellow" = "Amarillo";
+"color.orange" = "Naranja";
 "color.red" = "Rojo";
+"color.blue" = "Azul";
 
 /* Helper status badge (accessibility) */
 "helper.state.authorized" = "Autorizado";
@@ -164,9 +203,11 @@
 "module.cpu.cores_value" = "%d (%d rendimiento + %d eficiencia)";
 "module.cpu.cores_split" = "%dP + %dE";
 "module.cpu.uptime" = "Encendido desde";
-"module.apps.cpu" = "Apps que más CPU usan";
-"module.apps.memory" = "Apps que más memoria usan";
+"module.apps.cpu" = "Procesos que más CPU usan";
+"module.apps.memory" = "Procesos que más memoria usan";
 "module.apps.collecting" = "Midiendo…";
+"module.apps.show_more" = "Ver más";
+"module.apps.show_less" = "Ver menos";
 "module.memory.used" = "Usada";
 "module.memory.free" = "Disponible";
 "module.memory.pressure" = "Presión";

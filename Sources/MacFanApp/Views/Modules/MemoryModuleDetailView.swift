@@ -4,13 +4,21 @@ import SwiftUI
 struct MemoryModuleDetailView: View {
     @ObservedObject var stats: SystemStatsMonitor
     @ObservedObject var processes: ProcessStatsMonitor
+    @ObservedObject var settings: AppSettingsStore
     let tickSeconds: Double
+    var animated = true
 
-    private static let tint = Color.indigo
+    @State private var isExpanded = false
+
+    /// Same resolution as the menu bar label, so the popover chart always
+    /// matches the colors the user configured for the module.
+    private var tint: Color {
+        ModuleColorResolver.memoryChartColor(percent: stats.snapshot.memoryPercent, settings: settings)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ModuleDetailHeader(icon: "memorychip", title: "system.memory".localized, tint: Self.tint) {
+            ModuleDetailHeader(icon: "memorychip", title: "system.memory".localized, tint: tint) {
                 VStack(alignment: .trailing, spacing: 0) {
                     ModuleHeaderValue(text: stats.snapshot.memoryPercent.map { AppFormatters.percent($0) } ?? "--%")
                     Text(
@@ -29,8 +37,9 @@ struct MemoryModuleDetailView: View {
                 values: stats.memoryHistory,
                 capacity: SystemStatsMonitor.historyCapacity,
                 peak: 100,
-                color: Self.tint,
-                tickSeconds: tickSeconds
+                color: tint,
+                tickSeconds: tickSeconds,
+                animated: animated
             )
             .frame(height: 56)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -68,22 +77,30 @@ struct MemoryModuleDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 8)
                 } else {
-                    ForEach(processes.topMemoryApps) { usage in
+                    ForEach(processes.topMemoryApps.prefix(rowLimit)) { usage in
                         AppUsageRow(
                             usage: usage,
                             valueText: AppFormatters.memoryAmount(usage.memoryBytes),
                             fraction: Double(usage.memoryBytes) / barScale,
-                            tint: Self.tint
+                            tint: tint
                         )
+                    }
+                    if processes.topMemoryApps.count > ProcessStatsMonitor.collapsedCount {
+                        ShowMoreButton(isExpanded: $isExpanded)
                     }
                 }
             }
             .animation(Theme.Anim.content, value: processes.topMemoryApps.map(\.pid))
+            .animation(Theme.Anim.content, value: isExpanded)
         }
         .padding(14)
         .frame(width: 300)
         .onAppear { processes.start() }
         .onDisappear { processes.stop() }
+    }
+
+    private var rowLimit: Int {
+        isExpanded ? ProcessStatsMonitor.expandedCount : ProcessStatsMonitor.collapsedCount
     }
 
     private var availableBytes: UInt64? {

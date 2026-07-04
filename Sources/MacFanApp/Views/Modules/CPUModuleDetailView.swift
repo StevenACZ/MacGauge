@@ -4,11 +4,21 @@ import SwiftUI
 struct CPUModuleDetailView: View {
     @ObservedObject var stats: SystemStatsMonitor
     @ObservedObject var processes: ProcessStatsMonitor
+    @ObservedObject var settings: AppSettingsStore
     let tickSeconds: Double
+    var animated = true
+
+    @State private var isExpanded = false
+
+    /// Same resolution as the menu bar label, so the popover chart always
+    /// matches the colors the user configured for the module.
+    private var tint: Color {
+        ModuleColorResolver.cpuChartColor(percent: stats.snapshot.cpuPercent, settings: settings)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ModuleDetailHeader(icon: "cpu", title: "system.cpu".localized, tint: Theme.accent) {
+            ModuleDetailHeader(icon: "cpu", title: "system.cpu".localized, tint: tint) {
                 ModuleHeaderValue(text: stats.snapshot.cpuPercent.map { AppFormatters.percent($0) } ?? "--%")
             }
 
@@ -16,8 +26,9 @@ struct CPUModuleDetailView: View {
                 values: stats.cpuHistory,
                 capacity: SystemStatsMonitor.historyCapacity,
                 peak: 100,
-                color: Theme.accent,
-                tickSeconds: tickSeconds
+                color: tint,
+                tickSeconds: tickSeconds,
+                animated: animated
             )
             .frame(height: 56)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -33,13 +44,16 @@ struct CPUModuleDetailView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 if processes.hasSampledCPU, !processes.topCPUApps.isEmpty {
-                    ForEach(processes.topCPUApps) { usage in
+                    ForEach(processes.topCPUApps.prefix(rowLimit)) { usage in
                         AppUsageRow(
                             usage: usage,
                             valueText: String(format: "%.1f%%", usage.cpuPercent),
                             fraction: usage.cpuPercent / barScale,
-                            tint: Theme.accent
+                            tint: tint
                         )
+                    }
+                    if processes.topCPUApps.count > ProcessStatsMonitor.collapsedCount {
+                        ShowMoreButton(isExpanded: $isExpanded)
                     }
                 } else {
                     HStack(spacing: 8) {
@@ -54,6 +68,7 @@ struct CPUModuleDetailView: View {
                 }
             }
             .animation(Theme.Anim.content, value: processes.topCPUApps.map(\.pid))
+            .animation(Theme.Anim.content, value: isExpanded)
         }
         .padding(14)
         .frame(width: 300)
@@ -61,8 +76,12 @@ struct CPUModuleDetailView: View {
         .onDisappear { processes.stop() }
     }
 
-    /// Bars are relative to the busiest app (floor of one core) so the top
-    /// entry always reads full-ish and the rest scale against it.
+    private var rowLimit: Int {
+        isExpanded ? ProcessStatsMonitor.expandedCount : ProcessStatsMonitor.collapsedCount
+    }
+
+    /// Bars are relative to the busiest process (floor of one core) so the
+    /// top entry always reads full-ish and the rest scale against it.
     private var barScale: Double {
         max(processes.topCPUApps.first?.cpuPercent ?? 100, 100)
     }

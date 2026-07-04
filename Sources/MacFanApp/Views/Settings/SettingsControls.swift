@@ -8,19 +8,21 @@ struct ColorPresetPicker: View {
             ColorPreset(name: "color.white".localized, hex: "#FFFFFF"),
             ColorPreset(name: "color.green".localized, hex: "#30D158"),
             ColorPreset(name: "color.yellow".localized, hex: "#FFD60A"),
+            ColorPreset(name: "color.orange".localized, hex: "#FF9500"),
             ColorPreset(name: "color.red".localized, hex: "#FF453A"),
+            ColorPreset(name: "color.blue".localized, hex: "#0A84FF"),
         ]
     }
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 7) {
             ForEach(presets) { preset in
                 Button {
                     selection = preset.hex
                 } label: {
                     Circle()
                         .fill(Color(hexString: preset.hex))
-                        .frame(width: 24, height: 24)
+                        .frame(width: 20, height: 20)
                         .overlay(
                             Circle()
                                 .strokeBorder(borderColor(for: preset), lineWidth: selectionMatches(preset) ? 3 : 1)

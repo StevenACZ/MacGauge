@@ -23,6 +23,14 @@ public enum MemoryPressureLevel: Equatable, Sendable {
     case high
 }
 
+/// Coarse effort band for the load-tinted menu bar charts. Maps onto the
+/// same normal → medium → hot colors the fan temperature bands use.
+public enum LoadBand: Equatable, Sendable {
+    case normal
+    case elevated
+    case high
+}
+
 /// Pure math for the system load charts (CPU, memory, network). Kept UI-free
 /// and chip-agnostic so it behaves identically on every Apple Silicon Mac.
 public enum SystemLoadRules {
@@ -53,6 +61,52 @@ public enum SystemLoadRules {
     public static func byteRate(previousBytes: UInt64, currentBytes: UInt64, elapsedSeconds: Double) -> Double? {
         guard elapsedSeconds > 0, currentBytes >= previousBytes else { return nil }
         return Double(currentBytes - previousBytes) / elapsedSeconds
+    }
+
+    /// CPU effort band; ceilings picked so brief spikes stay quiet and only
+    /// sustained heavy use turns the chart hot.
+    public static func cpuLoadBand(forPercent percent: Double?) -> LoadBand {
+        switch percent ?? 0 {
+        case ..<60:
+            return .normal
+        case ..<85:
+            return .elevated
+        default:
+            return .high
+        }
+    }
+
+    /// Band from user-configurable percent thresholds (the customizable
+    /// "By load" colors). Thresholds are clamped to 0...100 and kept ordered
+    /// so a misconfigured pair can never invert the bands.
+    public static func loadBand(
+        forPercent percent: Double?,
+        normalUpperPercent: Double,
+        hotLowerPercent: Double
+    ) -> LoadBand {
+        let normalUpper = min(max(normalUpperPercent, 0), 100)
+        let hotLower = min(max(hotLowerPercent, normalUpper), 100)
+        switch percent ?? 0 {
+        case ..<normalUpper:
+            return .normal
+        case ..<hotLower:
+            return .elevated
+        default:
+            return .high
+        }
+    }
+
+    /// Memory band mirrors the pressure level — used percent alone
+    /// overstates pressure on macOS.
+    public static func memoryLoadBand(forPressure pressure: MemoryPressureLevel) -> LoadBand {
+        switch pressure {
+        case .normal:
+            return .normal
+        case .elevated:
+            return .elevated
+        case .high:
+            return .high
+        }
     }
 
     /// Band from the kernel's own pressure level

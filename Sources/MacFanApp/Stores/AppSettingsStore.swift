@@ -20,6 +20,26 @@ final class AppSettingsStore: ObservableObject {
         static let showsCPUModule = "showsCPUModule"
         static let showsMemoryModule = "showsMemoryModule"
         static let showsNetworkModule = "showsNetworkModule"
+        static let moduleSpacing = "menuBarModulesSpacing"
+        static let cpuGraphWidth = "cpuModuleGraphWidth"
+        static let memoryGraphWidth = "memoryModuleGraphWidth"
+        static let cpuColorMode = "cpuModuleColorMode"
+        static let memoryColorMode = "memoryModuleColorMode"
+        static let networkColorMode = "networkModuleColorMode"
+        static let fanColorStyle = "fanColorStyle"
+        static let performanceMode = "performanceMode"
+        static let cpuNormalUpperPercent = "cpuNormalUpperPercent"
+        static let cpuHotLowerPercent = "cpuHotLowerPercent"
+        static let cpuNormalColorHex = "cpuNormalColorHex"
+        static let cpuMediumColorHex = "cpuMediumColorHex"
+        static let cpuHotColorHex = "cpuHotColorHex"
+        static let memoryNormalUpperPercent = "memoryNormalUpperPercent"
+        static let memoryHotLowerPercent = "memoryHotLowerPercent"
+        static let memoryNormalColorHex = "memoryNormalColorHex"
+        static let memoryMediumColorHex = "memoryMediumColorHex"
+        static let memoryHotColorHex = "memoryHotColorHex"
+        static let networkUpColorHex = "networkUpColorHex"
+        static let networkDownColorHex = "networkDownColorHex"
     }
 
     static let controlTickRange: ClosedRange<Double> = 0.5...10
@@ -90,6 +110,89 @@ final class AppSettingsStore: ObservableObject {
         didSet { defaults.set(showsNetworkModule, forKey: Key.showsNetworkModule) }
     }
 
+    @Published var moduleSpacing: ModuleSpacingLevel {
+        didSet { defaults.set(moduleSpacing.rawValue, forKey: Key.moduleSpacing) }
+    }
+
+    @Published var cpuGraphWidth: ModuleGraphWidth {
+        didSet { defaults.set(cpuGraphWidth.rawValue, forKey: Key.cpuGraphWidth) }
+    }
+
+    @Published var memoryGraphWidth: ModuleGraphWidth {
+        didSet { defaults.set(memoryGraphWidth.rawValue, forKey: Key.memoryGraphWidth) }
+    }
+
+    @Published var cpuColorMode: ModuleColorMode {
+        didSet { defaults.set(cpuColorMode.rawValue, forKey: Key.cpuColorMode) }
+    }
+
+    @Published var memoryColorMode: ModuleColorMode {
+        didSet { defaults.set(memoryColorMode.rawValue, forKey: Key.memoryColorMode) }
+    }
+
+    @Published var networkColorMode: ModuleColorMode {
+        didSet { defaults.set(networkColorMode.rawValue, forKey: Key.networkColorMode) }
+    }
+
+    @Published var fanColorStyle: FanColorStyle {
+        didSet { defaults.set(fanColorStyle.rawValue, forKey: Key.fanColorStyle) }
+    }
+
+    @Published var performanceMode: PerformanceMode {
+        didSet { defaults.set(performanceMode.rawValue, forKey: Key.performanceMode) }
+    }
+
+    // Per-module "By load" bands: user-editable percent thresholds and colors
+    // for the CPU and RAM charts, plus the network arrow tints.
+
+    @Published var cpuNormalUpperPercent: Double {
+        didSet { defaults.set(cpuNormalUpperPercent, forKey: Key.cpuNormalUpperPercent) }
+    }
+
+    @Published var cpuHotLowerPercent: Double {
+        didSet { defaults.set(cpuHotLowerPercent, forKey: Key.cpuHotLowerPercent) }
+    }
+
+    @Published var cpuNormalColorHex: String {
+        didSet { defaults.set(cpuNormalColorHex, forKey: Key.cpuNormalColorHex) }
+    }
+
+    @Published var cpuMediumColorHex: String {
+        didSet { defaults.set(cpuMediumColorHex, forKey: Key.cpuMediumColorHex) }
+    }
+
+    @Published var cpuHotColorHex: String {
+        didSet { defaults.set(cpuHotColorHex, forKey: Key.cpuHotColorHex) }
+    }
+
+    @Published var memoryNormalUpperPercent: Double {
+        didSet { defaults.set(memoryNormalUpperPercent, forKey: Key.memoryNormalUpperPercent) }
+    }
+
+    @Published var memoryHotLowerPercent: Double {
+        didSet { defaults.set(memoryHotLowerPercent, forKey: Key.memoryHotLowerPercent) }
+    }
+
+    @Published var memoryNormalColorHex: String {
+        didSet { defaults.set(memoryNormalColorHex, forKey: Key.memoryNormalColorHex) }
+    }
+
+    @Published var memoryMediumColorHex: String {
+        didSet { defaults.set(memoryMediumColorHex, forKey: Key.memoryMediumColorHex) }
+    }
+
+    @Published var memoryHotColorHex: String {
+        didSet { defaults.set(memoryHotColorHex, forKey: Key.memoryHotColorHex) }
+    }
+
+    @Published var networkUpColorHex: String {
+        didSet { defaults.set(networkUpColorHex, forKey: Key.networkUpColorHex) }
+    }
+
+    @Published var networkDownColorHex: String {
+        didSet { defaults.set(networkDownColorHex, forKey: Key.networkDownColorHex) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -127,6 +230,28 @@ final class AppSettingsStore: ObservableObject {
         showsCPUModule = defaults.bool(forKey: Key.showsCPUModule)
         showsMemoryModule = defaults.bool(forKey: Key.showsMemoryModule)
         showsNetworkModule = defaults.bool(forKey: Key.showsNetworkModule)
+
+        moduleSpacing = ModuleSpacingLevel(rawValue: defaults.string(forKey: Key.moduleSpacing) ?? "") ?? .tight
+        cpuGraphWidth = ModuleGraphWidth(rawValue: defaults.string(forKey: Key.cpuGraphWidth) ?? "") ?? .medium
+        memoryGraphWidth = ModuleGraphWidth(rawValue: defaults.string(forKey: Key.memoryGraphWidth) ?? "") ?? .medium
+        cpuColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.cpuColorMode) ?? "") ?? .multicolor
+        memoryColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.memoryColorMode) ?? "") ?? .multicolor
+        networkColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.networkColorMode) ?? "") ?? .multicolor
+        fanColorStyle = FanColorStyle(rawValue: defaults.string(forKey: Key.fanColorStyle) ?? "") ?? .temperature
+        performanceMode = PerformanceMode(rawValue: defaults.string(forKey: Key.performanceMode) ?? "") ?? .efficient
+
+        cpuNormalUpperPercent = defaults.object(forKey: Key.cpuNormalUpperPercent) as? Double ?? 60
+        cpuHotLowerPercent = defaults.object(forKey: Key.cpuHotLowerPercent) as? Double ?? 85
+        cpuNormalColorHex = defaults.string(forKey: Key.cpuNormalColorHex) ?? "#FFFFFF"
+        cpuMediumColorHex = defaults.string(forKey: Key.cpuMediumColorHex) ?? "#FF9500"
+        cpuHotColorHex = defaults.string(forKey: Key.cpuHotColorHex) ?? "#FF453A"
+        memoryNormalUpperPercent = defaults.object(forKey: Key.memoryNormalUpperPercent) as? Double ?? 70
+        memoryHotLowerPercent = defaults.object(forKey: Key.memoryHotLowerPercent) as? Double ?? 90
+        memoryNormalColorHex = defaults.string(forKey: Key.memoryNormalColorHex) ?? "#FFFFFF"
+        memoryMediumColorHex = defaults.string(forKey: Key.memoryMediumColorHex) ?? "#FF9500"
+        memoryHotColorHex = defaults.string(forKey: Key.memoryHotColorHex) ?? "#FF453A"
+        networkUpColorHex = defaults.string(forKey: Key.networkUpColorHex) ?? "#FF9500"
+        networkDownColorHex = defaults.string(forKey: Key.networkDownColorHex) ?? "#0A84FF"
     }
 
     var curveCommandPoints: String {

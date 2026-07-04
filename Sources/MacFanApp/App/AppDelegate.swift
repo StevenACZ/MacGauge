@@ -68,6 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
         window.isReleasedWhenClosed = false
+        // The SwiftUI content is a fixed 680x520, but the OS can still resize
+        // the window programmatically (Sequoia edge tiling, toolbar reshapes),
+        // leaving the content floating in dead space. Pinning min == max keeps
+        // every resize path honest.
+        window.contentMinSize = Self.settingsWindowSize
+        window.contentMaxSize = Self.settingsWindowSize
         window.delegate = self
     }
 
@@ -103,6 +109,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 extension AppDelegate: NSWindowDelegate {
+    // Belt over the min/max pin: programmatic setFrame calls (window tiling,
+    // AppKit toolbar reshapes) can bypass contentMin/MaxSize, so any drifted
+    // resize snaps straight back to the designed size.
+    func windowDidResize(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+            window === settingsWindowController?.window,
+            window.contentRect(forFrameRect: window.frame).size != Self.settingsWindowSize
+        else { return }
+        window.setContentSize(Self.settingsWindowSize)
+    }
+
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
             window === settingsWindowController?.window
