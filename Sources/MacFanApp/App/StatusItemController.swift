@@ -78,26 +78,11 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             popover.performClose(nil)
         } else {
-            bounceStatusButton(button)
+            button.bounce()
             model.refreshHelperState()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
-    }
-
-    private func bounceStatusButton(_ button: NSStatusBarButton) {
-        button.wantsLayer = true
-        guard let layer = button.layer else { return }
-        let bounds = layer.bounds
-        layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        layer.position = CGPoint(x: bounds.midX, y: bounds.midY)
-
-        let bounce = CAKeyframeAnimation(keyPath: "transform.scale")
-        bounce.values = [1.0, 0.86, 1.08, 1.0]
-        bounce.keyTimes = [0, 0.35, 0.7, 1]
-        bounce.duration = 0.28
-        bounce.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        layer.add(bounce, forKey: "bounce")
     }
 
     private func updateStatusItem(snapshot: FanSnapshot) {
@@ -110,10 +95,17 @@ final class StatusItemController: NSObject {
         ]
         let title = NSAttributedString(string: " \(temperature)", attributes: attributes)
         if let button = statusItem.button {
-            button.attributedTitle = title
-            button.contentTintColor = nil
-            button.image = FanIconRenderer.image(color: color, rotation: rotation)
-            statusItem.length = min(ceil(button.fittingSize.width), 84)
+            // The monitor ticks every second; skip the title reassignment and
+            // the fitting-size pass when nothing visible changed.
+            if !button.attributedTitle.isEqual(title) {
+                button.attributedTitle = title
+                statusItem.length = min(ceil(button.fittingSize.width), 84)
+            }
+            let image = FanIconRenderer.image(color: color, rotation: rotation)
+            if button.image !== image {
+                button.contentTintColor = nil
+                button.image = image
+            }
         }
         updateAnimation(snapshot: snapshot)
     }

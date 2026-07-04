@@ -50,13 +50,15 @@ struct HelperStatusBadge: View {
 
     var body: some View {
         Circle()
-            .fill(color)
+            .fill(state.tint)
             .frame(width: 10, height: 10)
-            .accessibilityLabel(title)
+            .accessibilityLabel(state.localizedTitle)
     }
+}
 
-    private var title: String {
-        switch state {
+extension HelperCommandService.HelperState {
+    var localizedTitle: String {
+        switch self {
         case .ready:
             return "helper.state.authorized".localized
         case .needsApproval:
@@ -76,8 +78,8 @@ struct HelperStatusBadge: View {
         }
     }
 
-    private var color: Color {
-        switch state {
+    var tint: Color {
+        switch self {
         case .ready:
             return .green
         case .needsApproval:
@@ -90,6 +92,23 @@ struct HelperStatusBadge: View {
             return .blue
         case .unavailable, .failed:
             return .red
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .ready:
+            return "checkmark.shield.fill"
+        case .needsApproval:
+            return "person.badge.shield.checkmark"
+        case .needsAuthorization:
+            return "lock.shield"
+        case .stale, .reloading:
+            return "arrow.triangle.2.circlepath"
+        case .unavailable, .failed:
+            return "exclamationmark.shield.fill"
+        case .unknown:
+            return "shield"
         }
     }
 }

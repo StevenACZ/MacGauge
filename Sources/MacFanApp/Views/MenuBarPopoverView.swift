@@ -68,7 +68,7 @@ struct MenuBarPopoverView: View {
             .frame(width: 32, height: 32)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("MacFan")
+                Text("MacGauge")
                     .font(.headline)
                 Text(subtitle)
                     .font(.caption)

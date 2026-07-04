@@ -40,7 +40,8 @@ explicit approval: a one-time helper authorization in the app, or deliberate
   and session traffic totals.
 - English and Spanish UI, following the system language with an in-app
   override.
-- No Accessibility permission, no analytics, no network access.
+- No Accessibility permission and no analytics. The only network request is
+  the optional public-IP lookup when you open the network module's popover.
 
 ## Requirements
 

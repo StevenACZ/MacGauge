@@ -8,6 +8,15 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Interactive temperature-colors editor in Settings > Display: a colored
+  30-90 °C strip with draggable threshold handles, plus a live menu bar
+  preview that mirrors the real icon, current color band, and spin speed.
+- Guided helper flow in Settings > Safety: a status card with a per-state
+  icon and color, an authorize → approve → ready step row while setup is
+  pending, and plain-language explanations of the privileged helper, extreme
+  ranges (showing the live manual range), and returning control to macOS.
+- Explanatory subtitles on settings rows (start at login, restore on quit,
+  fan icon animation, and each menu bar module).
 - Optional menu bar modules (Settings > Display) for CPU, memory, and network,
   each with its own compact live menu bar item — percent plus a mini scrolling
   chart, or stacked download/upload rates — refreshed on the same tick as the
@@ -45,6 +54,20 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The curve chart now extends flat to both chart edges beyond the outermost
   points, matching how targets are actually computed, so curves with few
   points no longer look cut off.
+- Always-on performance pass: the fan status item skips redundant title and
+  width updates on ticks where nothing visible changed, closing the settings
+  window now releases its UI tree instead of leaving it observing live
+  monitors, the fan icon image cache is bounded, and unused localization
+  strings were removed.
+
+### Fixed
+
+- The menu bar fan icon no longer wobbles while spinning: SF Symbol canvases
+  carry baseline padding, so rotating around the canvas center made the
+  blades orbit by about a pixel; rotation now pivots on the glyph's measured
+  optical center.
+- The popover header now reads MacGauge — it was the last user-visible spot
+  still showing the old MacFan brand.
 
 ## [1.0.1] - 2026-07-02
 
