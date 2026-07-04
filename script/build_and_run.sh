@@ -2,7 +2,12 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="MacFan"
+# Brand name: the .app bundle, executable, and display name the user sees.
+APP_NAME="MacGauge"
+# SwiftPM package name. Internal identifiers (package, products, bundle ID,
+# helper label) deliberately keep the MacFan prefix so installed helpers,
+# authorizations, and user defaults survive the brand rename.
+PACKAGE_NAME="MacFan"
 # The app's SwiftPM product; distinct from "macfan" (CLI) because the two
 # would collide case-insensitively in the build directory.
 APP_PRODUCT="MacFanApp"
@@ -10,8 +15,8 @@ CLI_NAME="macfan"
 HELPER_NAME="MacFanHelper"
 BUNDLE_ID="com.stevenacz.MacFan"
 MIN_SYSTEM_VERSION="13.0"
-APP_VERSION="1.0.1"
-APP_BUILD="6"
+APP_VERSION="1.1.0"
+APP_BUILD="7"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -33,6 +38,8 @@ usage() {
 
 kill_existing() {
   pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+  # Legacy process name from before the MacGauge brand rename.
+  pkill -x "MacFan" >/dev/null 2>&1 || true
 }
 
 stage_bundle() {
@@ -54,7 +61,7 @@ stage_bundle() {
 
   # SwiftPM target resources (localized strings). Bundle.module aborts at
   # launch if this bundle is missing from Contents/Resources.
-  local resources_bundle="$build_dir/${APP_NAME}_${APP_NAME}App.bundle"
+  local resources_bundle="$build_dir/${PACKAGE_NAME}_${APP_PRODUCT}.bundle"
   if [ ! -d "$resources_bundle" ]; then
     echo "error: missing SwiftPM resources bundle at $resources_bundle" >&2
     exit 1
@@ -73,7 +80,7 @@ stage_bundle() {
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
   <key>CFBundleDisplayName</key>
-  <string>MacFan</string>
+  <string>$APP_NAME</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

@@ -5,6 +5,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
     private var statusController: StatusItemController?
+    private var modulesCoordinator: MenuBarModulesCoordinator?
     private var settingsWindowController: NSWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -14,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         model.start()
         statusController = StatusItemController(model: model)
+        modulesCoordinator = MenuBarModulesCoordinator(model: model)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -66,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
         window.isReleasedWhenClosed = false
+        window.delegate = self
     }
 
     private func centerSettingsWindow(_ window: NSWindow) {
@@ -97,4 +100,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static let settingsWindowSize = NSSize(width: 680, height: 520)
+}
+
+extension AppDelegate: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+            window === settingsWindowController?.window
+        else { return }
+        // Drop the SwiftUI tree so a closed settings window stops observing
+        // the 1 Hz monitor publishers while the app runs around the clock;
+        // reopening always builds a fresh hosting controller.
+        DispatchQueue.main.async {
+            window.contentViewController = nil
+        }
+    }
 }

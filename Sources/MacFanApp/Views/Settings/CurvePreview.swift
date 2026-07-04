@@ -7,6 +7,8 @@ struct CurvePreview: View {
     let percentRange: ClosedRange<Double>
     let isEditingEnabled: Bool
     let animatesLiveMarker: Bool
+    let estimatedRPM: ((Double) -> Double?)?
+    let currentRPM: Double?
     let updatePoint: (CurvePoint) -> Void
     let addPoint: ((_ temperatureCelsius: Double, _ percent: Double) -> Void)?
     let deletePoint: ((UUID) -> Void)?
@@ -22,6 +24,8 @@ struct CurvePreview: View {
         percentRange: ClosedRange<Double>,
         isEditingEnabled: Bool,
         animatesLiveMarker: Bool = false,
+        estimatedRPM: ((Double) -> Double?)? = nil,
+        currentRPM: Double? = nil,
         updatePoint: @escaping (CurvePoint) -> Void,
         addPoint: ((_ temperatureCelsius: Double, _ percent: Double) -> Void)? = nil,
         deletePoint: ((UUID) -> Void)? = nil,
@@ -33,6 +37,8 @@ struct CurvePreview: View {
         self.percentRange = percentRange
         self.isEditingEnabled = isEditingEnabled
         self.animatesLiveMarker = animatesLiveMarker
+        self.estimatedRPM = estimatedRPM
+        self.currentRPM = currentRPM
         self.updatePoint = updatePoint
         self.addPoint = addPoint
         self.deletePoint = deletePoint
@@ -41,9 +47,9 @@ struct CurvePreview: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let plotted = normalizedPoints(in: proxy.size)
-            let marker = currentMarker(in: proxy.size)
             let plotRect = plotRect(in: proxy.size)
+            let plotted = extendedToPlotEdges(normalizedPoints(in: proxy.size), plotRect: plotRect)
+            let marker = currentMarker(in: proxy.size)
 
             ZStack {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -80,6 +86,24 @@ struct CurvePreview: View {
                         .position(x: plotRect.minX - 20, y: yPosition(forPercent: tick, in: plotRect))
                 }
 
+                if let rpmAxisValues {
+                    ForEach(Array(zip(axisTicks, rpmAxisValues)), id: \.0) { pair in
+                        Text(AppFormatters.compactRPM(pair.1))
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .position(
+                                x: plotRect.maxX + CurvePreviewLayout.rpmAxisLabelOffset,
+                                y: yPosition(forPercent: pair.0, in: plotRect))
+                    }
+
+                    Text("RPM")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.tertiary)
+                        .position(
+                            x: plotRect.maxX + CurvePreviewLayout.rpmAxisLabelOffset,
+                            y: plotRect.minY - 12)
+                }
+
                 curveArea(plotted: plotted, plotRect: plotRect)
 
                 Path { path in
@@ -113,6 +137,23 @@ struct CurvePreview: View {
                                 .stroke(Color.white.opacity(0.72), lineWidth: 1)
                         )
                         .position(marker)
+
+                    if draggedPointID == nil, let liveRPMText {
+                        Text(liveRPMText)
+                            .font(.caption2.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(.blue)
+                            .contentTransition(.numericText())
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(.regularMaterial)
+                                    .shadow(color: .black.opacity(0.16), radius: 3, y: 1)
+                            )
+                            .position(liveRPMLabelPosition(for: marker, in: plotRect))
+                            .allowsHitTesting(false)
+                    }
                 }
             }
             .animation(animatesLiveMarker ? .easeOut(duration: 0.28) : nil, value: liveMarkerAnimationKey)
@@ -143,7 +184,7 @@ struct CurvePreview: View {
             .overlay(alignment: .top) {
                 if isActive, isEditingEnabled {
                     valueBubble(for: point)
-                        .offset(y: -30)
+                        .offset(y: estimatedRPM == nil ? -30 : -40)
                         .fixedSize()
                 }
             }
@@ -156,7 +197,12 @@ struct CurvePreview: View {
                     .onChanged { value in
                         guard isEditingEnabled else { return }
                         draggedPointID = point.id
-                        updatePoint(point.moved(to: value.location, in: size, percentRange: percentRange))
+                        updatePoint(
+                            point.moved(
+                                to: value.location,
+                                in: size,
+                                percentRange: percentRange,
+                                showsRPMAxis: showsRPMAxis))
                     }
                     .onEnded { _ in
                         draggedPointID = nil
@@ -183,16 +229,25 @@ struct CurvePreview: View {
     }
 
     private func valueBubble(for point: CurvePoint) -> some View {
-        Text("\(Int(point.temperatureCelsius.rounded()))°C · \(Int(point.percent.rounded()))%")
-            .font(.caption.weight(.semibold))
-            .monospacedDigit()
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Layout.badgeRadius, style: .continuous)
-                    .fill(.regularMaterial)
-                    .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
-            )
+        VStack(spacing: 1) {
+            Text("\(Int(point.temperatureCelsius.rounded()))°C · \(Int(point.percent.rounded()))%")
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+            if let rpm = estimatedRPM?(point.percent) {
+                Text(AppFormatters.approximateRPM(rpm))
+                    .font(.caption2.weight(.medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+            }
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Layout.badgeRadius, style: .continuous)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
+        )
     }
 
     private func curveArea(plotted: [CGPoint], plotRect: CGRect) -> some View {
@@ -220,7 +275,7 @@ struct CurvePreview: View {
         SpatialTapGesture(count: 2)
             .onEnded { value in
                 guard isEditingEnabled, let addPoint else { return }
-                let plotRect = curvePreviewPlotRect(in: size)
+                let plotRect = curvePreviewPlotRect(in: size, showsRPMAxis: showsRPMAxis)
                 let clampedX = min(max(value.location.x, plotRect.minX), plotRect.maxX)
                 let clampedY = min(max(value.location.y, plotRect.minY), plotRect.maxY)
                 let range = CurvePoint.temperatureRange
@@ -241,9 +296,51 @@ struct CurvePreview: View {
         [0, 25, 50, 75, 100]
     }
 
+    /// One RPM equivalent per percent tick for the right-hand axis, or nil
+    /// when no fan can be converted (fanless Macs, missing max RPM).
+    private var rpmAxisValues: [Double]? {
+        guard let estimatedRPM else { return nil }
+        let values = axisTicks.compactMap { estimatedRPM($0) }
+        return values.count == axisTicks.count ? values : nil
+    }
+
+    private var showsRPMAxis: Bool {
+        rpmAxisValues != nil
+    }
+
+    private var liveRPMText: String? {
+        if let currentRPM {
+            return AppFormatters.rpm(currentRPM)
+        }
+        guard let targetPercent, let rpm = estimatedRPM?(targetPercent) else { return nil }
+        return AppFormatters.rpm(rpm)
+    }
+
+    private func liveRPMLabelPosition(for marker: CGPoint, in plotRect: CGRect) -> CGPoint {
+        CGPoint(
+            x: min(max(marker.x, plotRect.minX + 34), plotRect.maxX - 34),
+            y: max(plotRect.minY + 9, marker.y - 18)
+        )
+    }
+
+    /// Prolongs the polyline flat to both plot edges, matching how
+    /// `FanCurve.percent(for:)` clamps outside the outermost points, so a
+    /// three-point curve no longer looks cut off.
+    private func extendedToPlotEdges(_ plotted: [CGPoint], plotRect: CGRect) -> [CGPoint] {
+        guard let first = plotted.first, let last = plotted.last else { return plotted }
+        var extended = plotted
+        if first.x > plotRect.minX + 0.5 {
+            extended.insert(CGPoint(x: plotRect.minX, y: first.y), at: 0)
+        }
+        if last.x < plotRect.maxX - 0.5 {
+            extended.append(CGPoint(x: plotRect.maxX, y: last.y))
+        }
+        return extended
+    }
+
     private var liveMarkerAnimationKey: String {
         guard let currentTemperature, let targetPercent else { return "none" }
-        return String(format: "%.1f-%.1f", currentTemperature, targetPercent)
+        return String(format: "%.1f-%.1f-%.0f", currentTemperature, targetPercent, currentRPM ?? -1)
     }
 
     private func normalizedPoints(in size: CGSize) -> [CGPoint] {
@@ -284,7 +381,7 @@ struct CurvePreview: View {
     }
 
     private func plotRect(in size: CGSize) -> CGRect {
-        curvePreviewPlotRect(in: size)
+        curvePreviewPlotRect(in: size, showsRPMAxis: showsRPMAxis)
     }
 
     private func xPosition(forTemperature temperature: Double, in plotRect: CGRect) -> CGFloat {
@@ -311,8 +408,13 @@ struct CurvePreview: View {
 }
 
 extension CurvePoint {
-    fileprivate func moved(to location: CGPoint, in size: CGSize, percentRange: ClosedRange<Double>) -> CurvePoint {
-        let plotRect = curvePreviewPlotRect(in: size)
+    fileprivate func moved(
+        to location: CGPoint,
+        in size: CGSize,
+        percentRange: ClosedRange<Double>,
+        showsRPMAxis: Bool
+    ) -> CurvePoint {
+        let plotRect = curvePreviewPlotRect(in: size, showsRPMAxis: showsRPMAxis)
         let clampedX = min(max(location.x, plotRect.minX), plotRect.maxX)
         let clampedY = min(max(location.y, plotRect.minY), plotRect.maxY)
         let temperatureRange = CurvePoint.temperatureRange
@@ -333,20 +435,23 @@ extension CurvePoint {
 private enum CurvePreviewLayout {
     static let leadingInset: CGFloat = 42
     static let trailingInset: CGFloat = 18
+    static let rpmAxisTrailingInset: CGFloat = 46
+    static let rpmAxisLabelOffset: CGFloat = 24
     static let plotTopPadding: CGFloat = 22
     static let plotBottomPadding: CGFloat = 12
     static let xAxisLabelBand: CGFloat = 15
     static let xAxisLabelOffset: CGFloat = 12
 }
 
-private func curvePreviewPlotRect(in size: CGSize) -> CGRect {
+private func curvePreviewPlotRect(in size: CGSize, showsRPMAxis: Bool) -> CGRect {
     let topInset = CurvePreviewLayout.plotTopPadding
     let bottomInset = CurvePreviewLayout.plotBottomPadding + CurvePreviewLayout.xAxisLabelBand
+    let trailingInset = showsRPMAxis ? CurvePreviewLayout.rpmAxisTrailingInset : CurvePreviewLayout.trailingInset
 
     return CGRect(
         x: CurvePreviewLayout.leadingInset,
         y: topInset,
-        width: max(1, size.width - CurvePreviewLayout.leadingInset - CurvePreviewLayout.trailingInset),
+        width: max(1, size.width - CurvePreviewLayout.leadingInset - trailingInset),
         height: max(1, size.height - topInset - bottomInset)
     )
 }

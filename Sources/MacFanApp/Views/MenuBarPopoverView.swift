@@ -68,7 +68,7 @@ struct MenuBarPopoverView: View {
             .frame(width: 32, height: 32)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("MacFan")
+                Text("MacGauge")
                     .font(.headline)
                 Text(subtitle)
                     .font(.caption)
@@ -204,6 +204,8 @@ struct MenuBarPopoverView: View {
                 percentRange: model.manualPercentRange,
                 isEditingEnabled: false,
                 animatesLiveMarker: true,
+                estimatedRPM: { model.rpmEquivalent(for: $0) },
+                currentRPM: monitor.snapshot.fan?.currentRPM,
                 updatePoint: { _ in }
             )
             .frame(height: 168)

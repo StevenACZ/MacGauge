@@ -1,12 +1,19 @@
-# MacFan
+# MacGauge
 
-Fan control and thermal monitoring for Apple Silicon Macs (M1 and later),
-built as a Swift Package: a menu bar app, a CLI, and a narrow privileged
-helper.
+Fan control, thermal monitoring, and live system stats (CPU, memory, network)
+for Apple Silicon Macs (M1 and later), built as a Swift Package: a menu bar
+app, a CLI, and a narrow privileged helper.
 
-MacFan defaults to read-only monitoring. Live SMC writes always sit behind
+MacGauge defaults to read-only monitoring. Live SMC writes always sit behind
 explicit approval: a one-time helper authorization in the app, or deliberate
 `sudo` flags in the CLI.
+
+> **Note**
+> MacGauge was previously published as **MacFan** (and before that,
+> M4FanControl). Internal identifiers — the SwiftPM package and products, the
+> `com.stevenacz.MacFan` bundle ID, and the helper label — deliberately keep
+> the MacFan prefix so existing installs, helper authorizations, and settings
+> keep working across the rename.
 
 > **Warning**
 > Fan control can interfere with macOS thermal management and, in the worst
@@ -27,9 +34,14 @@ explicit approval: a one-time helper authorization in the app, or deliberate
   overrides the requested target, and the app re-asserts it.
 - Verified writes: the helper reads back fan mode and actual RPM after each
   write and retries when the system reverts it.
+- Optional menu bar modules (off by default) for CPU, memory, and network,
+  each with a compact live chart and a detail popover: usage history, chip and
+  core layout, top apps by CPU/memory, memory pressure, interface and IP info,
+  and session traffic totals.
 - English and Spanish UI, following the system language with an in-app
   override.
-- No Accessibility permission, no analytics, no network access.
+- No Accessibility permission and no analytics. The only network request is
+  the optional public-IP lookup when you open the network module's popover.
 
 ## Requirements
 
@@ -39,15 +51,15 @@ explicit approval: a one-time helper authorization in the app, or deliberate
 ## Install
 
 Download the latest notarized DMG from
-[Releases](https://github.com/StevenACZ/MacFan/releases), open it, and drag
-MacFan to Applications.
+[Releases](https://github.com/StevenACZ/MacGauge/releases), open it, and drag
+MacGauge to Applications.
 
 ## Build from source
 
 ```sh
-git clone https://github.com/StevenACZ/MacFan.git
-cd MacFan
-make stage            # builds dist/MacFan.app (ad-hoc signed)
+git clone https://github.com/StevenACZ/MacGauge.git
+cd MacGauge
+make stage            # builds dist/MacGauge.app (ad-hoc signed)
 ./script/build_and_run.sh run
 ```
 
@@ -104,7 +116,7 @@ sudo .build/debug/macfan auto --live --i-understand
 
 ## How it works
 
-Apple does not publish a fan-control API for macOS. MacFan talks to the
+Apple does not publish a fan-control API for macOS. MacGauge talks to the
 private `AppleSMC` IOKit service:
 
 - Fan state lives in per-fan four-character keys (`F0Ac`, `F0Tg`, `F0Mn`,
@@ -112,7 +124,7 @@ private `AppleSMC` IOKit service:
 - On recent Apple Silicon (observed on M3/M4), `thermalmonitord` can hold
   fans in system mode and block manual writes until `Ftst = 1` lets the
   system yield control; it can also reclaim control under heavy thermal
-  load. MacFan detects this, warns, and re-asserts the target, but cannot
+  load. MacGauge detects this, warns, and re-asserts the target, but cannot
   guarantee the firmware never wins.
 - The representative temperature uses a trimmed mean over stable die-level
   thermal-mass sensors, with a broad plausible-key fallback for hardware
@@ -127,7 +139,7 @@ Useful references: [macos-smc-fan](https://github.com/agoodkind/macos-smc-fan),
 ## Limitations
 
 - Sensor names differ between chip generations and are not fully mapped;
-  MacFan falls back to broad plausible thermal-mass keys when the preferred
+  MacGauge falls back to broad plausible thermal-mass keys when the preferred
   set is missing.
 - Reported fan minimum/maximum values are guidelines, not guaranteed physical
   limits.

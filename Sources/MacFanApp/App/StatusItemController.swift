@@ -12,8 +12,14 @@ final class StatusItemController: NSObject {
     private var cancellables = Set<AnyCancellable>()
     private var animationTimer: Timer?
     private var rotation: CGFloat = 0
-    private var currentAnimationInterval: TimeInterval?
+    /// Current animated speed in degrees per second; eases toward
+    /// `targetRotationSpeed` every frame so speed changes look fluid.
+    private var rotationSpeed: Double = 0
+    private var targetRotationSpeed: Double = 0
+    private var lastFrameTime: CFTimeInterval?
     private let animationRules = FanAnimationRules()
+
+    private static let animationFrameInterval: TimeInterval = 1.0 / 30.0
 
     init(model: AppModel) {
         self.model = model
@@ -72,26 +78,11 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             popover.performClose(nil)
         } else {
-            bounceStatusButton(button)
+            button.bounce()
             model.refreshHelperState()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
-    }
-
-    private func bounceStatusButton(_ button: NSStatusBarButton) {
-        button.wantsLayer = true
-        guard let layer = button.layer else { return }
-        let bounds = layer.bounds
-        layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        layer.position = CGPoint(x: bounds.midX, y: bounds.midY)
-
-        let bounce = CAKeyframeAnimation(keyPath: "transform.scale")
-        bounce.values = [1.0, 0.86, 1.08, 1.0]
-        bounce.keyTimes = [0, 0.35, 0.7, 1]
-        bounce.duration = 0.28
-        bounce.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        layer.add(bounce, forKey: "bounce")
     }
 
     private func updateStatusItem(snapshot: FanSnapshot) {
@@ -104,52 +95,85 @@ final class StatusItemController: NSObject {
         ]
         let title = NSAttributedString(string: " \(temperature)", attributes: attributes)
         if let button = statusItem.button {
-            button.attributedTitle = title
-            button.contentTintColor = nil
-            button.image = FanIconRenderer.image(color: color, rotation: rotation)
-            statusItem.length = min(ceil(button.fittingSize.width), 84)
+            // The monitor ticks every second; skip the title reassignment and
+            // the fitting-size pass when nothing visible changed.
+            if !button.attributedTitle.isEqual(title) {
+                button.attributedTitle = title
+                statusItem.length = min(ceil(button.fittingSize.width), 84)
+            }
+            let image = FanIconRenderer.image(color: color, rotation: rotation)
+            if button.image !== image {
+                button.contentTintColor = nil
+                button.image = image
+            }
         }
         updateAnimation(snapshot: snapshot)
     }
 
     private func updateAnimation(snapshot: FanSnapshot) {
         let fan = snapshot.fan
-        let interval =
+        targetRotationSpeed =
             model.settings.animateFanIcon
-            ? animationRules.animationInterval(
+            ? animationRules.rotationDegreesPerSecond(
                 currentRPM: fan?.currentRPM,
                 targetRPM: fan?.targetRPM,
                 minRPM: fan?.minRPM,
                 maxRPM: fan?.maxRPM
-            )
-            : nil
-        guard interval != currentAnimationInterval else { return }
-        currentAnimationInterval = interval
-        animationTimer?.invalidate()
-        animationTimer = nil
+            ) ?? 0
+            : 0
 
-        guard let interval else {
-            rotation = 0
-            let color = statusColor(for: snapshot.temperatureCelsius)
-            statusItem.button?.contentTintColor = nil
-            statusItem.button?.image = FanIconRenderer.image(color: color, rotation: rotation)
-            return
+        if targetRotationSpeed > 0 || rotationSpeed > 0 {
+            startAnimationTimerIfNeeded()
         }
+    }
 
-        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+    private func startAnimationTimerIfNeeded() {
+        guard animationTimer == nil else { return }
+        lastFrameTime = nil
+        let timer = Timer(timeInterval: Self.animationFrameInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self else { return }
-                self.rotation = (self.rotation + 45).truncatingRemainder(dividingBy: 360)
-                let color = self.statusColor(for: self.model.monitor.snapshot.temperatureCelsius)
-                self.statusItem.button?.contentTintColor = nil
-                self.statusItem.button?.image = FanIconRenderer.image(
-                    color: color,
-                    rotation: self.rotation
-                )
+                self?.stepAnimationFrame()
             }
         }
         RunLoop.main.add(timer, forMode: .common)
         animationTimer = timer
+    }
+
+    /// Integrates the rotation each frame while easing the speed toward its
+    /// target, so the blades accelerate and coast down instead of jumping
+    /// between fixed step rates. The timer stops itself once spun down.
+    private func stepAnimationFrame() {
+        let now = CACurrentMediaTime()
+        let elapsed = min(max(now - (lastFrameTime ?? now), 0), 0.1)
+        lastFrameTime = now
+
+        let blend = 1 - exp(-elapsed * 4)
+        rotationSpeed += (targetRotationSpeed - rotationSpeed) * blend
+
+        if targetRotationSpeed <= 0, rotationSpeed < 4 {
+            rotationSpeed = 0
+            rotation = 0
+            animationTimer?.invalidate()
+            animationTimer = nil
+            lastFrameTime = nil
+            redrawFanIcon()
+            return
+        }
+
+        rotation = (rotation + rotationSpeed * elapsed).truncatingRemainder(dividingBy: 360)
+        redrawFanIcon()
+    }
+
+    private func redrawFanIcon() {
+        guard let button = statusItem.button else { return }
+        let color = statusColor(for: model.monitor.snapshot.temperatureCelsius)
+        let image = FanIconRenderer.image(color: color, rotation: rotation)
+        // The renderer caches by rounded degree; skip no-op assignments so
+        // slow spins do not redraw the button 30 times a second.
+        if button.image !== image {
+            button.contentTintColor = nil
+            button.image = image
+        }
     }
 
     private func statusColor(for temperature: Double?) -> NSColor {

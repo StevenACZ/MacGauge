@@ -4,6 +4,74 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-07-03
+
+### Added
+
+- Interactive temperature-colors editor in Settings > Display: a colored
+  30-90 °C strip with draggable threshold handles, plus a live menu bar
+  preview that mirrors the real icon, current color band, and spin speed.
+- Guided helper flow in Settings > Safety: a status card with a per-state
+  icon and color, an authorize → approve → ready step row while setup is
+  pending, and plain-language explanations of the privileged helper, extreme
+  ranges (showing the live manual range), and returning control to macOS.
+- Explanatory subtitles on settings rows (start at login, restore on quit,
+  fan icon animation, and each menu bar module).
+- Optional menu bar modules (Settings > Display) for CPU, memory, and network,
+  each with its own compact live menu bar item — percent plus a mini scrolling
+  chart, or stacked download/upload rates — refreshed on the same tick as the
+  fan monitor and universal across Apple Silicon.
+- Module detail popovers: CPU shows usage history, chip, core layout
+  (performance + efficiency), awake-since time, and the apps using the most
+  CPU; memory shows used/available, a pressure badge, and the apps using the
+  most memory; network shows live download/upload charts, interface, local and
+  public IP (copyable), router, and session traffic totals.
+- Real RPM context while editing the fan curve: the drag bubble and the point
+  editor show the estimated RPM for each percent, a right-hand RPM axis maps
+  the percent scale to the fan's real range, and the live marker carries a
+  label with the fan's actual measured RPM as it moves.
+
+### Changed
+
+- Renamed the app and repository from MacFan to MacGauge, reflecting that it
+  now covers system stats beyond fan control. Brand only: the bundle ID,
+  helper label, and SwiftPM identifiers keep the MacFan prefix so existing
+  installs, helper authorizations, and settings survive the rename.
+- Menu bar modules now keep a constant width: values reserve their widest
+  realistic size (three digits plus unit), so the network item no longer
+  shifts left and right as rates change between two and three digits.
+- The CPU popover shows the performance/efficiency split as one square per
+  core with a compact "8P + 4E" label, and "Awake since" as a duration with
+  the boot date on its own line — no more truncated text.
+- The fan icon now spins continuously, accelerating and coasting down with
+  the fan's real speed instead of stepping between four fixed rates.
+- Module charts start as a flat line at the current level while their history
+  builds up, instead of repeatedly climbing out of zero at the left edge.
+- The memory pressure badge reads the kernel's actual pressure level
+  (`kern.memorystatus_vm_pressure_level`) instead of inferring it from the
+  used percentage, matching Activity Monitor; the percent thresholds remain
+  as a fallback.
+- The curve chart now extends flat to both chart edges beyond the outermost
+  points, matching how targets are actually computed, so curves with few
+  points no longer look cut off.
+- Always-on performance pass: the fan status item skips redundant title and
+  width updates on ticks where nothing visible changed, closing the settings
+  window now releases its UI tree instead of leaving it observing live
+  monitors, the fan icon image cache is bounded, and unused localization
+  strings were removed.
+
+### Fixed
+
+- The menu bar fan icon no longer wobbles while spinning. Two causes: SF
+  Symbol canvases carry baseline padding, so rotating around the canvas
+  center made the blades orbit by about a pixel; and re-drawing the vector
+  symbol at every angle let AppKit rasterize it against a slightly different
+  pixel grid on some angles, which read as intermittent 1-2 px jumps. The
+  glyph is now rasterized once into a fixed high-resolution bitmap, and each
+  frame rotates that bitmap around its alpha-weighted centroid.
+- The popover header now reads MacGauge — it was the last user-visible spot
+  still showing the old MacFan brand.
+
 ## [1.0.1] - 2026-07-02
 
 ### Fixed

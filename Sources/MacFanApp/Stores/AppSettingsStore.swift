@@ -17,6 +17,9 @@ final class AppSettingsStore: ObservableObject {
         static let hotColorHex = "hotColorHex"
         static let animateFanIcon = "animateFanIcon"
         static let controlTickSeconds = "controlTickSeconds"
+        static let showsCPUModule = "showsCPUModule"
+        static let showsMemoryModule = "showsMemoryModule"
+        static let showsNetworkModule = "showsNetworkModule"
     }
 
     static let controlTickRange: ClosedRange<Double> = 0.5...10
@@ -75,6 +78,18 @@ final class AppSettingsStore: ObservableObject {
         didSet { defaults.set(Self.clampedControlTick(controlTickSeconds), forKey: Key.controlTickSeconds) }
     }
 
+    @Published var showsCPUModule: Bool {
+        didSet { defaults.set(showsCPUModule, forKey: Key.showsCPUModule) }
+    }
+
+    @Published var showsMemoryModule: Bool {
+        didSet { defaults.set(showsMemoryModule, forKey: Key.showsMemoryModule) }
+    }
+
+    @Published var showsNetworkModule: Bool {
+        didSet { defaults.set(showsNetworkModule, forKey: Key.showsNetworkModule) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -108,6 +123,10 @@ final class AppSettingsStore: ObservableObject {
 
         let storedTick = defaults.object(forKey: Key.controlTickSeconds) as? Double
         controlTickSeconds = Self.clampedControlTick(storedTick ?? 1)
+
+        showsCPUModule = defaults.bool(forKey: Key.showsCPUModule)
+        showsMemoryModule = defaults.bool(forKey: Key.showsMemoryModule)
+        showsNetworkModule = defaults.bool(forKey: Key.showsNetworkModule)
     }
 
     var curveCommandPoints: String {

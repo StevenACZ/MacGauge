@@ -1,4 +1,4 @@
-/* MacFan — Spanish strings */
+/* MacGauge — Spanish strings */
 
 /* Popover */
 "popover.subtitle.one_fan" = "%@ · 1 ventilador";
@@ -10,7 +10,7 @@
 "popover.rpm.actual" = "Real";
 "popover.rpm.current" = "Actual";
 "popover.settings" = "Configuración";
-"popover.quit" = "Salir de MacFan";
+"popover.quit" = "Salir de MacGauge";
 "popover.fan_fallback" = "Ventilador %d";
 
 /* Banners */
@@ -39,7 +39,9 @@
 "settings.general.temperature_unit" = "Unidad de temperatura";
 "settings.general.language" = "Idioma";
 "settings.general.launch_at_login" = "Iniciar al iniciar sesión";
+"settings.general.launch_at_login.caption" = "Abre MacGauge automáticamente al iniciar sesión.";
 "settings.general.restore_on_quit" = "Restaurar al salir";
+"settings.general.restore_on_quit.caption" = "Devuelve los ventiladores al control automático del sistema al salir de la app.";
 
 /* Control tab */
 "settings.control.title" = "Control";
@@ -47,33 +49,49 @@
 "settings.control.default_mode" = "Modo predeterminado";
 "settings.control.manual_target" = "Objetivo manual";
 "settings.control.target" = "Objetivo";
-"settings.control.curve_points" = "Puntos de curva";
-"settings.control.temp_placeholder" = "Temp";
 "settings.control.add_point" = "Agregar punto";
 "settings.control.reset" = "Restablecer";
-"settings.control.preview" = "Vista previa";
-"settings.control.delete_point" = "Eliminar punto";
-"settings.control.keep_two_points" = "Mantén al menos dos puntos";
-"settings.control.delete_curve_point" = "Eliminar punto de curva";
 "settings.control.fan_curve" = "Curva del ventilador";
 "settings.control.curve_hint" = "Arrastra los puntos · doble clic para agregar · clic derecho para eliminar";
 "settings.control.temperature" = "Temperatura";
 "settings.control.fan_speed" = "Velocidad";
+"settings.control.estimated_rpm" = "Vel. estimada";
 "curve.delete_point" = "Eliminar punto";
 
 /* Display tab */
-"settings.display.title" = "Pantalla";
+"settings.display.menubar_item" = "Ícono en la barra de menús";
+"settings.display.preview.caption" = "Así se ve MacGauge en tu barra de menús ahora mismo.";
 "settings.display.animate_icon" = "Animar ícono del ventilador";
+"settings.display.animate_icon.caption" = "Las aspas giran con la velocidad real del ventilador.";
+"settings.display.bands.title" = "Colores por temperatura";
+"settings.display.bands.caption" = "La barra de menús cambia de color cuando la Mac se calienta. Arrastra los tiradores para ajustar los umbrales.";
 "settings.display.normal" = "Normal";
 "settings.display.medium" = "Media";
 "settings.display.hot" = "Caliente";
 "settings.display.up_to" = "Hasta";
 "settings.display.from" = "Desde";
+"settings.display.menubar_modules" = "Módulos de la barra de menús";
+"settings.display.module_cpu" = "Uso de CPU";
+"settings.display.module_cpu.caption" = "Agrega su propio ítem con el uso en vivo; clic para ver núcleos y apps.";
+"settings.display.module_memory" = "Uso de memoria";
+"settings.display.module_memory.caption" = "Memoria usada y presión en vivo; clic para ver las apps que más consumen.";
+"settings.display.module_network" = "Actividad de red";
+"settings.display.module_network.caption" = "Bajada y subida en vivo; clic para ver IPs y totales de la sesión.";
 
 /* Safety tab */
-"settings.safety.title" = "Seguridad";
-"settings.safety.unlock_ranges" = "Desbloquear rangos extremos";
 "settings.safety.privileged_helper" = "Asistente con privilegios";
+"settings.safety.helper.explainer" = "MacGauge usa un asistente del sistema con privilegios para cambiar la velocidad de los ventiladores. Sin él, la app solo puede leer los sensores.";
+"settings.safety.helper.ready_detail" = "El control de ventiladores está activo. Puedes revocarlo cuando quieras en Configuración del Sistema > Elementos de inicio.";
+"settings.safety.step.authorize" = "Autorizar";
+"settings.safety.step.approve" = "Aprobar en Configuración del Sistema";
+"settings.safety.step.ready" = "Listo";
+"settings.safety.ranges.title" = "Rangos extremos";
+"settings.safety.unlock_ranges" = "Desbloquear rangos extremos";
+"settings.safety.ranges.locked_caption" = "El control manual se mantiene en una banda segura para proteger los ventiladores.";
+"settings.safety.ranges.unlocked_caption" = "Permite 0% (ventilador detenido) y 100% sostenido. Úsalo con cuidado.";
+"settings.safety.ranges.current" = "Rango manual actual";
+"settings.safety.restore.title" = "Devolver el control a macOS";
+"settings.safety.restore.caption" = "Devuelve los ventiladores al control automático del sistema de inmediato, como si MacGauge no estuviera corriendo.";
 "settings.safety.restore_automatic" = "Restaurar automático ahora";
 "settings.safety.open_settings" = "Abrir Configuración";
 "settings.safety.fix_helper" = "Reparar asistente";
@@ -99,14 +117,14 @@
 "helper.status.checking" = "Comprobando el asistente…";
 "helper.status.ready" = "Asistente listo";
 "helper.status.needs_authorization" = "Autoriza el asistente para habilitar el control de ventiladores";
-"helper.status.needs_approval" = "Aprueba MacFan en Configuración del Sistema > Elementos de inicio";
+"helper.status.needs_approval" = "Aprueba MacGauge en Configuración del Sistema > Elementos de inicio";
 "helper.status.unavailable" = "El asistente no responde; se está recuperando automáticamente";
 "helper.status.stale" = "El asistente está desactualizado; se está recargando automáticamente";
 "helper.status.reloading" = "Recargando el asistente…";
 "helper.status.failed" = "El asistente falló; usa Reparar en Configuración > Seguridad";
 
 /* Helper errors (user-facing) */
-"helper.error.approve_in_settings" = "Aprueba MacFan en Configuración del Sistema; la app lo detecta automáticamente.";
+"helper.error.approve_in_settings" = "Aprueba MacGauge en Configuración del Sistema; la app lo detecta automáticamente.";
 "helper.error.no_response" = "El asistente no respondió.";
 "helper.error.outdated" = "El asistente está desactualizado; la app lo recarga automáticamente.";
 
@@ -135,6 +153,37 @@
 /* Manual slider (accessibility) */
 "slider.accessibility.label" = "Objetivo manual del ventilador";
 "slider.accessibility.value" = "%d por ciento";
+
+/* System modules */
+"system.cpu" = "CPU";
+"system.memory" = "RAM";
+"system.network" = "Red";
+"module.copy" = "Copiar";
+"module.cpu.chip" = "Chip";
+"module.cpu.cores" = "Núcleos";
+"module.cpu.cores_value" = "%d (%d rendimiento + %d eficiencia)";
+"module.cpu.cores_split" = "%dP + %dE";
+"module.cpu.uptime" = "Encendido desde";
+"module.apps.cpu" = "Apps que más CPU usan";
+"module.apps.memory" = "Apps que más memoria usan";
+"module.apps.collecting" = "Midiendo…";
+"module.memory.used" = "Usada";
+"module.memory.free" = "Disponible";
+"module.memory.pressure" = "Presión";
+"module.memory.pressure.normal" = "Normal";
+"module.memory.pressure.elevated" = "Media";
+"module.memory.pressure.high" = "Alta";
+"module.memory.of_total" = "%@ de %@";
+"module.network.interface" = "Interfaz";
+"module.network.local_ip" = "IP local";
+"module.network.public_ip" = "IP pública";
+"module.network.router" = "Router";
+"module.network.session" = "Esta sesión";
+"module.network.fetch_error" = "No disponible";
+"module.network.refresh_public_ip" = "Actualizar IP pública";
+"uptime.days_hours" = "%dd %dh";
+"uptime.hours_minutes" = "%dh %dm";
+"uptime.minutes" = "%dm";
 
 /* Formatters */
 "formatter.temperature_unavailable" = "No disponible";

@@ -64,12 +64,30 @@ struct SettingsSurface<Content: View>: View {
 
 struct SettingsRow<Content: View>: View {
     let title: String
+    var subtitle: String?
+    var icon: String?
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(title)
-                .font(.callout.weight(.semibold))
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 22, alignment: .center)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout.weight(.semibold))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             Spacer(minLength: 24)
             SettingsTrailingControl {
                 content()

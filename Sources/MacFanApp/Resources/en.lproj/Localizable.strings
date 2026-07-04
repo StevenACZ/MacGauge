@@ -1,4 +1,4 @@
-/* MacFan — English strings */
+/* MacGauge — English strings */
 
 /* Popover */
 "popover.subtitle.one_fan" = "%@ · 1 fan";
@@ -10,7 +10,7 @@
 "popover.rpm.actual" = "Actual";
 "popover.rpm.current" = "Current";
 "popover.settings" = "Settings";
-"popover.quit" = "Quit MacFan";
+"popover.quit" = "Quit MacGauge";
 "popover.fan_fallback" = "Fan %d";
 
 /* Banners */
@@ -39,7 +39,9 @@
 "settings.general.temperature_unit" = "Temperature unit";
 "settings.general.language" = "Language";
 "settings.general.launch_at_login" = "Start at login";
+"settings.general.launch_at_login.caption" = "Opens MacGauge automatically when you log in.";
 "settings.general.restore_on_quit" = "Restore on quit";
+"settings.general.restore_on_quit.caption" = "Returns the fans to automatic system control when the app quits.";
 
 /* Control tab */
 "settings.control.title" = "Control";
@@ -47,33 +49,49 @@
 "settings.control.default_mode" = "Default mode";
 "settings.control.manual_target" = "Manual Target";
 "settings.control.target" = "Target";
-"settings.control.curve_points" = "Curve Points";
-"settings.control.temp_placeholder" = "Temp";
 "settings.control.add_point" = "Add Point";
 "settings.control.reset" = "Reset";
-"settings.control.preview" = "Preview";
-"settings.control.delete_point" = "Delete point";
-"settings.control.keep_two_points" = "Keep at least two points";
-"settings.control.delete_curve_point" = "Delete curve point";
 "settings.control.fan_curve" = "Fan Curve";
 "settings.control.curve_hint" = "Drag points · double-click to add · right-click to delete";
 "settings.control.temperature" = "Temperature";
 "settings.control.fan_speed" = "Fan speed";
+"settings.control.estimated_rpm" = "Est. speed";
 "curve.delete_point" = "Delete point";
 
 /* Display tab */
-"settings.display.title" = "Display";
+"settings.display.menubar_item" = "Menu Bar Item";
+"settings.display.preview.caption" = "This is how MacGauge looks in your menu bar right now.";
 "settings.display.animate_icon" = "Animate fan icon";
+"settings.display.animate_icon.caption" = "The blades spin with the fan's real speed.";
+"settings.display.bands.title" = "Temperature Colors";
+"settings.display.bands.caption" = "The menu bar changes color as the Mac heats up. Drag the handles to adjust the thresholds.";
 "settings.display.normal" = "Normal";
 "settings.display.medium" = "Medium";
 "settings.display.hot" = "Hot";
 "settings.display.up_to" = "Up to";
 "settings.display.from" = "From";
+"settings.display.menubar_modules" = "Menu Bar Modules";
+"settings.display.module_cpu" = "CPU usage";
+"settings.display.module_cpu.caption" = "Adds its own menu bar item with live usage; click it for cores and top apps.";
+"settings.display.module_memory" = "Memory usage";
+"settings.display.module_memory.caption" = "Live used memory and pressure; click it for the apps using the most.";
+"settings.display.module_network" = "Network activity";
+"settings.display.module_network.caption" = "Live download and upload rates; click it for IPs and session totals.";
 
 /* Safety tab */
-"settings.safety.title" = "Safety";
-"settings.safety.unlock_ranges" = "Unlock edge ranges";
-"settings.safety.privileged_helper" = "Privileged helper";
+"settings.safety.privileged_helper" = "Privileged Helper";
+"settings.safety.helper.explainer" = "MacGauge uses a privileged system helper to change fan speeds. Without it the app can only read sensors.";
+"settings.safety.helper.ready_detail" = "Fan control is active. You can revoke it anytime in System Settings > Login Items.";
+"settings.safety.step.authorize" = "Authorize";
+"settings.safety.step.approve" = "Approve in System Settings";
+"settings.safety.step.ready" = "Ready";
+"settings.safety.ranges.title" = "Extreme Ranges";
+"settings.safety.unlock_ranges" = "Unlock extreme ranges";
+"settings.safety.ranges.locked_caption" = "Manual control stays inside a safe band to protect the fans.";
+"settings.safety.ranges.unlocked_caption" = "Allows 0% (fan stopped) and sustained 100%. Use with care.";
+"settings.safety.ranges.current" = "Current manual range";
+"settings.safety.restore.title" = "Return Control to macOS";
+"settings.safety.restore.caption" = "Hands the fans back to automatic system control immediately, as if MacGauge were not running.";
 "settings.safety.restore_automatic" = "Restore Automatic Now";
 "settings.safety.open_settings" = "Open Settings";
 "settings.safety.fix_helper" = "Fix Helper";
@@ -99,14 +117,14 @@
 "helper.status.checking" = "Checking helper...";
 "helper.status.ready" = "Helper ready";
 "helper.status.needs_authorization" = "Authorize the helper to enable fan control";
-"helper.status.needs_approval" = "Approve MacFan in System Settings > Login Items";
+"helper.status.needs_approval" = "Approve MacGauge in System Settings > Login Items";
 "helper.status.unavailable" = "Helper not responding; recovering automatically";
 "helper.status.stale" = "Helper is outdated; reloading it automatically";
 "helper.status.reloading" = "Reloading helper...";
 "helper.status.failed" = "Helper failed; use Fix in Settings > Safety";
 
 /* Helper errors (user-facing) */
-"helper.error.approve_in_settings" = "Approve MacFan in System Settings; the app detects it automatically.";
+"helper.error.approve_in_settings" = "Approve MacGauge in System Settings; the app detects it automatically.";
 "helper.error.no_response" = "Helper did not respond.";
 "helper.error.outdated" = "Helper is outdated; the app reloads it automatically.";
 
@@ -135,6 +153,37 @@
 /* Manual slider (accessibility) */
 "slider.accessibility.label" = "Manual fan target";
 "slider.accessibility.value" = "%d percent";
+
+/* System modules */
+"system.cpu" = "CPU";
+"system.memory" = "RAM";
+"system.network" = "Network";
+"module.copy" = "Copy";
+"module.cpu.chip" = "Chip";
+"module.cpu.cores" = "Cores";
+"module.cpu.cores_value" = "%d (%d performance + %d efficiency)";
+"module.cpu.cores_split" = "%dP + %dE";
+"module.cpu.uptime" = "Awake since";
+"module.apps.cpu" = "Apps using the most CPU";
+"module.apps.memory" = "Apps using the most memory";
+"module.apps.collecting" = "Measuring...";
+"module.memory.used" = "Used";
+"module.memory.free" = "Available";
+"module.memory.pressure" = "Pressure";
+"module.memory.pressure.normal" = "Normal";
+"module.memory.pressure.elevated" = "Elevated";
+"module.memory.pressure.high" = "High";
+"module.memory.of_total" = "%@ of %@";
+"module.network.interface" = "Interface";
+"module.network.local_ip" = "Local IP";
+"module.network.public_ip" = "Public IP";
+"module.network.router" = "Router";
+"module.network.session" = "This session";
+"module.network.fetch_error" = "Unavailable";
+"module.network.refresh_public_ip" = "Refresh public IP";
+"uptime.days_hours" = "%dd %dh";
+"uptime.hours_minutes" = "%dh %dm";
+"uptime.minutes" = "%dm";
 
 /* Formatters */
 "formatter.temperature_unavailable" = "Unavailable";

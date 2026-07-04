@@ -43,7 +43,10 @@ struct GeneralSettingsTab: View {
 
                 SettingsDivider()
 
-                SettingsRow(title: "settings.general.launch_at_login".localized) {
+                SettingsRow(
+                    title: "settings.general.launch_at_login".localized,
+                    subtitle: "settings.general.launch_at_login.caption".localized
+                ) {
                     Toggle(
                         "",
                         isOn: Binding(
@@ -57,7 +60,10 @@ struct GeneralSettingsTab: View {
 
                 SettingsDivider()
 
-                SettingsRow(title: "settings.general.restore_on_quit".localized) {
+                SettingsRow(
+                    title: "settings.general.restore_on_quit".localized,
+                    subtitle: "settings.general.restore_on_quit.caption".localized
+                ) {
                     Toggle("", isOn: $settings.restoreAutomaticOnQuit)
                         .labelsHidden()
                         .toggleStyle(.switch)

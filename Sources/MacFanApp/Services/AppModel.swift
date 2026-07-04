@@ -8,6 +8,7 @@ import os
 final class AppModel: ObservableObject {
     let settings: AppSettingsStore
     let monitor: FanMonitor
+    let systemStats: SystemStatsMonitor
     let loginManager: LaunchAtLoginManager
     let helperService: HelperCommandService
 
@@ -38,6 +39,7 @@ final class AppModel: ObservableObject {
     init() {
         settings = AppSettingsStore()
         monitor = FanMonitor()
+        systemStats = SystemStatsMonitor()
         loginManager = LaunchAtLoginManager()
         helperService = HelperCommandService()
         bindManualSlider()
@@ -46,6 +48,7 @@ final class AppModel: ObservableObject {
         bindControlTick()
         bindCurveSnapshot()
         bindContestedState()
+        bindSystemModules()
     }
 
     var manualTargetRPM: Double? {
@@ -228,6 +231,13 @@ final class AppModel: ObservableObject {
         targetRPM(percent: boundedManualPercent(percent))
     }
 
+    /// Raw percent-to-RPM conversion for the curve editor (bubble, axis, and
+    /// point editor); unlike `estimatedRPM(for:)` it does not clamp the percent
+    /// to the manual range, so axis ticks map honestly.
+    func rpmEquivalent(for percent: Double) -> Double? {
+        targetRPM(percent: percent)
+    }
+
     private func targetRPM(percent: Double) -> Double? {
         guard let fan = monitor.snapshot.fan else { return nil }
         return try? targetRules.targetRPM(forPercent: percent, fan: fan)
@@ -292,8 +302,30 @@ final class AppModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] seconds in
                 self?.monitor.setRefreshInterval(seconds: seconds)
+                self?.systemStats.setRefreshInterval(seconds: seconds)
             }
             .store(in: &cancellables)
+    }
+
+    /// The system stats monitor only runs while at least one menu bar module
+    /// (CPU, RAM, network) is enabled.
+    private func bindSystemModules() {
+        Publishers.CombineLatest3(
+            settings.$showsCPUModule,
+            settings.$showsMemoryModule,
+            settings.$showsNetworkModule
+        )
+        .map { $0 || $1 || $2 }
+        .removeDuplicates()
+        .sink { [weak self] anyModuleActive in
+            guard let self else { return }
+            if anyModuleActive {
+                self.systemStats.start(refreshIntervalSeconds: self.settings.controlTickSeconds)
+            } else {
+                self.systemStats.stop()
+            }
+        }
+        .store(in: &cancellables)
     }
 
     private func curveTargetPercent(for temperature: Double?) -> Double? {

@@ -39,7 +39,14 @@ struct SettingsView: View {
                 ),
                 tab: .control
             )
-            tabContent(DisplaySettingsTab(settings: settings), tab: .display)
+            tabContent(
+                DisplaySettingsTab(
+                    settings: settings,
+                    monitor: model.monitor,
+                    isActive: selectedTab == .display
+                ),
+                tab: .display
+            )
             tabContent(
                 SafetySettingsTab(
                     model: model,
