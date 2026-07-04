@@ -56,6 +56,22 @@ control and live system stats (CPU, memory, network).
 - Never store administrator passwords; use system authorization/helper
   installation instead.
 
+## Menu Bar Performance (learned 2026-07-04)
+
+The app runs in the background all day; every animation frame inside an
+`NSStatusItem` forces AppKit to re-layout and re-snapshot the item, which once
+held the app at ~80% of one core. Keep these rules:
+
+- No continuous or implicit SwiftUI animations in menu bar label views; gate
+  any motion behind `settings.performanceMode == .full` (Efficient is the
+  default and must stay dry: one step per tick).
+- Popover content must be lazy: build the `NSHostingController` on show and
+  release it in `popoverDidClose`. A hosting controller that merely exists
+  keeps its whole SwiftUI graph rendering while the popover is closed.
+- After touching menu bar UI, verify idle cost with `sample <pid>` — seeing
+  `NSStatusItem _updateReplicants` high in the profile means the item redraws
+  too often. Idle target: a few percent of one core.
+
 ## Build And Verification
 
 - Standard local gate:
