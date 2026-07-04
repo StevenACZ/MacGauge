@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import Foundation
 
 struct AppResourceUsage: Identifiable {
@@ -12,16 +13,26 @@ struct AppResourceUsage: Identifiable {
     var id: pid_t { pid }
 }
 
-/// Samples per-app CPU and memory (`proc_pid_rusage`) for the user's running
-/// applications. Only polls while a CPU/RAM detail popover is open.
+/// Samples per-process CPU and memory (`proc_pid_rusage`) across every
+/// process the user can read — GUI apps, helpers, and command-line work like
+/// compilers — so the top lists match Activity Monitor instead of only
+/// counting regular applications. Only polls while a CPU/RAM detail popover
+/// is open.
 @MainActor
 final class ProcessStatsMonitor: ObservableObject {
+    /// Rows shown collapsed / after "Show more".
+    static let collapsedCount = 5
+    static let expandedCount = 15
+
     @Published private(set) var topCPUApps: [AppResourceUsage] = []
     @Published private(set) var topMemoryApps: [AppResourceUsage] = []
     @Published private(set) var hasSampledCPU = false
 
     private var pollTask: Task<Void, Never>?
     private var previousCPUTimes: [pid_t: (nanoseconds: UInt64, at: Date)] = [:]
+    /// Names and icons are stable per pid; cached so each tick only pays the
+    /// NSRunningApplication/proc_name lookups for processes it has not seen.
+    private var identityCache: [pid_t: (name: String, icon: NSImage?)] = [:]
 
     private static let machTimebaseFactor: Double = {
         var info = mach_timebase_info_data_t()
@@ -51,19 +62,22 @@ final class ProcessStatsMonitor: ObservableObject {
     func stop() {
         pollTask?.cancel()
         pollTask = nil
+        identityCache = [:]
     }
 
     private func sampleNow() {
-        let applications = NSWorkspace.shared.runningApplications.filter {
-            $0.activationPolicy != .prohibited && $0.processIdentifier > 0
-        }
+        let pids = Self.allPIDs()
         let now = Date()
         var usages: [AppResourceUsage] = []
         var nextCPUTimes: [pid_t: (nanoseconds: UInt64, at: Date)] = [:]
+        var nextIdentityCache: [pid_t: (name: String, icon: NSImage?)] = [:]
 
-        for application in applications {
-            let pid = application.processIdentifier
+        for pid in pids where pid > 0 {
+            // Other users' and most system processes refuse the rusage read;
+            // skipping them matches what the user could inspect anyway.
             guard let raw = Self.readRawUsage(pid: pid) else { continue }
+            guard let identity = identityCache[pid] ?? Self.identity(pid: pid) else { continue }
+            nextIdentityCache[pid] = identity
 
             nextCPUTimes[pid] = (raw.cpuNanoseconds, now)
             var cpuPercent = 0.0
@@ -77,8 +91,8 @@ final class ProcessStatsMonitor: ObservableObject {
             usages.append(
                 AppResourceUsage(
                     pid: pid,
-                    name: application.localizedName ?? "PID \(pid)",
-                    icon: application.icon,
+                    name: identity.name,
+                    icon: identity.icon,
                     cpuPercent: cpuPercent,
                     memoryBytes: raw.memoryBytes
                 )
@@ -86,8 +100,42 @@ final class ProcessStatsMonitor: ObservableObject {
         }
 
         previousCPUTimes = nextCPUTimes
-        topCPUApps = Array(usages.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(5))
-        topMemoryApps = Array(usages.sorted { $0.memoryBytes > $1.memoryBytes }.prefix(5))
+        identityCache = nextIdentityCache
+        topCPUApps = Array(usages.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(Self.expandedCount))
+        topMemoryApps = Array(usages.sorted { $0.memoryBytes > $1.memoryBytes }.prefix(Self.expandedCount))
+    }
+
+    private static func allPIDs() -> [pid_t] {
+        let expected = proc_listallpids(nil, 0)
+        guard expected > 0 else { return [] }
+        // Headroom for processes spawned between the two calls.
+        var pids = [pid_t](repeating: 0, count: Int(expected) + 64)
+        let filled = pids.withUnsafeMutableBufferPointer { buffer in
+            proc_listallpids(buffer.baseAddress, Int32(buffer.count * MemoryLayout<pid_t>.size))
+        }
+        guard filled > 0 else { return [] }
+        return Array(pids.prefix(Int(filled)))
+    }
+
+    /// GUI apps keep their localized name and icon; everything else falls
+    /// back to the BSD process name (compilers, daemons, helpers).
+    private static func identity(pid: pid_t) -> (name: String, icon: NSImage?)? {
+        if let application = NSRunningApplication(processIdentifier: pid) {
+            return (application.localizedName ?? processName(pid: pid) ?? "PID \(pid)", application.icon)
+        }
+        guard let name = processName(pid: pid) else { return nil }
+        return (name, nil)
+    }
+
+    private static func processName(pid: pid_t) -> String? {
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        if proc_name(pid, &buffer, UInt32(buffer.count)) > 0 {
+            return String(cString: buffer)
+        }
+        if proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 {
+            return (String(cString: buffer) as NSString).lastPathComponent
+        }
+        return nil
     }
 
     private static func readRawUsage(pid: pid_t) -> (cpuNanoseconds: UInt64, memoryBytes: UInt64)? {

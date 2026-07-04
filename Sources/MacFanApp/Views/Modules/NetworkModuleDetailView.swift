@@ -4,6 +4,7 @@ struct NetworkModuleDetailView: View {
     @ObservedObject var stats: SystemStatsMonitor
     @ObservedObject var info: NetworkInfoMonitor
     let tickSeconds: Double
+    var animated = true
 
     private static let downloadTint = Color.blue
     private static let uploadTint = Color.orange
@@ -31,7 +32,8 @@ struct NetworkModuleDetailView: View {
                     capacity: SystemStatsMonitor.historyCapacity,
                     peak: chartPeak,
                     color: Self.downloadTint,
-                    tickSeconds: tickSeconds
+                    tickSeconds: tickSeconds,
+                    animated: animated
                 )
                 SparklineChart(
                     values: stats.uploadHistory,
@@ -39,7 +41,8 @@ struct NetworkModuleDetailView: View {
                     peak: chartPeak,
                     color: Self.uploadTint,
                     fillOpacity: 0.22,
-                    tickSeconds: tickSeconds
+                    tickSeconds: tickSeconds,
+                    animated: animated
                 )
             }
             .frame(height: 56)

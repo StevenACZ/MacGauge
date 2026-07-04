@@ -161,6 +161,30 @@ struct UsageBar: View {
     }
 }
 
+/// Expands the top-processes list from the compact five to the full set the
+/// monitor keeps; the popover grows with the content.
+struct ShowMoreButton: View {
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        Button {
+            isExpanded.toggle()
+        } label: {
+            HStack(spacing: 4) {
+                Text(isExpanded ? "module.apps.show_less".localized : "module.apps.show_more".localized)
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 8, weight: .semibold))
+            }
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 2)
+    }
+}
+
 /// Big current value shown at the right of a module header.
 struct ModuleHeaderValue: View {
     let text: String

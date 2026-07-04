@@ -30,8 +30,18 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   usage, memory by real memory pressure). The network arrows follow their own
   selected style, and the fan item gets its own Temperature/Mono/Gray choice.
 
+- Show more / Show less in the CPU and RAM popovers: the top-processes list
+  expands from 5 to 15 rows and the popover grows with it, collapsing back
+  on reopen.
+
 ### Changed
 
+- The CPU and RAM popovers now rank every process the user can read —
+  compilers, helpers, and daemons included, like Activity Monitor — instead
+  of only regular applications, so a heavy build no longer leaves MacGauge
+  looking like the top consumer by omission. Detail popover charts also
+  follow the performance mode, keeping MacGauge's own footprint honest while
+  the panel is open.
 - Settings > Display redesigned as a visual-configuration screen with a
   section sidebar (fan, temperature colors, modules, CPU, RAM, network): one
   card at a time instead of a long scroll, each with a live preview that

@@ -192,9 +192,11 @@
 "module.cpu.cores_value" = "%d (%d performance + %d efficiency)";
 "module.cpu.cores_split" = "%dP + %dE";
 "module.cpu.uptime" = "Awake since";
-"module.apps.cpu" = "Apps using the most CPU";
-"module.apps.memory" = "Apps using the most memory";
+"module.apps.cpu" = "Processes using the most CPU";
+"module.apps.memory" = "Processes using the most memory";
 "module.apps.collecting" = "Measuring...";
+"module.apps.show_more" = "Show more";
+"module.apps.show_less" = "Show less";
 "module.memory.used" = "Used";
 "module.memory.free" = "Available";
 "module.memory.pressure" = "Pressure";

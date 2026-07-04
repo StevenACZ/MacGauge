@@ -83,7 +83,7 @@ final class FusedModulesStatusItemController: NSObject {
 
     func rebuildViews() {
         labelHostingView?.rootView = makeLabel()
-        for (module, popover) in popovers {
+        for (module, popover) in popovers where popover.contentViewController != nil {
             (popover.contentViewController as? NSHostingController<AnyView>)?.rootView = makeDetail(for: module)
         }
         updateAccessibility()
@@ -110,13 +110,15 @@ final class FusedModulesStatusItemController: NSObject {
     }
 
     private func makeDetail(for module: SystemModuleKind) -> AnyView {
+        let animated = model.settings.performanceMode == .full
         switch module {
         case .cpu:
             return AnyView(
                 CPUModuleDetailView(
                     stats: model.systemStats,
                     processes: processMonitor,
-                    tickSeconds: model.settings.controlTickSeconds
+                    tickSeconds: model.settings.controlTickSeconds,
+                    animated: animated
                 )
             )
         case .memory:
@@ -124,7 +126,8 @@ final class FusedModulesStatusItemController: NSObject {
                 MemoryModuleDetailView(
                     stats: model.systemStats,
                     processes: processMonitor,
-                    tickSeconds: model.settings.controlTickSeconds
+                    tickSeconds: model.settings.controlTickSeconds,
+                    animated: animated
                 )
             )
         case .network:
@@ -132,7 +135,8 @@ final class FusedModulesStatusItemController: NSObject {
                 NetworkModuleDetailView(
                     stats: model.systemStats,
                     info: networkInfoMonitor,
-                    tickSeconds: model.settings.controlTickSeconds
+                    tickSeconds: model.settings.controlTickSeconds,
+                    animated: animated
                 )
             )
         }
@@ -157,9 +161,10 @@ final class FusedModulesStatusItemController: NSObject {
         let popover = NSPopover()
         popover.behavior = .transient
         popover.animates = true
-        let controller = NSHostingController(rootView: makeDetail(for: module))
-        controller.sizingOptions = [.preferredContentSize]
-        popover.contentViewController = controller
+        // Detail content is built on show and dropped on close: a hosting
+        // controller that merely exists keeps its whole SwiftUI graph live,
+        // re-rendering and animating on every stats tick while closed.
+        popover.delegate = self
         return popover
     }
 
@@ -176,6 +181,9 @@ final class FusedModulesStatusItemController: NSObject {
         if clicked == .network {
             networkInfoMonitor.refresh()
         }
+        let controller = NSHostingController(rootView: makeDetail(for: clicked))
+        controller.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = controller
         popover.show(relativeTo: anchorRect(for: clicked, in: button), of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
     }
@@ -231,5 +239,13 @@ final class FusedModulesStatusItemController: NSObject {
         if abs(statusItem.length - width) > 0.5 {
             statusItem.length = width
         }
+    }
+}
+
+extension FusedModulesStatusItemController: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        // Drop the SwiftUI graph so a closed popover costs nothing.
+        guard let closed = notification.object as? NSPopover else { return }
+        closed.contentViewController = nil
     }
 }

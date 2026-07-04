@@ -109,7 +109,8 @@ final class MenuBarModulesCoordinator {
                         CPUModuleDetailView(
                             stats: model.systemStats,
                             processes: processMonitor,
-                            tickSeconds: model.settings.controlTickSeconds
+                            tickSeconds: model.settings.controlTickSeconds,
+                            animated: model.settings.performanceMode == .full
                         )
                     )
                 }
@@ -138,7 +139,8 @@ final class MenuBarModulesCoordinator {
                         MemoryModuleDetailView(
                             stats: model.systemStats,
                             processes: processMonitor,
-                            tickSeconds: model.settings.controlTickSeconds
+                            tickSeconds: model.settings.controlTickSeconds,
+                            animated: model.settings.performanceMode == .full
                         )
                     )
                 }
@@ -166,7 +168,8 @@ final class MenuBarModulesCoordinator {
                         NetworkModuleDetailView(
                             stats: model.systemStats,
                             info: networkInfoMonitor,
-                            tickSeconds: model.settings.controlTickSeconds
+                            tickSeconds: model.settings.controlTickSeconds,
+                            animated: model.settings.performanceMode == .full
                         )
                     )
                 },

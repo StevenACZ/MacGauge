@@ -5,6 +5,9 @@ struct MemoryModuleDetailView: View {
     @ObservedObject var stats: SystemStatsMonitor
     @ObservedObject var processes: ProcessStatsMonitor
     let tickSeconds: Double
+    var animated = true
+
+    @State private var isExpanded = false
 
     private static let tint = Color.indigo
 
@@ -30,7 +33,8 @@ struct MemoryModuleDetailView: View {
                 capacity: SystemStatsMonitor.historyCapacity,
                 peak: 100,
                 color: Self.tint,
-                tickSeconds: tickSeconds
+                tickSeconds: tickSeconds,
+                animated: animated
             )
             .frame(height: 56)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -68,7 +72,7 @@ struct MemoryModuleDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 8)
                 } else {
-                    ForEach(processes.topMemoryApps) { usage in
+                    ForEach(processes.topMemoryApps.prefix(rowLimit)) { usage in
                         AppUsageRow(
                             usage: usage,
                             valueText: AppFormatters.memoryAmount(usage.memoryBytes),
@@ -76,14 +80,22 @@ struct MemoryModuleDetailView: View {
                             tint: Self.tint
                         )
                     }
+                    if processes.topMemoryApps.count > ProcessStatsMonitor.collapsedCount {
+                        ShowMoreButton(isExpanded: $isExpanded)
+                    }
                 }
             }
             .animation(Theme.Anim.content, value: processes.topMemoryApps.map(\.pid))
+            .animation(Theme.Anim.content, value: isExpanded)
         }
         .padding(14)
         .frame(width: 300)
         .onAppear { processes.start() }
         .onDisappear { processes.stop() }
+    }
+
+    private var rowLimit: Int {
+        isExpanded ? ProcessStatsMonitor.expandedCount : ProcessStatsMonitor.collapsedCount
     }
 
     private var availableBytes: UInt64? {
