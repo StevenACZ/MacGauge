@@ -29,6 +29,12 @@ final class ProcessStatsMonitor: ObservableObject {
     @Published private(set) var hasSampledCPU = false
 
     private var pollTask: Task<Void, Never>?
+    /// Detail views come and go out of order when the user switches between
+    /// the CPU and RAM popovers (the new view's onAppear can land before the
+    /// old view's onDisappear), so start/stop are reference-counted — a late
+    /// stop from the closing popover must not kill the poll the open one
+    /// depends on.
+    private var clientCount = 0
     private var previousCPUTimes: [pid_t: (nanoseconds: UInt64, at: Date)] = [:]
     /// Names and icons are stable per pid; cached so each tick only pays the
     /// NSRunningApplication/proc_name lookups for processes it has not seen.
@@ -42,6 +48,7 @@ final class ProcessStatsMonitor: ObservableObject {
     }()
 
     func start() {
+        clientCount += 1
         guard pollTask == nil else { return }
         previousCPUTimes = [:]
         hasSampledCPU = false
@@ -49,7 +56,7 @@ final class ProcessStatsMonitor: ObservableObject {
             // First pass seeds the CPU baselines; the quick second pass gets
             // real percentages on screen fast, then settle into a 2 s cadence.
             self?.sampleNow()
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            try? await Task.sleep(nanoseconds: 500_000_000)
             while !Task.isCancelled {
                 guard let self else { return }
                 self.sampleNow()
@@ -60,6 +67,8 @@ final class ProcessStatsMonitor: ObservableObject {
     }
 
     func stop() {
+        clientCount = max(0, clientCount - 1)
+        guard clientCount == 0 else { return }
         pollTask?.cancel()
         pollTask = nil
         identityCache = [:]

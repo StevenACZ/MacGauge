@@ -64,6 +64,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   closed, re-rendering charts and animations on every tick and keeping the
   per-app process sampler polling. Popover content is now built when the
   popover opens and released when it closes.
+- The CPU popover could stay on "Measuring..." forever: switching between the
+  CPU and RAM popovers let the closing view's teardown land after the opening
+  view's start and kill the shared process sampler. Start/stop is now
+  reference-counted, and the first real reading lands in half a second.
 
 ## [1.1.0] - 2026-07-03
 
