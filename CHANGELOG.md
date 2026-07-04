@@ -40,6 +40,12 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   colors, and the color presets gain Orange and Blue. The CPU/RAM/network
   detail popovers now follow the exact same configured colors instead of
   their old fixed tints.
+- Simulated activity in the Settings > Display previews: CPU and memory
+  sweep from idle to ~95 % and back, and the network preview climbs from a
+  few KB/s into the MB/s range, so color styles and thresholds visibly trip
+  in real time while being adjusted — no need to load the Mac to test them.
+  The Modules section gets a preview of the whole enabled set, reacting
+  live to the spacing choice.
 
 ### Changed
 
@@ -50,10 +56,21 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   follow the performance mode, keeping MacGauge's own footprint honest while
   the panel is open.
 - Settings > Display redesigned as a visual-configuration screen with a
-  section sidebar (fan, temperature colors, modules, CPU, RAM, network): one
-  card at a time instead of a long scroll, each with a live preview that
-  reflects the current style choices in real time, with the previews running
-  while the tab is open even if a module is hidden.
+  section sidebar (fan & temperature, modules, CPU, RAM, network): one card
+  at a time instead of a long scroll, each with a live preview that reflects
+  the current style choices in real time, with the previews running while
+  the tab is open even if a module is hidden. The fan icon and the
+  temperature colors share one section, and each metric card is ordered for
+  live color testing — preview first, color style and band editor right
+  under it, graph length last.
+- The performance mode picker (Settings > General) became two selectable
+  cards with an icon and a one-line promise each — Efficient (light all
+  day) and Full (every animation) — and every General row gained an icon.
+- The CPU/RAM By-load bands now read Low / Medium / High — "hot" stays
+  exclusive to temperature, where it belongs.
+- The Modules section uses the pane's full width: toggle rows no longer
+  reserve a wide control column, so descriptions run in one or two lines
+  instead of wrapping next to a dead column.
 - Menu bar module animations polished: percent values and network rates roll
   with a numeric transition, chart colors cross-fade when the style or load
   band changes, and the network arrows dim while their direction is idle.
@@ -78,6 +95,15 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings > Display > Fan now says why the fan icon is not spinning in the
   Efficient performance mode (notice + disabled toggle, and the preview stays
   still), instead of showing an animation the menu bar would not play.
+- The settings window could drift away from its designed size — macOS can
+  resize even a user-non-resizable window programmatically (edge tiling,
+  toolbar reshapes), leaving the fixed-size content floating in dead space
+  with a clipped scroll bar. The window now pins its content size and snaps
+  back if anything resizes it.
+- Settings cards could lose their window margins on every tab: a wide
+  always-mounted row (the temperature band editor next to the sidebar)
+  pushed the shared tab stack past the window paddings. The rigid rows are
+  slimmer and every tab is pinned to the designed content width.
 
 ## [1.1.0] - 2026-07-03
 

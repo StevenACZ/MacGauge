@@ -17,4 +17,15 @@ enum PerformanceMode: String, CaseIterable, Identifiable {
     var localizedName: String {
         "performance.mode.\(rawValue)".localized
     }
+
+    var localizedCaption: String {
+        "performance.mode.\(rawValue).caption".localized
+    }
+
+    var symbolName: String {
+        switch self {
+        case .efficient: return "leaf.fill"
+        case .full: return "sparkles"
+        }
+    }
 }

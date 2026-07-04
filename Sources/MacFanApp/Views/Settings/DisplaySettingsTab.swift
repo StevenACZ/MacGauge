@@ -1,12 +1,11 @@
 import MacFanCore
 import SwiftUI
 
-/// The visual-configuration screen: a section sidebar on the left (fan item,
-/// temperature colors, modules, CPU, RAM, network) and one card at a time on
-/// the right, each with a live preview and its own style controls, so the
-/// user sees exactly what each choice looks like without scrolling.
+/// The visual-configuration screen: a section sidebar on the left (fan +
+/// temperature, modules, and the CPU/RAM/network charts) and one card at a
+/// time on the right. Module previews run on simulated activity so the user
+/// watches their colors and thresholds react without loading the Mac.
 struct DisplaySettingsTab: View {
-    @ObservedObject var model: AppModel
     @ObservedObject var settings: AppSettingsStore
     @ObservedObject var monitor: FanMonitor
 
@@ -14,12 +13,14 @@ struct DisplaySettingsTab: View {
     let isActive: Bool
 
     @State private var section: DisplaySection = .fan
+    /// Held as plain @State so only the preview subviews observe its ticks;
+    /// the tab itself never re-renders per tick.
+    @State private var simulator = ModulePreviewSimulator()
 
     private let animationRules = FanAnimationRules()
 
     private enum DisplaySection: String, CaseIterable, Identifiable {
         case fan
-        case temperature
         case modules
         case cpu
         case memory
@@ -30,7 +31,6 @@ struct DisplaySettingsTab: View {
         var icon: String {
             switch self {
             case .fan: return "fanblades"
-            case .temperature: return "thermometer.medium"
             case .modules: return "menubar.rectangle"
             case .cpu: return "cpu"
             case .memory: return "memorychip"
@@ -40,8 +40,7 @@ struct DisplaySettingsTab: View {
 
         var localizedName: String {
             switch self {
-            case .fan: return "settings.display.section.fan".localized
-            case .temperature: return "settings.display.section.temperature".localized
+            case .fan: return "settings.display.section.fan_temp".localized
             case .modules: return "settings.display.section.modules".localized
             case .cpu: return "system.cpu".localized
             case .memory: return "system.memory".localized
@@ -58,7 +57,6 @@ struct DisplaySettingsTab: View {
                 switch section {
                 case .fan:
                     menuBarItemSurface
-                case .temperature:
                     temperatureBandsSurface
                 case .modules:
                     modulesSurface
@@ -71,11 +69,16 @@ struct DisplaySettingsTab: View {
                 }
             }
         }
-        .onChange(of: isActive) { active in
-            model.setStatsPreviewActive(active)
-        }
-        .onAppear { model.setStatsPreviewActive(isActive) }
-        .onDisappear { model.setStatsPreviewActive(false) }
+        .onChange(of: isActive) { _ in updateSimulation() }
+        .onChange(of: section) { _ in updateSimulation() }
+        .onAppear { updateSimulation() }
+        .onDisappear { simulator.setRunning(false) }
+    }
+
+    /// The simulator only ticks while a section with module previews is
+    /// visible; the fan section reads the real monitor instead.
+    private func updateSimulation() {
+        simulator.setRunning(isActive && section != .fan)
     }
 
     // MARK: - Section sidebar
@@ -87,7 +90,7 @@ struct DisplaySettingsTab: View {
             }
             Spacer(minLength: 0)
         }
-        .frame(width: 148)
+        .frame(width: 156)
     }
 
     private func sidebarRow(_ item: DisplaySection) -> some View {
@@ -101,6 +104,8 @@ struct DisplaySettingsTab: View {
                     .frame(width: 20, alignment: .center)
                 Text(item.localizedName)
                     .font(.callout.weight(isSelected ? .semibold : .regular))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
@@ -143,7 +148,8 @@ struct DisplaySettingsTab: View {
 
             SettingsRow(
                 title: "settings.display.animate_icon".localized,
-                subtitle: "settings.display.animate_icon.caption".localized
+                subtitle: "settings.display.animate_icon.caption".localized,
+                trailingWidth: 60
             ) {
                 Toggle("", isOn: $settings.animateFanIcon)
                     .labelsHidden()
@@ -282,6 +288,10 @@ struct DisplaySettingsTab: View {
         }
     }
 
+    // These rows sit next to the 156pt sidebar, so their rigid widths must
+    // stay under SettingsLayout.contentWidth − sidebar − card padding or the
+    // whole settings window loses its margins (the tab ZStack adopts the
+    // widest tab's minimum width).
     private func visualThresholdRow(
         title: String,
         thresholdLabel: String,
@@ -289,18 +299,18 @@ struct DisplaySettingsTab: View {
         colorHex: Binding<String>,
         unit: String = "°C"
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Text(title)
                 .font(.callout.weight(.semibold))
-                .frame(width: 82, alignment: .leading)
+                .frame(width: 72, alignment: .leading)
 
             Text(thresholdLabel)
                 .foregroundStyle(.secondary)
-                .frame(width: 58, alignment: .leading)
+                .frame(width: 50, alignment: .leading)
 
             TextField(title, value: value, format: .number)
                 .textFieldStyle(.roundedBorder)
-                .frame(width: 64)
+                .frame(width: 56)
             Text(unit)
                 .foregroundStyle(.secondary)
 
@@ -312,10 +322,10 @@ struct DisplaySettingsTab: View {
     }
 
     private func visualBandRow(title: String, rangeText: String, colorHex: Binding<String>) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Text(title)
                 .font(.callout.weight(.semibold))
-                .frame(width: 82, alignment: .leading)
+                .frame(width: 72, alignment: .leading)
 
             Text(rangeText)
                 .foregroundStyle(.secondary)
@@ -334,6 +344,12 @@ struct DisplaySettingsTab: View {
 
     private var modulesSurface: some View {
         SettingsSurface(icon: "menubar.rectangle", title: "settings.display.menubar_modules".localized) {
+            simulatedPreviewCapsule {
+                SimulatedModulesBarPreview(simulator: simulator, settings: settings)
+            }
+
+            SettingsDivider()
+
             stylePickerRow(
                 title: "settings.display.modules.spacing".localized,
                 caption: "settings.display.modules.spacing.caption".localized,
@@ -347,7 +363,8 @@ struct DisplaySettingsTab: View {
             SettingsRow(
                 title: "settings.display.module_cpu".localized,
                 subtitle: "settings.display.module_cpu.caption".localized,
-                icon: "cpu"
+                icon: "cpu",
+                trailingWidth: 60
             ) {
                 Toggle("", isOn: $settings.showsCPUModule)
                     .labelsHidden()
@@ -359,7 +376,8 @@ struct DisplaySettingsTab: View {
             SettingsRow(
                 title: "settings.display.module_memory".localized,
                 subtitle: "settings.display.module_memory.caption".localized,
-                icon: "memorychip"
+                icon: "memorychip",
+                trailingWidth: 60
             ) {
                 Toggle("", isOn: $settings.showsMemoryModule)
                     .labelsHidden()
@@ -371,116 +389,174 @@ struct DisplaySettingsTab: View {
             SettingsRow(
                 title: "settings.display.module_network".localized,
                 subtitle: "settings.display.module_network.caption".localized,
-                icon: "network"
+                icon: "network",
+                trailingWidth: 60
             ) {
                 Toggle("", isOn: $settings.showsNetworkModule)
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
         }
+        .animation(Theme.Anim.smooth, value: enabledModules)
     }
+
+    private var enabledModules: [SystemModuleKind] {
+        var modules: [SystemModuleKind] = []
+        if settings.showsCPUModule { modules.append(.cpu) }
+        if settings.showsMemoryModule { modules.append(.memory) }
+        if settings.showsNetworkModule { modules.append(.network) }
+        return modules
+    }
+
+    // MARK: - CPU / RAM / network charts
 
     private var cpuModuleSurface: some View {
         SettingsSurface(icon: "cpu", title: "settings.display.module_cpu".localized) {
-            modulePreview(isShown: settings.showsCPUModule) {
-                PercentModuleStatusLabel(stats: model.systemStats, settings: settings, metric: .cpu)
+            simulatedPreviewCapsule {
+                SimulatedPercentModulePreview(simulator: simulator, settings: settings, metric: .cpu)
             }
 
-            moduleStyleRows(
-                graphWidth: $settings.cpuGraphWidth,
+            hiddenHint(isShown: settings.showsCPUModule)
+
+            SettingsDivider()
+
+            percentMetricRows(
                 colorMode: $settings.cpuColorMode,
-                colorOptions: ModuleColorMode.allCases,
-                colorCaption: "settings.display.modules.color.caption".localized
+                graphWidth: $settings.cpuGraphWidth,
+                normalUpper: \.cpuNormalUpperPercent,
+                hotLower: \.cpuHotLowerPercent,
+                normalHex: \.cpuNormalColorHex,
+                mediumHex: \.cpuMediumColorHex,
+                hotHex: \.cpuHotColorHex
             )
-
-            if settings.cpuColorMode == .load {
-                SettingsDivider()
-
-                let thresholds = percentThresholdBindings(
-                    normalUpper: \.cpuNormalUpperPercent,
-                    hotLower: \.cpuHotLowerPercent
-                )
-                loadBandsRows(
-                    normalUpper: thresholds.normalUpper,
-                    hotLower: thresholds.hotLower,
-                    normalHex: colorHexBinding(\.cpuNormalColorHex),
-                    mediumHex: colorHexBinding(\.cpuMediumColorHex),
-                    hotHex: colorHexBinding(\.cpuHotColorHex)
-                )
-            }
         }
         .animation(Theme.Anim.smooth, value: settings.cpuColorMode)
     }
 
     private var memoryModuleSurface: some View {
         SettingsSurface(icon: "memorychip", title: "settings.display.module_memory".localized) {
-            modulePreview(isShown: settings.showsMemoryModule) {
-                PercentModuleStatusLabel(stats: model.systemStats, settings: settings, metric: .memory)
+            simulatedPreviewCapsule {
+                SimulatedPercentModulePreview(simulator: simulator, settings: settings, metric: .memory)
             }
 
-            moduleStyleRows(
-                graphWidth: $settings.memoryGraphWidth,
+            hiddenHint(isShown: settings.showsMemoryModule)
+
+            SettingsDivider()
+
+            percentMetricRows(
                 colorMode: $settings.memoryColorMode,
-                colorOptions: ModuleColorMode.allCases,
-                colorCaption: "settings.display.modules.color.caption".localized
+                graphWidth: $settings.memoryGraphWidth,
+                normalUpper: \.memoryNormalUpperPercent,
+                hotLower: \.memoryHotLowerPercent,
+                normalHex: \.memoryNormalColorHex,
+                mediumHex: \.memoryMediumColorHex,
+                hotHex: \.memoryHotColorHex
             )
-
-            if settings.memoryColorMode == .load {
-                SettingsDivider()
-
-                let thresholds = percentThresholdBindings(
-                    normalUpper: \.memoryNormalUpperPercent,
-                    hotLower: \.memoryHotLowerPercent
-                )
-                loadBandsRows(
-                    normalUpper: thresholds.normalUpper,
-                    hotLower: thresholds.hotLower,
-                    normalHex: colorHexBinding(\.memoryNormalColorHex),
-                    mediumHex: colorHexBinding(\.memoryMediumColorHex),
-                    hotHex: colorHexBinding(\.memoryHotColorHex)
-                )
-            }
         }
         .animation(Theme.Anim.smooth, value: settings.memoryColorMode)
     }
 
     private var networkModuleSurface: some View {
         SettingsSurface(icon: "network", title: "settings.display.module_network".localized) {
-            modulePreview(isShown: settings.showsNetworkModule) {
-                NetworkModuleStatusLabel(stats: model.systemStats, settings: settings)
+            simulatedPreviewCapsule {
+                SimulatedNetworkModulePreview(simulator: simulator, settings: settings)
             }
 
-            moduleStyleRows(
-                graphWidth: nil,
-                colorMode: $settings.networkColorMode,
-                colorOptions: [.multicolor, .mono, .gray],
-                colorCaption: "settings.display.modules.color.caption.network".localized
-            )
+            hiddenHint(isShown: settings.showsNetworkModule)
 
-            if settings.networkColorMode == .multicolor {
-                SettingsDivider()
+            SettingsDivider()
 
-                networkColorRow(
-                    title: "settings.display.network.upload_color".localized,
-                    symbol: "arrow.up",
-                    colorHex: colorHexBinding(\.networkUpColorHex)
-                )
-
-                SettingsDivider()
-
-                networkColorRow(
-                    title: "settings.display.network.download_color".localized,
-                    symbol: "arrow.down",
-                    colorHex: colorHexBinding(\.networkDownColorHex)
-                )
-            }
+            networkMetricRows
         }
         .animation(Theme.Anim.smooth, value: settings.networkColorMode)
     }
 
+    @ViewBuilder
+    private func hiddenHint(isShown: Bool) -> some View {
+        if !isShown {
+            Label("settings.display.module.hidden_hint".localized, systemImage: "eye.slash")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    /// Color style first (with the band editor right under the preview so
+    /// threshold drags read live), graph length last.
+    @ViewBuilder
+    private func percentMetricRows(
+        colorMode: Binding<ModuleColorMode>,
+        graphWidth: Binding<ModuleGraphWidth>,
+        normalUpper: ReferenceWritableKeyPath<AppSettingsStore, Double>,
+        hotLower: ReferenceWritableKeyPath<AppSettingsStore, Double>,
+        normalHex: ReferenceWritableKeyPath<AppSettingsStore, String>,
+        mediumHex: ReferenceWritableKeyPath<AppSettingsStore, String>,
+        hotHex: ReferenceWritableKeyPath<AppSettingsStore, String>
+    ) -> some View {
+        stylePickerRow(
+            title: "settings.display.modules.color".localized,
+            caption: "settings.display.modules.color.caption".localized,
+            options: ModuleColorMode.allCases,
+            label: \.localizedName,
+            selection: colorMode
+        )
+
+        if colorMode.wrappedValue == .load {
+            SettingsDivider()
+
+            let thresholds = percentThresholdBindings(normalUpper: normalUpper, hotLower: hotLower)
+            loadBandsRows(
+                normalUpper: thresholds.normalUpper,
+                hotLower: thresholds.hotLower,
+                normalHex: colorHexBinding(normalHex),
+                mediumHex: colorHexBinding(mediumHex),
+                hotHex: colorHexBinding(hotHex)
+            )
+        }
+
+        SettingsDivider()
+
+        stylePickerRow(
+            title: "settings.display.modules.graph".localized,
+            caption: "settings.display.modules.graph.caption".localized,
+            options: ModuleGraphWidth.allCases,
+            label: \.localizedName,
+            selection: graphWidth
+        )
+    }
+
+    @ViewBuilder
+    private var networkMetricRows: some View {
+        stylePickerRow(
+            title: "settings.display.modules.color".localized,
+            caption: "settings.display.modules.color.caption.network".localized,
+            options: [.multicolor, .mono, .gray],
+            label: \.localizedName,
+            selection: $settings.networkColorMode
+        )
+
+        if settings.networkColorMode == .multicolor {
+            SettingsDivider()
+
+            networkColorRow(
+                title: "settings.display.network.upload_color".localized,
+                symbol: "arrow.up",
+                colorHex: colorHexBinding(\.networkUpColorHex)
+            )
+
+            SettingsDivider()
+
+            networkColorRow(
+                title: "settings.display.network.download_color".localized,
+                symbol: "arrow.down",
+                colorHex: colorHexBinding(\.networkDownColorHex)
+            )
+        }
+    }
+
     /// The customizable "By load" bands for one percent module: a 0-100%
-    /// strip with draggable thresholds plus the same per-band rows the
-    /// temperature editor uses.
+    /// strip with draggable thresholds plus per-band rows. Usage bands read
+    /// Low/Medium/High — "hot" only makes sense for temperature.
     @ViewBuilder
     private func loadBandsRows(
         normalUpper: Binding<Double>,
@@ -506,7 +582,7 @@ struct DisplaySettingsTab: View {
         .padding(.vertical, 4)
 
         visualThresholdRow(
-            title: "settings.display.normal".localized,
+            title: "settings.display.load.low".localized,
             thresholdLabel: "settings.display.up_to".localized,
             value: normalUpper,
             colorHex: normalHex,
@@ -516,7 +592,7 @@ struct DisplaySettingsTab: View {
         SettingsDivider()
 
         visualBandRow(
-            title: "settings.display.medium".localized,
+            title: "settings.display.load.medium".localized,
             rangeText: "\(Int(normalUpper.wrappedValue.rounded()))-\(Int(hotLower.wrappedValue.rounded())) %",
             colorHex: mediumHex
         )
@@ -524,7 +600,7 @@ struct DisplaySettingsTab: View {
         SettingsDivider()
 
         visualThresholdRow(
-            title: "settings.display.hot".localized,
+            title: "settings.display.load.high".localized,
             thresholdLabel: "settings.display.from".localized,
             value: hotLower,
             colorHex: hotHex,
@@ -566,46 +642,13 @@ struct DisplaySettingsTab: View {
         .padding(.vertical, 2)
     }
 
-    /// The style controls under each module card. They stay editable even
-    /// while the module is hidden — the live preview above shows the result.
-    private func moduleStyleRows(
-        graphWidth: Binding<ModuleGraphWidth>?,
-        colorMode: Binding<ModuleColorMode>,
-        colorOptions: [ModuleColorMode],
-        colorCaption: String
-    ) -> some View {
-        Group {
-            if let graphWidth {
-                SettingsDivider()
-
-                stylePickerRow(
-                    title: "settings.display.modules.graph".localized,
-                    caption: "settings.display.modules.graph.caption".localized,
-                    options: ModuleGraphWidth.allCases,
-                    label: \.localizedName,
-                    selection: graphWidth
-                )
-            }
-
-            SettingsDivider()
-
-            stylePickerRow(
-                title: "settings.display.modules.color".localized,
-                caption: colorCaption,
-                options: colorOptions,
-                label: \.localizedName,
-                selection: colorMode
-            )
-        }
-    }
-
-    /// Dark capsule mock of the menu bar around a live module label. Forcing
-    /// the dark scheme keeps label-colored styles readable in light mode.
-    private func modulePreview<Content: View>(
-        isShown: Bool,
+    /// Dark capsule mock of the menu bar around simulated module content,
+    /// with the simulated-data note underneath. Forcing the dark scheme keeps
+    /// label-colored styles readable in light mode.
+    private func simulatedPreviewCapsule<Content: View>(
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             HStack {
                 Spacer(minLength: 0)
                 content()
@@ -619,14 +662,11 @@ struct DisplaySettingsTab: View {
                 Spacer(minLength: 0)
             }
 
-            if !isShown {
-                Label("settings.display.module.hidden_hint".localized, systemImage: "eye.slash")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            }
+            Text("settings.display.preview.simulated".localized)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
-        .animation(Theme.Anim.smooth, value: isShown)
     }
 
     private func stylePickerRow<Value: Hashable & Identifiable>(
@@ -655,6 +695,114 @@ struct DisplaySettingsTab: View {
             .labelsHidden()
         }
         .padding(.vertical, 2)
+    }
+}
+
+// MARK: - Simulated previews
+
+/// One percent module (CPU or RAM) rendered exactly like the menu bar but fed
+/// by the simulator, so color styles and thresholds show live transitions.
+private struct SimulatedPercentModulePreview: View {
+    @ObservedObject var simulator: ModulePreviewSimulator
+    @ObservedObject var settings: AppSettingsStore
+    let metric: PercentModuleStatusLabel.Metric
+
+    var body: some View {
+        PercentModuleSegment(
+            title: metric == .cpu ? "system.cpu".localized : "system.memory".localized,
+            percent: percent,
+            history: history,
+            color: color,
+            graphWidth: graphWidth.width,
+            tickSeconds: ModulePreviewSimulator.tickSeconds,
+            animated: settings.performanceMode == .full
+        )
+        .frame(height: 22)
+        .animation(Theme.Anim.smooth, value: graphWidth)
+    }
+
+    private var percent: Double {
+        metric == .cpu ? simulator.cpuPercent : simulator.memoryPercent
+    }
+
+    private var history: [Double] {
+        metric == .cpu ? simulator.cpuHistory : simulator.memoryHistory
+    }
+
+    private var graphWidth: ModuleGraphWidth {
+        metric == .cpu ? settings.cpuGraphWidth : settings.memoryGraphWidth
+    }
+
+    private var color: Color {
+        switch metric {
+        case .cpu:
+            return ModuleColorResolver.cpuChartColor(percent: percent, settings: settings)
+        case .memory:
+            return ModuleColorResolver.memoryChartColor(percent: percent, settings: settings)
+        }
+    }
+}
+
+private struct SimulatedNetworkModulePreview: View {
+    @ObservedObject var simulator: ModulePreviewSimulator
+    @ObservedObject var settings: AppSettingsStore
+
+    var body: some View {
+        let tints = ModuleColorResolver.networkArrowTints(settings: settings)
+        NetworkModuleSegment(
+            upload: simulator.uploadBytesPerSecond,
+            download: simulator.downloadBytesPerSecond,
+            upTint: tints.up,
+            downTint: tints.down,
+            animated: settings.performanceMode == .full
+        )
+        .frame(height: 22)
+    }
+}
+
+/// All enabled modules side by side with the chosen spacing, approximating
+/// how the menu bar lays them out (Together fuses them with hairline gaps).
+private struct SimulatedModulesBarPreview: View {
+    @ObservedObject var simulator: ModulePreviewSimulator
+    @ObservedObject var settings: AppSettingsStore
+
+    var body: some View {
+        let modules = enabledModules
+        if modules.isEmpty {
+            Label("settings.display.modules.none_hint".localized, systemImage: "eye.slash")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 2)
+        } else {
+            HStack(spacing: settings.moduleSpacing == .together ? 2 : 8) {
+                ForEach(modules) { module in
+                    segment(for: module)
+                        .padding(.horizontal, settings.moduleSpacing.padding)
+                }
+            }
+            .frame(height: 22)
+            .animation(Theme.Anim.smooth, value: settings.moduleSpacing)
+        }
+    }
+
+    private var enabledModules: [SystemModuleKind] {
+        var modules: [SystemModuleKind] = []
+        if settings.showsCPUModule { modules.append(.cpu) }
+        if settings.showsMemoryModule { modules.append(.memory) }
+        if settings.showsNetworkModule { modules.append(.network) }
+        return modules
+    }
+
+    @ViewBuilder
+    private func segment(for module: SystemModuleKind) -> some View {
+        switch module {
+        case .cpu:
+            SimulatedPercentModulePreview(simulator: simulator, settings: settings, metric: .cpu)
+        case .memory:
+            SimulatedPercentModulePreview(simulator: simulator, settings: settings, metric: .memory)
+        case .network:
+            SimulatedNetworkModulePreview(simulator: simulator, settings: settings)
+        }
     }
 }
 

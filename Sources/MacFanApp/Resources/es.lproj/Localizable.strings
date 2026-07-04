@@ -39,9 +39,10 @@
 "settings.general.temperature_unit" = "Unidad de temperatura";
 "settings.general.language" = "Idioma";
 "settings.general.performance" = "Rendimiento";
-"settings.general.performance.caption" = "Eficiente pausa las animaciones continuas de la barra de menús para que MacGauge se mantenga ligero todo el día. Completo reproduce todas las animaciones.";
 "performance.mode.efficient" = "Eficiente";
+"performance.mode.efficient.caption" = "Ligero todo el día — pausa las animaciones continuas de la barra de menús.";
 "performance.mode.full" = "Completo";
+"performance.mode.full.caption" = "Todas las animaciones, para Macs con potencia de sobra.";
 "settings.general.launch_at_login" = "Iniciar al iniciar sesión";
 "settings.general.launch_at_login.caption" = "Abre MacGauge automáticamente al iniciar sesión.";
 "settings.general.restore_on_quit" = "Restaurar al salir";
@@ -82,10 +83,11 @@
 "settings.display.module_memory.caption" = "Memoria usada y presión en vivo; clic para ver las apps que más consumen.";
 "settings.display.module_network" = "Actividad de red";
 "settings.display.module_network.caption" = "Bajada y subida en vivo; clic para ver IPs y totales de la sesión.";
-"settings.display.section.fan" = "Ventilador";
-"settings.display.section.temperature" = "Temperatura";
+"settings.display.section.fan_temp" = "Ventilador y temp.";
 "settings.display.section.modules" = "Módulos";
 "settings.display.module.hidden_hint" = "Oculto ahora mismo — actívalo en Módulos.";
+"settings.display.modules.none_hint" = "Sin módulos activos — enciéndelos abajo.";
+"settings.display.preview.simulated" = "Vista previa simulada — mira cómo reaccionan tus estilos.";
 "settings.display.modules.spacing" = "Separación";
 "settings.display.modules.spacing.caption" = "Cuánto aire deja cada módulo en la barra de menús. Juntos los fusiona en un solo bloque, con clic por módulo igual.";
 "settings.display.modules.graph" = "Largo de gráfica";
@@ -94,6 +96,9 @@
 "settings.display.modules.color.caption" = "Multicolor mantiene el tinte propio del módulo; Por carga pinta la gráfica con los colores y umbrales que configures abajo.";
 "settings.display.modules.color.caption.network" = "Las flechas de subida y bajada siguen el estilo elegido; Multicolor usa tus propios colores de abajo.";
 "settings.display.load_bands.caption" = "La gráfica toma estos colores según sube el uso. Arrastra los tiradores para ajustar los umbrales.";
+"settings.display.load.low" = "Bajo";
+"settings.display.load.medium" = "Medio";
+"settings.display.load.high" = "Alto";
 "settings.display.network.upload_color" = "Color de subida";
 "settings.display.network.download_color" = "Color de bajada";
 "fan.color.caption" = "Temperatura sigue tus colores de temperatura de abajo; Mono usa el color propio de la barra.";

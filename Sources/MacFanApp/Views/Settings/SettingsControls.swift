@@ -15,14 +15,14 @@ struct ColorPresetPicker: View {
     }
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 7) {
             ForEach(presets) { preset in
                 Button {
                     selection = preset.hex
                 } label: {
                     Circle()
                         .fill(Color(hexString: preset.hex))
-                        .frame(width: 24, height: 24)
+                        .frame(width: 20, height: 20)
                         .overlay(
                             Circle()
                                 .strokeBorder(borderColor(for: preset), lineWidth: selectionMatches(preset) ? 3 : 1)

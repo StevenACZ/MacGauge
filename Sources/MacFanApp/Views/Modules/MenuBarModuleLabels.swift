@@ -137,7 +137,8 @@ struct NetworkModuleStatusLabel: View {
     }
 }
 
-private struct PercentModuleSegment: View {
+/// Also reused by the Settings > Display previews with simulated values.
+struct PercentModuleSegment: View {
     let title: String
     let percent: Double?
     let history: [Double]
@@ -181,7 +182,8 @@ private struct PercentModuleSegment: View {
     }
 }
 
-private struct NetworkModuleSegment: View {
+/// Also reused by the Settings > Display previews with simulated values.
+struct NetworkModuleSegment: View {
     let upload: Double?
     let download: Double?
     let upTint: Color

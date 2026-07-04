@@ -41,7 +41,6 @@ struct SettingsView: View {
             )
             tabContent(
                 DisplaySettingsTab(
-                    model: model,
                     settings: settings,
                     monitor: model.monitor,
                     isActive: selectedTab == .display
@@ -92,7 +91,8 @@ struct SettingsView: View {
         let isSelected = selectedTab == tab
         return
             content
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(width: SettingsLayout.contentWidth)
+            .frame(maxHeight: .infinity, alignment: .top)
             .opacity(isSelected ? 1 : 0)
             .scaleEffect(isSelected ? 1 : 0.98)
             .allowsHitTesting(isSelected)

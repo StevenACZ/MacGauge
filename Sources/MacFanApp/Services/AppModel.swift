@@ -34,9 +34,6 @@ final class AppModel: ObservableObject {
     private var pendingModeActivationAfterHelperReady = false
     private let contestedStreakLimit = 2
     private var contestedStreak = 0
-    /// True while the Display settings tab is visible, so the module previews
-    /// stay live even when no menu bar module is enabled.
-    private let statsPreviewActive = CurrentValueSubject<Bool, Never>(false)
     private let log = Logger(subsystem: "com.stevenacz.MacFan", category: "app-model")
 
     init() {
@@ -310,23 +307,16 @@ final class AppModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func setStatsPreviewActive(_ active: Bool) {
-        statsPreviewActive.send(active)
-    }
-
     /// The system stats monitor only runs while at least one menu bar module
-    /// (CPU, RAM, network) is enabled or the Display tab previews are visible.
+    /// (CPU, RAM, network) is enabled; the Display previews run on simulated
+    /// data instead.
     private func bindSystemModules() {
-        Publishers.CombineLatest(
-            Publishers.CombineLatest3(
-                settings.$showsCPUModule,
-                settings.$showsMemoryModule,
-                settings.$showsNetworkModule
-            )
-            .map { $0 || $1 || $2 },
-            statsPreviewActive
+        Publishers.CombineLatest3(
+            settings.$showsCPUModule,
+            settings.$showsMemoryModule,
+            settings.$showsNetworkModule
         )
-        .map { $0 || $1 }
+        .map { $0 || $1 || $2 }
         .removeDuplicates()
         .sink { [weak self] anyModuleActive in
             guard let self else { return }

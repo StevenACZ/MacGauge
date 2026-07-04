@@ -72,6 +72,25 @@ held the app at ~80% of one core. Keep these rules:
   `NSStatusItem _updateReplicants` high in the profile means the item redraws
   too often. Idle target: a few percent of one core.
 
+## Settings Window Layout (learned 2026-07-04)
+
+The settings window is a fixed 680x520 with all four tabs alive in one
+ZStack; the stack adopts the WIDEST tab's minimum width, so one rigid row
+(fixed frames + color swatches next to the Display sidebar) can push every
+tab past the window paddings. Keep these rules:
+
+- Every tab is pinned to `SettingsLayout.contentWidth` — do not remove that
+  frame or replace it with `maxWidth: .infinity`.
+- Audit any settings HStack whose fixed widths sum near the pane width;
+  prefer flexible text columns over fixed frames.
+- The window pins `contentMinSize == contentMaxSize` plus a snap-back in
+  `windowDidResize`: macOS can resize even non-resizable windows
+  programmatically (edge tiling, toolbar reshapes) and programmatic
+  `setFrame` bypasses min/max.
+- Verify layout with a temporary env-gated self-screenshot
+  (`NSView.cacheDisplay` to PNG) instead of eyeballing; remove the hook
+  before committing.
+
 ## Build And Verification
 
 - Standard local gate:
