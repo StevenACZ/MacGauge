@@ -148,6 +148,17 @@ struct DisplaySettingsTab: View {
                 Toggle("", isOn: $settings.animateFanIcon)
                     .labelsHidden()
                     .toggleStyle(.switch)
+                    .disabled(settings.performanceMode == .efficient)
+            }
+
+            if settings.performanceMode == .efficient {
+                Label(
+                    "settings.display.animate_icon.efficient_notice".localized,
+                    systemImage: "leaf.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             }
 
             SettingsDivider()
@@ -186,7 +197,8 @@ struct DisplaySettingsTab: View {
     }
 
     private var previewDegreesPerSecond: Double {
-        guard settings.animateFanIcon else { return 0 }
+        // Mirrors the real status item: Efficient keeps the icon still.
+        guard settings.animateFanIcon, settings.performanceMode == .full else { return 0 }
         let fan = monitor.snapshot.fan
         return animationRules.rotationDegreesPerSecond(
             currentRPM: fan?.currentRPM,
@@ -205,7 +217,7 @@ struct DisplaySettingsTab: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            TemperatureBandsEditor(
+            BandsStripEditor(
                 normalUpper: normalUpperBinding,
                 hotLower: hotLowerBinding,
                 normalColor: Color(hexString: settings.normalColorHex),
@@ -274,7 +286,8 @@ struct DisplaySettingsTab: View {
         title: String,
         thresholdLabel: String,
         value: Binding<Double>,
-        colorHex: Binding<String>
+        colorHex: Binding<String>,
+        unit: String = "°C"
     ) -> some View {
         HStack(spacing: 12) {
             Text(title)
@@ -288,7 +301,7 @@ struct DisplaySettingsTab: View {
             TextField(title, value: value, format: .number)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 64)
-            Text("°C")
+            Text(unit)
                 .foregroundStyle(.secondary)
 
             Spacer()
@@ -379,7 +392,24 @@ struct DisplaySettingsTab: View {
                 colorOptions: ModuleColorMode.allCases,
                 colorCaption: "settings.display.modules.color.caption".localized
             )
+
+            if settings.cpuColorMode == .load {
+                SettingsDivider()
+
+                let thresholds = percentThresholdBindings(
+                    normalUpper: \.cpuNormalUpperPercent,
+                    hotLower: \.cpuHotLowerPercent
+                )
+                loadBandsRows(
+                    normalUpper: thresholds.normalUpper,
+                    hotLower: thresholds.hotLower,
+                    normalHex: colorHexBinding(\.cpuNormalColorHex),
+                    mediumHex: colorHexBinding(\.cpuMediumColorHex),
+                    hotHex: colorHexBinding(\.cpuHotColorHex)
+                )
+            }
         }
+        .animation(Theme.Anim.smooth, value: settings.cpuColorMode)
     }
 
     private var memoryModuleSurface: some View {
@@ -394,7 +424,24 @@ struct DisplaySettingsTab: View {
                 colorOptions: ModuleColorMode.allCases,
                 colorCaption: "settings.display.modules.color.caption".localized
             )
+
+            if settings.memoryColorMode == .load {
+                SettingsDivider()
+
+                let thresholds = percentThresholdBindings(
+                    normalUpper: \.memoryNormalUpperPercent,
+                    hotLower: \.memoryHotLowerPercent
+                )
+                loadBandsRows(
+                    normalUpper: thresholds.normalUpper,
+                    hotLower: thresholds.hotLower,
+                    normalHex: colorHexBinding(\.memoryNormalColorHex),
+                    mediumHex: colorHexBinding(\.memoryMediumColorHex),
+                    hotHex: colorHexBinding(\.memoryHotColorHex)
+                )
+            }
         }
+        .animation(Theme.Anim.smooth, value: settings.memoryColorMode)
     }
 
     private var networkModuleSurface: some View {
@@ -409,7 +456,114 @@ struct DisplaySettingsTab: View {
                 colorOptions: [.multicolor, .mono, .gray],
                 colorCaption: "settings.display.modules.color.caption.network".localized
             )
+
+            if settings.networkColorMode == .multicolor {
+                SettingsDivider()
+
+                networkColorRow(
+                    title: "settings.display.network.upload_color".localized,
+                    symbol: "arrow.up",
+                    colorHex: colorHexBinding(\.networkUpColorHex)
+                )
+
+                SettingsDivider()
+
+                networkColorRow(
+                    title: "settings.display.network.download_color".localized,
+                    symbol: "arrow.down",
+                    colorHex: colorHexBinding(\.networkDownColorHex)
+                )
+            }
         }
+        .animation(Theme.Anim.smooth, value: settings.networkColorMode)
+    }
+
+    /// The customizable "By load" bands for one percent module: a 0-100%
+    /// strip with draggable thresholds plus the same per-band rows the
+    /// temperature editor uses.
+    @ViewBuilder
+    private func loadBandsRows(
+        normalUpper: Binding<Double>,
+        hotLower: Binding<Double>,
+        normalHex: Binding<String>,
+        mediumHex: Binding<String>,
+        hotHex: Binding<String>
+    ) -> some View {
+        Text("settings.display.load_bands.caption".localized)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+        BandsStripEditor(
+            normalUpper: normalUpper,
+            hotLower: hotLower,
+            normalColor: Color(hexString: normalHex.wrappedValue),
+            mediumColor: Color(hexString: mediumHex.wrappedValue),
+            hotColor: Color(hexString: hotHex.wrappedValue),
+            scale: 0...100,
+            unitSuffix: "%"
+        )
+        .padding(.vertical, 4)
+
+        visualThresholdRow(
+            title: "settings.display.normal".localized,
+            thresholdLabel: "settings.display.up_to".localized,
+            value: normalUpper,
+            colorHex: normalHex,
+            unit: "%"
+        )
+
+        SettingsDivider()
+
+        visualBandRow(
+            title: "settings.display.medium".localized,
+            rangeText: "\(Int(normalUpper.wrappedValue.rounded()))-\(Int(hotLower.wrappedValue.rounded())) %",
+            colorHex: mediumHex
+        )
+
+        SettingsDivider()
+
+        visualThresholdRow(
+            title: "settings.display.hot".localized,
+            thresholdLabel: "settings.display.from".localized,
+            value: hotLower,
+            colorHex: hotHex,
+            unit: "%"
+        )
+    }
+
+    /// Clamped, ordered bindings for one module's percent thresholds: the
+    /// normal ceiling can never climb into the hot floor and vice versa.
+    private func percentThresholdBindings(
+        normalUpper: ReferenceWritableKeyPath<AppSettingsStore, Double>,
+        hotLower: ReferenceWritableKeyPath<AppSettingsStore, Double>
+    ) -> (normalUpper: Binding<Double>, hotLower: Binding<Double>) {
+        (
+            normalUpper: Binding {
+                settings[keyPath: normalUpper]
+            } set: { value in
+                guard value.isFinite else { return }
+                settings[keyPath: normalUpper] = min(max(value.rounded(), 5), settings[keyPath: hotLower] - 5)
+            },
+            hotLower: Binding {
+                settings[keyPath: hotLower]
+            } set: { value in
+                guard value.isFinite else { return }
+                settings[keyPath: hotLower] = max(min(value.rounded(), 100), settings[keyPath: normalUpper] + 5)
+            }
+        )
+    }
+
+    private func networkColorRow(title: String, symbol: String, colorHex: Binding<String>) -> some View {
+        HStack(spacing: 12) {
+            Label(title, systemImage: symbol)
+                .font(.callout.weight(.semibold))
+
+            Spacer()
+
+            ColorPresetPicker(selection: colorHex)
+        }
+        .padding(.vertical, 2)
     }
 
     /// The style controls under each module card. They stay editable even
@@ -539,15 +693,20 @@ private struct MenuBarItemPreview: View {
     }
 }
 
-/// Interactive 30-90 °C strip: three colored bands with two draggable handles
-/// on the thresholds. Text fields next to it keep precise entry available.
-private struct TemperatureBandsEditor: View {
+/// Interactive band strip: three colored bands with two draggable handles on
+/// the thresholds, over a configurable scale (30-90 °C for temperature,
+/// 0-100 % for the load charts). Text fields next to it keep precise entry
+/// available.
+private struct BandsStripEditor: View {
     @Binding var normalUpper: Double
     @Binding var hotLower: Double
 
     let normalColor: Color
     let mediumColor: Color
     let hotColor: Color
+
+    var scale: ClosedRange<Double> = 30...90
+    var unitSuffix: String = "°"
 
     @State private var activeHandle: Handle?
 
@@ -556,7 +715,6 @@ private struct TemperatureBandsEditor: View {
         case hot
     }
 
-    private let scale: ClosedRange<Double> = 30...90
     private let barHeight: CGFloat = 26
     private let handleSize: CGFloat = 20
 
@@ -584,9 +742,9 @@ private struct TemperatureBandsEditor: View {
             .frame(height: barHeight)
 
             HStack {
-                Text("\(Int(scale.lowerBound))°")
+                Text("\(Int(scale.lowerBound))\(unitSuffix)")
                 Spacer()
-                Text("\(Int(scale.upperBound))°")
+                Text("\(Int(scale.upperBound))\(unitSuffix)")
             }
             .font(.caption2)
             .foregroundStyle(.tertiary)
@@ -643,7 +801,7 @@ private struct TemperatureBandsEditor: View {
                 ? "settings.display.normal".localized
                 : "settings.display.hot".localized
         )
-        .accessibilityValue("\(Int(value.rounded())) °C")
+        .accessibilityValue("\(Int(value.rounded())) \(unitSuffix)")
     }
 
     private func position(of temperature: Double, in width: CGFloat) -> CGFloat {

@@ -67,6 +67,7 @@
 "settings.display.preview.caption" = "This is how MacGauge looks in your menu bar right now.";
 "settings.display.animate_icon" = "Animate fan icon";
 "settings.display.animate_icon.caption" = "The blades spin with the fan's real speed.";
+"settings.display.animate_icon.efficient_notice" = "The Efficient performance mode keeps the fan icon still. Switch to Full in Settings > General to spin it.";
 "settings.display.bands.title" = "Temperature Colors";
 "settings.display.bands.caption" = "The menu bar changes color as the Mac heats up. Drag the handles to adjust the thresholds.";
 "settings.display.normal" = "Normal";
@@ -90,8 +91,11 @@
 "settings.display.modules.graph" = "Graph length";
 "settings.display.modules.graph.caption" = "Length of this module's chart.";
 "settings.display.modules.color" = "Color style";
-"settings.display.modules.color.caption" = "Multicolor keeps the module's own tint; By load paints the chart with your temperature colors as usage climbs.";
-"settings.display.modules.color.caption.network" = "The up and down arrows follow the selected style.";
+"settings.display.modules.color.caption" = "Multicolor keeps the module's own tint; By load paints the chart with the colors and thresholds you set below.";
+"settings.display.modules.color.caption.network" = "The up and down arrows follow the selected style; Multicolor uses your own colors below.";
+"settings.display.load_bands.caption" = "The chart takes these colors as usage climbs. Drag the handles to adjust the thresholds.";
+"settings.display.network.upload_color" = "Upload color";
+"settings.display.network.download_color" = "Download color";
 "fan.color.caption" = "Temperature follows your temperature colors below; Mono uses the menu bar's own color.";
 "module.color.temperature" = "Temperature";
 "module.spacing.together" = "Together";
@@ -129,7 +133,9 @@
 "color.white" = "White";
 "color.green" = "Green";
 "color.yellow" = "Yellow";
+"color.orange" = "Orange";
 "color.red" = "Red";
+"color.blue" = "Blue";
 
 /* Helper status badge (accessibility) */
 "helper.state.authorized" = "Authorized";

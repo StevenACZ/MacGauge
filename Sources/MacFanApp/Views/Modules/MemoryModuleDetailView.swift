@@ -4,16 +4,21 @@ import SwiftUI
 struct MemoryModuleDetailView: View {
     @ObservedObject var stats: SystemStatsMonitor
     @ObservedObject var processes: ProcessStatsMonitor
+    @ObservedObject var settings: AppSettingsStore
     let tickSeconds: Double
     var animated = true
 
     @State private var isExpanded = false
 
-    private static let tint = Color.indigo
+    /// Same resolution as the menu bar label, so the popover chart always
+    /// matches the colors the user configured for the module.
+    private var tint: Color {
+        ModuleColorResolver.memoryChartColor(percent: stats.snapshot.memoryPercent, settings: settings)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ModuleDetailHeader(icon: "memorychip", title: "system.memory".localized, tint: Self.tint) {
+            ModuleDetailHeader(icon: "memorychip", title: "system.memory".localized, tint: tint) {
                 VStack(alignment: .trailing, spacing: 0) {
                     ModuleHeaderValue(text: stats.snapshot.memoryPercent.map { AppFormatters.percent($0) } ?? "--%")
                     Text(
@@ -32,7 +37,7 @@ struct MemoryModuleDetailView: View {
                 values: stats.memoryHistory,
                 capacity: SystemStatsMonitor.historyCapacity,
                 peak: 100,
-                color: Self.tint,
+                color: tint,
                 tickSeconds: tickSeconds,
                 animated: animated
             )
@@ -77,7 +82,7 @@ struct MemoryModuleDetailView: View {
                             usage: usage,
                             valueText: AppFormatters.memoryAmount(usage.memoryBytes),
                             fraction: Double(usage.memoryBytes) / barScale,
-                            tint: Self.tint
+                            tint: tint
                         )
                     }
                     if processes.topMemoryApps.count > ProcessStatsMonitor.collapsedCount {

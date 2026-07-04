@@ -8,7 +8,9 @@ struct ColorPresetPicker: View {
             ColorPreset(name: "color.white".localized, hex: "#FFFFFF"),
             ColorPreset(name: "color.green".localized, hex: "#30D158"),
             ColorPreset(name: "color.yellow".localized, hex: "#FFD60A"),
+            ColorPreset(name: "color.orange".localized, hex: "#FF9500"),
             ColorPreset(name: "color.red".localized, hex: "#FF453A"),
+            ColorPreset(name: "color.blue".localized, hex: "#0A84FF"),
         ]
     }
 

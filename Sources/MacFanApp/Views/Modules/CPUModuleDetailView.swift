@@ -4,14 +4,21 @@ import SwiftUI
 struct CPUModuleDetailView: View {
     @ObservedObject var stats: SystemStatsMonitor
     @ObservedObject var processes: ProcessStatsMonitor
+    @ObservedObject var settings: AppSettingsStore
     let tickSeconds: Double
     var animated = true
 
     @State private var isExpanded = false
 
+    /// Same resolution as the menu bar label, so the popover chart always
+    /// matches the colors the user configured for the module.
+    private var tint: Color {
+        ModuleColorResolver.cpuChartColor(percent: stats.snapshot.cpuPercent, settings: settings)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ModuleDetailHeader(icon: "cpu", title: "system.cpu".localized, tint: Theme.accent) {
+            ModuleDetailHeader(icon: "cpu", title: "system.cpu".localized, tint: tint) {
                 ModuleHeaderValue(text: stats.snapshot.cpuPercent.map { AppFormatters.percent($0) } ?? "--%")
             }
 
@@ -19,7 +26,7 @@ struct CPUModuleDetailView: View {
                 values: stats.cpuHistory,
                 capacity: SystemStatsMonitor.historyCapacity,
                 peak: 100,
-                color: Theme.accent,
+                color: tint,
                 tickSeconds: tickSeconds,
                 animated: animated
             )
@@ -42,7 +49,7 @@ struct CPUModuleDetailView: View {
                             usage: usage,
                             valueText: String(format: "%.1f%%", usage.cpuPercent),
                             fraction: usage.cpuPercent / barScale,
-                            tint: Theme.accent
+                            tint: tint
                         )
                     }
                     if processes.topCPUApps.count > ProcessStatsMonitor.collapsedCount {

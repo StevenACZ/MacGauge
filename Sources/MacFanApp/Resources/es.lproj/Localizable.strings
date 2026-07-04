@@ -67,6 +67,7 @@
 "settings.display.preview.caption" = "Así se ve MacGauge en tu barra de menús ahora mismo.";
 "settings.display.animate_icon" = "Animar ícono del ventilador";
 "settings.display.animate_icon.caption" = "Las aspas giran con la velocidad real del ventilador.";
+"settings.display.animate_icon.efficient_notice" = "El modo de rendimiento Eficiente mantiene el ícono quieto. Cambia a Completo en Configuración > General para que gire.";
 "settings.display.bands.title" = "Colores por temperatura";
 "settings.display.bands.caption" = "La barra de menús cambia de color cuando la Mac se calienta. Arrastra los tiradores para ajustar los umbrales.";
 "settings.display.normal" = "Normal";
@@ -90,8 +91,11 @@
 "settings.display.modules.graph" = "Largo de gráfica";
 "settings.display.modules.graph.caption" = "Largo de la gráfica de este módulo.";
 "settings.display.modules.color" = "Estilo de color";
-"settings.display.modules.color.caption" = "Multicolor mantiene el tinte propio del módulo; Por carga pinta la gráfica con tus colores de temperatura según sube el uso.";
-"settings.display.modules.color.caption.network" = "Las flechas de subida y bajada siguen el estilo elegido.";
+"settings.display.modules.color.caption" = "Multicolor mantiene el tinte propio del módulo; Por carga pinta la gráfica con los colores y umbrales que configures abajo.";
+"settings.display.modules.color.caption.network" = "Las flechas de subida y bajada siguen el estilo elegido; Multicolor usa tus propios colores de abajo.";
+"settings.display.load_bands.caption" = "La gráfica toma estos colores según sube el uso. Arrastra los tiradores para ajustar los umbrales.";
+"settings.display.network.upload_color" = "Color de subida";
+"settings.display.network.download_color" = "Color de bajada";
 "fan.color.caption" = "Temperatura sigue tus colores de temperatura de abajo; Mono usa el color propio de la barra.";
 "module.color.temperature" = "Temperatura";
 "module.spacing.together" = "Juntos";
@@ -129,7 +133,9 @@
 "color.white" = "Blanco";
 "color.green" = "Verde";
 "color.yellow" = "Amarillo";
+"color.orange" = "Naranja";
 "color.red" = "Rojo";
+"color.blue" = "Azul";
 
 /* Helper status badge (accessibility) */
 "helper.state.authorized" = "Autorizado";

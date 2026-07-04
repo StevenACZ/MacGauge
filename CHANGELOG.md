@@ -33,6 +33,13 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Show more / Show less in the CPU and RAM popovers: the top-processes list
   expands from 5 to 15 rows and the popover grows with it, collapsing back
   on reopen.
+- Customizable By-load colors per module: CPU and RAM get their own
+  0-100 % band editor (draggable thresholds plus a color per band, like the
+  temperature editor) so each user decides when the chart turns from calm
+  to warning to hot; the network module gets its own upload/download arrow
+  colors, and the color presets gain Orange and Blue. The CPU/RAM/network
+  detail popovers now follow the exact same configured colors instead of
+  their old fixed tints.
 
 ### Changed
 
@@ -68,6 +75,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   CPU and RAM popovers let the closing view's teardown land after the opening
   view's start and kill the shared process sampler. Start/stop is now
   reference-counted, and the first real reading lands in half a second.
+- Settings > Display > Fan now says why the fan icon is not spinning in the
+  Efficient performance mode (notice + disabled toggle, and the preview stays
+  still), instead of showing an animation the menu bar would not play.
 
 ## [1.1.0] - 2026-07-03
 

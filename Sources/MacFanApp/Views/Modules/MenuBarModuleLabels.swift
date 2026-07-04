@@ -53,29 +53,11 @@ struct PercentModuleStatusLabel: View {
     }
 
     private var chartColor: Color {
-        switch metric == .cpu ? settings.cpuColorMode : settings.memoryColorMode {
-        case .multicolor:
-            return metric == .cpu ? Theme.accent : .indigo
-        case .mono:
-            return .primary
-        case .gray:
-            return .secondary
-        case .load:
-            return loadBandColor(loadBand, settings: settings)
-        }
-    }
-
-    private var loadBand: LoadBand {
         switch metric {
         case .cpu:
-            return SystemLoadRules.cpuLoadBand(forPercent: stats.snapshot.cpuPercent)
+            return ModuleColorResolver.cpuChartColor(percent: stats.snapshot.cpuPercent, settings: settings)
         case .memory:
-            return SystemLoadRules.memoryLoadBand(
-                forPressure: SystemLoadRules.memoryPressureLevel(
-                    sysctlLevel: stats.snapshot.memoryPressureSysctlLevel,
-                    usedPercent: stats.snapshot.memoryPercent
-                )
-            )
+            return ModuleColorResolver.memoryChartColor(percent: stats.snapshot.memoryPercent, settings: settings)
         }
     }
 }
@@ -150,31 +132,8 @@ struct NetworkModuleStatusLabel: View {
         .allowsHitTesting(false)
     }
 
-    /// Rates have no load semantics, so anything but multicolor/gray goes
-    /// neutral.
     private var arrowTints: (up: Color, down: Color) {
-        switch settings.networkColorMode {
-        case .multicolor:
-            return (.orange, .blue)
-        case .mono, .load:
-            return (.primary, .primary)
-        case .gray:
-            return (.secondary, .secondary)
-        }
-    }
-}
-
-/// The chart tint for one temperature-band step, shared by every module in
-/// load color mode.
-@MainActor
-private func loadBandColor(_ band: LoadBand, settings: AppSettingsStore) -> Color {
-    switch band {
-    case .normal:
-        return Color(hexString: settings.normalColorHex)
-    case .elevated:
-        return Color(hexString: settings.mediumColorHex)
-    case .high:
-        return Color(hexString: settings.hotColorHex)
+        ModuleColorResolver.networkArrowTints(settings: settings)
     }
 }
 

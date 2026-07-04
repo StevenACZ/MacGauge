@@ -3,25 +3,29 @@ import SwiftUI
 struct NetworkModuleDetailView: View {
     @ObservedObject var stats: SystemStatsMonitor
     @ObservedObject var info: NetworkInfoMonitor
+    @ObservedObject var settings: AppSettingsStore
     let tickSeconds: Double
     var animated = true
 
-    private static let downloadTint = Color.blue
-    private static let uploadTint = Color.orange
+    /// Same resolution as the menu bar label, so the popover always matches
+    /// the arrow colors the user configured for the module.
+    private var tints: (up: Color, down: Color) {
+        ModuleColorResolver.networkArrowTints(settings: settings)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ModuleDetailHeader(icon: "network", title: "system.network".localized, tint: Self.downloadTint) {
+            ModuleDetailHeader(icon: "network", title: "system.network".localized, tint: tints.down) {
                 VStack(alignment: .trailing, spacing: 1) {
                     rateLine(
                         symbol: "arrow.down",
                         text: AppFormatters.byteRate(stats.snapshot.downloadBytesPerSecond),
-                        tint: Self.downloadTint
+                        tint: tints.down
                     )
                     rateLine(
                         symbol: "arrow.up",
                         text: AppFormatters.byteRate(stats.snapshot.uploadBytesPerSecond),
-                        tint: Self.uploadTint
+                        tint: tints.up
                     )
                 }
             }
@@ -31,7 +35,7 @@ struct NetworkModuleDetailView: View {
                     values: stats.downloadHistory,
                     capacity: SystemStatsMonitor.historyCapacity,
                     peak: chartPeak,
-                    color: Self.downloadTint,
+                    color: tints.down,
                     tickSeconds: tickSeconds,
                     animated: animated
                 )
@@ -39,7 +43,7 @@ struct NetworkModuleDetailView: View {
                     values: stats.uploadHistory,
                     capacity: SystemStatsMonitor.historyCapacity,
                     peak: chartPeak,
-                    color: Self.uploadTint,
+                    color: tints.up,
                     fillOpacity: 0.22,
                     tickSeconds: tickSeconds,
                     animated: animated
@@ -71,12 +75,12 @@ struct NetworkModuleDetailView: View {
                     sessionTotal(
                         symbol: "arrow.down",
                         text: AppFormatters.memoryAmount(stats.snapshot.sessionReceivedBytes),
-                        tint: Self.downloadTint
+                        tint: tints.down
                     )
                     sessionTotal(
                         symbol: "arrow.up",
                         text: AppFormatters.memoryAmount(stats.snapshot.sessionSentBytes),
-                        tint: Self.uploadTint
+                        tint: tints.up
                     )
                     Spacer(minLength: 0)
                 }

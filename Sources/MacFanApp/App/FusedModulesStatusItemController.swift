@@ -117,6 +117,7 @@ final class FusedModulesStatusItemController: NSObject {
                 CPUModuleDetailView(
                     stats: model.systemStats,
                     processes: processMonitor,
+                    settings: model.settings,
                     tickSeconds: model.settings.controlTickSeconds,
                     animated: animated
                 )
@@ -126,6 +127,7 @@ final class FusedModulesStatusItemController: NSObject {
                 MemoryModuleDetailView(
                     stats: model.systemStats,
                     processes: processMonitor,
+                    settings: model.settings,
                     tickSeconds: model.settings.controlTickSeconds,
                     animated: animated
                 )
@@ -135,6 +137,7 @@ final class FusedModulesStatusItemController: NSObject {
                 NetworkModuleDetailView(
                     stats: model.systemStats,
                     info: networkInfoMonitor,
+                    settings: model.settings,
                     tickSeconds: model.settings.controlTickSeconds,
                     animated: animated
                 )

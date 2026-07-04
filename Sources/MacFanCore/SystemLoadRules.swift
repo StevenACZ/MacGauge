@@ -76,6 +76,26 @@ public enum SystemLoadRules {
         }
     }
 
+    /// Band from user-configurable percent thresholds (the customizable
+    /// "By load" colors). Thresholds are clamped to 0...100 and kept ordered
+    /// so a misconfigured pair can never invert the bands.
+    public static func loadBand(
+        forPercent percent: Double?,
+        normalUpperPercent: Double,
+        hotLowerPercent: Double
+    ) -> LoadBand {
+        let normalUpper = min(max(normalUpperPercent, 0), 100)
+        let hotLower = min(max(hotLowerPercent, normalUpper), 100)
+        switch percent ?? 0 {
+        case ..<normalUpper:
+            return .normal
+        case ..<hotLower:
+            return .elevated
+        default:
+            return .high
+        }
+    }
+
     /// Memory band mirrors the pressure level — used percent alone
     /// overstates pressure on macOS.
     public static func memoryLoadBand(forPressure pressure: MemoryPressureLevel) -> LoadBand {
