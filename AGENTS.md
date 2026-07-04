@@ -1,10 +1,19 @@
-# MacFan Agent Guide
+# MacGauge Agent Guide
 
 ## Scope
 
-This guide applies to the MacFan repository: a SwiftPM macOS project with a
+This guide applies to the MacGauge repository: a SwiftPM macOS project with a
 menu bar app, a CLI, and a privileged XPC helper for Apple Silicon fan
-control.
+control and live system stats (CPU, memory, network).
+
+## Naming
+
+- MacGauge is the brand: the .app bundle, display name, docs, and releases.
+- Internal identifiers keep the MacFan prefix on purpose: the SwiftPM package
+  and products (`MacFanCore`, `MacFanApp`, `MacFanCLI`, `MacFanHelper`), the
+  `com.stevenacz.MacFan` bundle ID, the helper label, defaults keys, and
+  status item autosave names. Changing them breaks installed helpers,
+  authorizations, and user settings — do not rename them for cosmetics.
 
 ## Safety
 

@@ -1,4 +1,4 @@
-/* MacFan — English strings */
+/* MacGauge — English strings */
 
 /* Popover */
 "popover.subtitle.one_fan" = "%@ · 1 fan";
@@ -10,7 +10,7 @@
 "popover.rpm.actual" = "Actual";
 "popover.rpm.current" = "Current";
 "popover.settings" = "Settings";
-"popover.quit" = "Quit MacFan";
+"popover.quit" = "Quit MacGauge";
 "popover.fan_fallback" = "Fan %d";
 
 /* Banners */
@@ -105,14 +105,14 @@
 "helper.status.checking" = "Checking helper...";
 "helper.status.ready" = "Helper ready";
 "helper.status.needs_authorization" = "Authorize the helper to enable fan control";
-"helper.status.needs_approval" = "Approve MacFan in System Settings > Login Items";
+"helper.status.needs_approval" = "Approve MacGauge in System Settings > Login Items";
 "helper.status.unavailable" = "Helper not responding; recovering automatically";
 "helper.status.stale" = "Helper is outdated; reloading it automatically";
 "helper.status.reloading" = "Reloading helper...";
 "helper.status.failed" = "Helper failed; use Fix in Settings > Safety";
 
 /* Helper errors (user-facing) */
-"helper.error.approve_in_settings" = "Approve MacFan in System Settings; the app detects it automatically.";
+"helper.error.approve_in_settings" = "Approve MacGauge in System Settings; the app detects it automatically.";
 "helper.error.no_response" = "Helper did not respond.";
 "helper.error.outdated" = "Helper is outdated; the app reloads it automatically.";
 

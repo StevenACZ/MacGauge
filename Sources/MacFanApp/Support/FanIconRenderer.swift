@@ -6,7 +6,7 @@ enum FanIconRenderer {
     private static let symbol: NSImage? = {
         let configuration = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
         return ["fanblades.fill", "fanblades", "fan.fill", "fan"]
-            .compactMap { NSImage(systemSymbolName: $0, accessibilityDescription: "MacFan") }
+            .compactMap { NSImage(systemSymbolName: $0, accessibilityDescription: "MacGauge") }
             .compactMap { $0.withSymbolConfiguration(configuration) }
             .first
     }()

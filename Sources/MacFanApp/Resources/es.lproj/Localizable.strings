@@ -1,4 +1,4 @@
-/* MacFan — Spanish strings */
+/* MacGauge — Spanish strings */
 
 /* Popover */
 "popover.subtitle.one_fan" = "%@ · 1 ventilador";
@@ -10,7 +10,7 @@
 "popover.rpm.actual" = "Real";
 "popover.rpm.current" = "Actual";
 "popover.settings" = "Configuración";
-"popover.quit" = "Salir de MacFan";
+"popover.quit" = "Salir de MacGauge";
 "popover.fan_fallback" = "Ventilador %d";
 
 /* Banners */
@@ -105,14 +105,14 @@
 "helper.status.checking" = "Comprobando el asistente…";
 "helper.status.ready" = "Asistente listo";
 "helper.status.needs_authorization" = "Autoriza el asistente para habilitar el control de ventiladores";
-"helper.status.needs_approval" = "Aprueba MacFan en Configuración del Sistema > Elementos de inicio";
+"helper.status.needs_approval" = "Aprueba MacGauge en Configuración del Sistema > Elementos de inicio";
 "helper.status.unavailable" = "El asistente no responde; se está recuperando automáticamente";
 "helper.status.stale" = "El asistente está desactualizado; se está recargando automáticamente";
 "helper.status.reloading" = "Recargando el asistente…";
 "helper.status.failed" = "El asistente falló; usa Reparar en Configuración > Seguridad";
 
 /* Helper errors (user-facing) */
-"helper.error.approve_in_settings" = "Aprueba MacFan en Configuración del Sistema; la app lo detecta automáticamente.";
+"helper.error.approve_in_settings" = "Aprueba MacGauge en Configuración del Sistema; la app lo detecta automáticamente.";
 "helper.error.no_response" = "El asistente no respondió.";
 "helper.error.outdated" = "El asistente está desactualizado; la app lo recarga automáticamente.";
 

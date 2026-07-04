@@ -6,19 +6,23 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_DST="$HOME/Applications/MacFan.app"
+APP_DST="$HOME/Applications/MacGauge.app"
+LEGACY_APP="$HOME/Applications/MacFan.app"
 
 cd "$ROOT"
 
-SIGN_IDENTITY="${M4FANCONTROL_SIGN_IDENTITY:-${SIGN_IDENTITY:-}}"
+SIGN_IDENTITY="${MACGAUGE_SIGN_IDENTITY:-${SIGN_IDENTITY:-}}"
 if [[ -z "$SIGN_IDENTITY" ]]; then
   SIGN_IDENTITY="$(security find-identity -p codesigning -v | awk -F '"' '/Apple Development/ { print $2; exit }')"
 fi
 if [[ -z "$SIGN_IDENTITY" ]]; then
   echo "install-dev: no Apple Development signing identity found." >&2
-  echo "install-dev: set M4FANCONTROL_SIGN_IDENTITY or install an Apple Development certificate." >&2
+  echo "install-dev: set MACGAUGE_SIGN_IDENTITY or install an Apple Development certificate." >&2
   exit 65
 fi
+
+# Drop the pre-rename bundle so two copies never race for the menu bar.
+rm -rf "$LEGACY_APP"
 
 SIGN_IDENTITY="$SIGN_IDENTITY" ./script/build_and_run.sh --install
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve MacFan.
+Thanks for helping improve MacGauge.
 
 ## Setup
 

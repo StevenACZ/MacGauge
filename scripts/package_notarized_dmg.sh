@@ -3,19 +3,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-APP_NAME="MacFan"
+APP_NAME="MacGauge"
 DIST_DIR="dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 OUTPUT_DMG="${OUTPUT_DMG:-}"
-NOTARY_PROFILE="${MACFAN_NOTARY_PROFILE:-${NOTARY_PROFILE:-notarytool-dmg}}"
+NOTARY_PROFILE="${MACGAUGE_NOTARY_PROFILE:-${NOTARY_PROFILE:-notarytool-dmg}}"
 
 usage() {
   echo "Usage: $0 [--output <path>]"
   echo
   echo "Environment:"
-  echo "  MACFAN_SIGN_IDENTITY   Developer ID Application identity. Defaults to the first local one."
-  echo "  MACFAN_NOTARY_PROFILE  notarytool keychain profile. Defaults to notarytool-dmg."
-  echo "  OUTPUT_DMG             Output DMG path. Defaults to dist/MacFan-v<version>.dmg."
+  echo "  MACGAUGE_SIGN_IDENTITY   Developer ID Application identity. Defaults to the first local one."
+  echo "  MACGAUGE_NOTARY_PROFILE  notarytool keychain profile. Defaults to notarytool-dmg."
+  echo "  OUTPUT_DMG             Output DMG path. Defaults to dist/MacGauge-v<version>.dmg."
 }
 
 while [[ $# -gt 0 ]]; do
@@ -43,7 +43,7 @@ if ! command -v create-dmg >/dev/null 2>&1; then
   exit 69
 fi
 
-SIGN_IDENTITY="${MACFAN_SIGN_IDENTITY:-}"
+SIGN_IDENTITY="${MACGAUGE_SIGN_IDENTITY:-}"
 if [[ -z "$SIGN_IDENTITY" ]]; then
   SIGN_IDENTITY="$(security find-identity -p codesigning -v | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
 fi

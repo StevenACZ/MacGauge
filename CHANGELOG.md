@@ -24,6 +24,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Renamed the app and repository from MacFan to MacGauge, reflecting that it
+  now covers system stats beyond fan control. Brand only: the bundle ID,
+  helper label, and SwiftPM identifiers keep the MacFan prefix so existing
+  installs, helper authorizations, and settings survive the rename.
 - Menu bar modules now keep a constant width: values reserve their widest
   realistic size (three digits plus unit), so the network item no longer
   shifts left and right as rates change between two and three digits.
