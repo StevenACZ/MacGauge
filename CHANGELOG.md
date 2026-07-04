@@ -62,10 +62,13 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- The menu bar fan icon no longer wobbles while spinning: SF Symbol canvases
-  carry baseline padding, so rotating around the canvas center made the
-  blades orbit by about a pixel; rotation now pivots on the glyph's measured
-  optical center.
+- The menu bar fan icon no longer wobbles while spinning. Two causes: SF
+  Symbol canvases carry baseline padding, so rotating around the canvas
+  center made the blades orbit by about a pixel; and re-drawing the vector
+  symbol at every angle let AppKit rasterize it against a slightly different
+  pixel grid on some angles, which read as intermittent 1-2 px jumps. The
+  glyph is now rasterized once into a fixed high-resolution bitmap, and each
+  frame rotates that bitmap around its alpha-weighted centroid.
 - The popover header now reads MacGauge — it was the last user-visible spot
   still showing the old MacFan brand.
 

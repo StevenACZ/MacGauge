@@ -10,6 +10,12 @@ enum FanIconRenderer {
 
     private static let canvasSize = NSSize(width: 18, height: 18)
     private static let symbolRect = NSRect(x: 1, y: 1, width: 16, height: 16)
+    /// The glyph is rasterized once at this multiple of canvas points; frames
+    /// only rotate and downsample that sprite, so blades stay crisp.
+    private static let spriteScale: CGFloat = 4
+    /// Menu bar backing density. A single 2x rep also downsamples cleanly on
+    /// non-retina displays.
+    private static let outputScale: CGFloat = 2
 
     private static let symbol: NSImage? = {
         let configuration = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
@@ -19,53 +25,69 @@ enum FanIconRenderer {
             .first
     }()
 
-    /// Optical center of the drawn glyph in canvas coordinates. SF Symbol
-    /// canvases carry baseline padding, so the visible blades are not centered
-    /// in `symbolRect`; rotating around the canvas center makes them orbit by
-    /// about a pixel. Rotation must pivot on this point instead.
-    private static let glyphCenter: NSPoint =
-        measuredGlyphCenter()
-        ?? NSPoint(
-            x: canvasSize.width / 2,
-            y: canvasSize.height / 2
-        )
+    /// Fan glyph baked once into a fixed high-resolution bitmap, plus its
+    /// alpha-weighted centroid in sprite pixels. Re-rendering the vector
+    /// symbol per angle lets AppKit re-rasterize it against a slightly
+    /// different pixel grid on some angles, which reads as the icon jumping
+    /// 1-2 px in the menu bar; rotating one fixed bitmap is continuous in the
+    /// angle. The centroid is the rotation-invariant center of the blades —
+    /// SF Symbol canvases carry baseline padding, so neither the canvas
+    /// center nor the bounding-box center keeps them still.
+    private static let sprite: (image: CGImage, pivot: CGPoint)? = bakeSprite()
 
     static func image(color: NSColor, rotation: CGFloat) -> NSImage? {
+        guard let sprite else { return nil }
         let drawColor = color.usingColorSpace(.sRGB) ?? color
         let cacheKey = cacheKey(color: drawColor, rotation: rotation)
         if let image = imageCache[cacheKey] {
             return image
         }
 
-        // Resolve the lazy pivot before locking focus: measuring inside a
-        // locked-focus context breaks the offscreen bitmap's user-space
-        // scaling and yields a garbage center (glyph orbits the whole canvas).
-        let pivot = glyphCenter
+        let pixelSize = Int(canvasSize.width * outputScale)
+        guard
+            let rep = NSBitmapImageRep(
+                bitmapDataPlanes: nil,
+                pixelsWide: pixelSize,
+                pixelsHigh: pixelSize,
+                bitsPerSample: 8,
+                samplesPerPixel: 4,
+                hasAlpha: true,
+                isPlanar: false,
+                colorSpaceName: .deviceRGB,
+                bytesPerRow: 0,
+                bitsPerPixel: 0
+            ),
+            let context = NSGraphicsContext(bitmapImageRep: rep)
+        else {
+            return nil
+        }
+        rep.size = canvasSize
+
+        let ctx = context.cgContext
+        let deviceRect = CGRect(x: 0, y: 0, width: CGFloat(pixelSize), height: CGFloat(pixelSize))
+        ctx.clear(deviceRect)
+        ctx.interpolationQuality = .high
+
+        // Pivot on the sprite centroid and land it on the canvas center.
+        ctx.saveGState()
+        ctx.translateBy(x: CGFloat(pixelSize) / 2, y: CGFloat(pixelSize) / 2)
+        ctx.rotate(by: rotation * .pi / 180)
+        ctx.scaleBy(x: outputScale / spriteScale, y: outputScale / spriteScale)
+        ctx.translateBy(x: -sprite.pivot.x, y: -sprite.pivot.y)
+        ctx.draw(
+            sprite.image,
+            in: CGRect(x: 0, y: 0, width: sprite.image.width, height: sprite.image.height)
+        )
+        ctx.restoreGState()
+
+        // Tint in device space; sourceAtop only touches drawn glyph pixels.
+        ctx.setBlendMode(.sourceAtop)
+        ctx.setFillColor(drawColor.cgColor)
+        ctx.fill(deviceRect)
+        ctx.flush()
 
         let image = NSImage(size: canvasSize)
-        image.lockFocus()
-        defer { image.unlockFocus() }
-
-        NSColor.clear.setFill()
-        NSBezierPath(rect: NSRect(origin: .zero, size: canvasSize)).fill()
-        NSGraphicsContext.current?.imageInterpolation = .high
-
-        // Pivot on the glyph's optical center and land it on the canvas
-        // center, so every rotation angle keeps the blades perfectly still.
-        let transform = NSAffineTransform()
-        transform.translateX(by: canvasSize.width / 2, yBy: canvasSize.height / 2)
-        transform.rotate(byDegrees: rotation)
-        transform.translateX(by: -pivot.x, yBy: -pivot.y)
-        transform.concat()
-
-        if let symbol {
-            symbol.draw(in: symbolRect, from: .zero, operation: .sourceOver, fraction: 1)
-            drawColor.setFill()
-            symbolRect.fill(using: .sourceAtop)
-        } else {
-            drawFallbackFan(in: symbolRect, color: drawColor)
-        }
-
+        image.addRepresentation(rep)
         image.isTemplate = false
         if imageCache.count >= imageCacheLimit {
             imageCache.removeAll(keepingCapacity: true)
@@ -93,13 +115,10 @@ enum FanIconRenderer {
         .joined(separator: ":")
     }
 
-    /// Renders the unrotated glyph once into an offscreen bitmap and returns
-    /// the center of its opaque bounding box in canvas points.
-    private static func measuredGlyphCenter() -> NSPoint? {
-        guard let symbol else { return nil }
-
-        let scale: CGFloat = 8
-        let pixelSize = Int(canvasSize.width * scale)
+    /// Renders the unrotated glyph once into the sprite bitmap and locates
+    /// its alpha-weighted centroid in sprite pixels.
+    private static func bakeSprite() -> (image: CGImage, pivot: CGPoint)? {
+        let pixelSize = Int(canvasSize.width * spriteScale)
         guard
             let rep = NSBitmapImageRep(
                 bitmapDataPlanes: nil,
@@ -120,46 +139,51 @@ enum FanIconRenderer {
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
+        context.cgContext.clear(CGRect(x: 0, y: 0, width: pixelSize, height: pixelSize))
         // Scale user space explicitly; relying on rep.size-based scaling is
         // fragile depending on the surrounding graphics-context state.
         let scaleTransform = NSAffineTransform()
-        scaleTransform.scale(by: scale)
+        scaleTransform.scale(by: spriteScale)
         scaleTransform.concat()
-        symbol.draw(in: symbolRect, from: .zero, operation: .sourceOver, fraction: 1)
+        if let symbol {
+            symbol.draw(in: symbolRect, from: .zero, operation: .sourceOver, fraction: 1)
+        } else {
+            drawFallbackFan(in: symbolRect, color: .black)
+        }
         context.flushGraphics()
         NSGraphicsContext.restoreGraphicsState()
 
-        guard let data = rep.bitmapData else { return nil }
+        guard let data = rep.bitmapData, let cgImage = rep.cgImage else { return nil }
         let bytesPerRow = rep.bytesPerRow
         let samplesPerPixel = rep.samplesPerPixel
         let alphaIndex = samplesPerPixel - 1
 
-        var minX = pixelSize
-        var maxX = -1
-        var minY = pixelSize
-        var maxY = -1
+        var alphaSum = 0.0
+        var xSum = 0.0
+        var ySum = 0.0
         for y in 0..<pixelSize {
             let row = data + y * bytesPerRow
-            for x in 0..<pixelSize where row[x * samplesPerPixel + alphaIndex] > 24 {
-                minX = min(minX, x)
-                maxX = max(maxX, x)
-                minY = min(minY, y)
-                maxY = max(maxY, y)
+            for x in 0..<pixelSize {
+                let alpha = Double(row[x * samplesPerPixel + alphaIndex])
+                guard alpha > 0 else { continue }
+                alphaSum += alpha
+                xSum += alpha * (Double(x) + 0.5)
+                ySum += alpha * (Double(y) + 0.5)
             }
         }
-        guard maxX >= minX, maxY >= minY else { return nil }
+        guard alphaSum > 0 else { return nil }
 
-        // Bitmap rows run top-down while the drawing context is bottom-up.
-        let centerX = CGFloat(minX + maxX + 1) / 2 / scale
-        let centerY = canvasSize.height - CGFloat(minY + maxY + 1) / 2 / scale
+        // Bitmap rows run top-down while CG draws bottom-up.
+        let pivot = CGPoint(x: xSum / alphaSum, y: Double(pixelSize) - ySum / alphaSum)
 
-        // The optical center can only sit near the canvas center (baseline
-        // padding is ~1pt); anything farther means the measurement context
-        // was broken, and the canvas-center fallback beats a wild pivot.
-        guard abs(centerX - canvasSize.width / 2) < 3, abs(centerY - canvasSize.height / 2) < 3 else {
-            return nil
+        // The centroid can only sit near the sprite center (baseline padding
+        // is ~1pt); anything farther means the measurement context was
+        // broken, and the sprite-center fallback beats a wild pivot.
+        let center = CGFloat(pixelSize) / 2
+        guard abs(pivot.x - center) < 3 * spriteScale, abs(pivot.y - center) < 3 * spriteScale else {
+            return (cgImage, CGPoint(x: center, y: center))
         }
-        return NSPoint(x: centerX, y: centerY)
+        return (cgImage, pivot)
     }
 
     private static func drawFallbackFan(in rect: NSRect, color: NSColor) {
