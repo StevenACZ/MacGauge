@@ -1,24 +1,122 @@
 import MacFanCore
 import SwiftUI
 
+/// The visual-configuration screen: a section sidebar on the left (fan item,
+/// temperature colors, modules, CPU, RAM, network) and one card at a time on
+/// the right, each with a live preview and its own style controls, so the
+/// user sees exactly what each choice looks like without scrolling.
 struct DisplaySettingsTab: View {
+    @ObservedObject var model: AppModel
     @ObservedObject var settings: AppSettingsStore
     @ObservedObject var monitor: FanMonitor
 
-    /// False while another tab is selected so the live preview stops ticking.
+    /// False while another tab is selected so the live previews stop ticking.
     let isActive: Bool
+
+    @State private var section: DisplaySection = .fan
 
     private let animationRules = FanAnimationRules()
 
-    var body: some View {
-        SettingsPane {
-            menuBarItemSurface
-            temperatureBandsSurface
-            modulesSurface
+    private enum DisplaySection: String, CaseIterable, Identifiable {
+        case fan
+        case temperature
+        case modules
+        case cpu
+        case memory
+        case network
+
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .fan: return "fanblades"
+            case .temperature: return "thermometer.medium"
+            case .modules: return "menubar.rectangle"
+            case .cpu: return "cpu"
+            case .memory: return "memorychip"
+            case .network: return "network"
+            }
+        }
+
+        var localizedName: String {
+            switch self {
+            case .fan: return "settings.display.section.fan".localized
+            case .temperature: return "settings.display.section.temperature".localized
+            case .modules: return "settings.display.section.modules".localized
+            case .cpu: return "system.cpu".localized
+            case .memory: return "system.memory".localized
+            case .network: return "system.network".localized
+            }
         }
     }
 
-    // MARK: - Menu bar item
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            sectionSidebar
+
+            SettingsPane {
+                switch section {
+                case .fan:
+                    menuBarItemSurface
+                case .temperature:
+                    temperatureBandsSurface
+                case .modules:
+                    modulesSurface
+                case .cpu:
+                    cpuModuleSurface
+                case .memory:
+                    memoryModuleSurface
+                case .network:
+                    networkModuleSurface
+                }
+            }
+        }
+        .onChange(of: isActive) { active in
+            model.setStatsPreviewActive(active)
+        }
+        .onAppear { model.setStatsPreviewActive(isActive) }
+        .onDisappear { model.setStatsPreviewActive(false) }
+    }
+
+    // MARK: - Section sidebar
+
+    private var sectionSidebar: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(DisplaySection.allCases) { item in
+                sidebarRow(item)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(width: 148)
+    }
+
+    private func sidebarRow(_ item: DisplaySection) -> some View {
+        let isSelected = section == item
+        return Button {
+            section = item
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: item.icon)
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(width: 20, alignment: .center)
+                Text(item.localizedName)
+                    .font(.callout.weight(isSelected ? .semibold : .regular))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Layout.rowRadius, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Layout.rowRadius, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+            )
+            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .animation(Theme.Anim.hover, value: isSelected)
+    }
+
+    // MARK: - Menu bar item (fan)
 
     private var menuBarItemSurface: some View {
         SettingsSurface(icon: "fanblades", title: "settings.display.menubar_item".localized) {
@@ -29,7 +127,7 @@ struct DisplaySettingsTab: View {
                         monitor.snapshot.temperatureCelsius,
                         unit: settings.temperatureUnit
                     ),
-                    color: currentBandColor,
+                    color: fanPreviewColor,
                     degreesPerSecond: previewDegreesPerSecond,
                     isPaused: !isActive
                 )
@@ -51,6 +149,16 @@ struct DisplaySettingsTab: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
+
+            SettingsDivider()
+
+            stylePickerRow(
+                title: "settings.display.modules.color".localized,
+                caption: "fan.color.caption".localized,
+                options: FanColorStyle.allCases,
+                label: \.localizedName,
+                selection: $settings.fanColorStyle
+            )
         }
     }
 
@@ -62,6 +170,18 @@ struct DisplaySettingsTab: View {
             return Color(hexString: settings.mediumColorHex)
         case .hot:
             return Color(hexString: settings.hotColorHex)
+        }
+    }
+
+    /// Mirrors StatusItemController.statusColor for the always-dark preview.
+    private var fanPreviewColor: Color {
+        switch settings.fanColorStyle {
+        case .temperature:
+            return currentBandColor
+        case .mono:
+            return .white
+        case .gray:
+            return Color(nsColor: .systemGray)
         }
     }
 
@@ -201,6 +321,16 @@ struct DisplaySettingsTab: View {
 
     private var modulesSurface: some View {
         SettingsSurface(icon: "menubar.rectangle", title: "settings.display.menubar_modules".localized) {
+            stylePickerRow(
+                title: "settings.display.modules.spacing".localized,
+                caption: "settings.display.modules.spacing.caption".localized,
+                options: ModuleSpacingLevel.allCases,
+                label: \.localizedName,
+                selection: $settings.moduleSpacing
+            )
+
+            SettingsDivider()
+
             SettingsRow(
                 title: "settings.display.module_cpu".localized,
                 subtitle: "settings.display.module_cpu.caption".localized,
@@ -235,6 +365,142 @@ struct DisplaySettingsTab: View {
                     .toggleStyle(.switch)
             }
         }
+    }
+
+    private var cpuModuleSurface: some View {
+        SettingsSurface(icon: "cpu", title: "settings.display.module_cpu".localized) {
+            modulePreview(isShown: settings.showsCPUModule) {
+                PercentModuleStatusLabel(stats: model.systemStats, settings: settings, metric: .cpu)
+            }
+
+            moduleStyleRows(
+                graphWidth: $settings.cpuGraphWidth,
+                colorMode: $settings.cpuColorMode,
+                colorOptions: ModuleColorMode.allCases,
+                colorCaption: "settings.display.modules.color.caption".localized
+            )
+        }
+    }
+
+    private var memoryModuleSurface: some View {
+        SettingsSurface(icon: "memorychip", title: "settings.display.module_memory".localized) {
+            modulePreview(isShown: settings.showsMemoryModule) {
+                PercentModuleStatusLabel(stats: model.systemStats, settings: settings, metric: .memory)
+            }
+
+            moduleStyleRows(
+                graphWidth: $settings.memoryGraphWidth,
+                colorMode: $settings.memoryColorMode,
+                colorOptions: ModuleColorMode.allCases,
+                colorCaption: "settings.display.modules.color.caption".localized
+            )
+        }
+    }
+
+    private var networkModuleSurface: some View {
+        SettingsSurface(icon: "network", title: "settings.display.module_network".localized) {
+            modulePreview(isShown: settings.showsNetworkModule) {
+                NetworkModuleStatusLabel(stats: model.systemStats, settings: settings)
+            }
+
+            moduleStyleRows(
+                graphWidth: nil,
+                colorMode: $settings.networkColorMode,
+                colorOptions: [.multicolor, .mono, .gray],
+                colorCaption: "settings.display.modules.color.caption.network".localized
+            )
+        }
+    }
+
+    /// The style controls under each module card. They stay editable even
+    /// while the module is hidden — the live preview above shows the result.
+    private func moduleStyleRows(
+        graphWidth: Binding<ModuleGraphWidth>?,
+        colorMode: Binding<ModuleColorMode>,
+        colorOptions: [ModuleColorMode],
+        colorCaption: String
+    ) -> some View {
+        Group {
+            if let graphWidth {
+                SettingsDivider()
+
+                stylePickerRow(
+                    title: "settings.display.modules.graph".localized,
+                    caption: "settings.display.modules.graph.caption".localized,
+                    options: ModuleGraphWidth.allCases,
+                    label: \.localizedName,
+                    selection: graphWidth
+                )
+            }
+
+            SettingsDivider()
+
+            stylePickerRow(
+                title: "settings.display.modules.color".localized,
+                caption: colorCaption,
+                options: colorOptions,
+                label: \.localizedName,
+                selection: colorMode
+            )
+        }
+    }
+
+    /// Dark capsule mock of the menu bar around a live module label. Forcing
+    /// the dark scheme keeps label-colored styles readable in light mode.
+    private func modulePreview<Content: View>(
+        isShown: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(spacing: 6) {
+            HStack {
+                Spacer(minLength: 0)
+                content()
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.black.opacity(0.82))
+                    )
+                    .environment(\.colorScheme, .dark)
+                Spacer(minLength: 0)
+            }
+
+            if !isShown {
+                Label("settings.display.module.hidden_hint".localized, systemImage: "eye.slash")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+        }
+        .animation(Theme.Anim.smooth, value: isShown)
+    }
+
+    private func stylePickerRow<Value: Hashable & Identifiable>(
+        title: String,
+        caption: String,
+        options: [Value],
+        label: KeyPath<Value, String>,
+        selection: Binding<Value>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout.weight(.semibold))
+                Text(caption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Picker(title, selection: selection) {
+                ForEach(options) { option in
+                    Text(option[keyPath: label]).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+        }
+        .padding(.vertical, 2)
     }
 }
 

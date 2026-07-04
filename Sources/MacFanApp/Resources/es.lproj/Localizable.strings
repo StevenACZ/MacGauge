@@ -72,11 +72,35 @@
 "settings.display.from" = "Desde";
 "settings.display.menubar_modules" = "Módulos de la barra de menús";
 "settings.display.module_cpu" = "Uso de CPU";
-"settings.display.module_cpu.caption" = "Agrega su propio ítem con el uso en vivo; clic para ver núcleos y apps.";
+"settings.display.module_cpu.caption" = "Uso en vivo en la barra de menús; clic para ver núcleos y apps.";
 "settings.display.module_memory" = "Uso de memoria";
 "settings.display.module_memory.caption" = "Memoria usada y presión en vivo; clic para ver las apps que más consumen.";
 "settings.display.module_network" = "Actividad de red";
 "settings.display.module_network.caption" = "Bajada y subida en vivo; clic para ver IPs y totales de la sesión.";
+"settings.display.section.fan" = "Ventilador";
+"settings.display.section.temperature" = "Temperatura";
+"settings.display.section.modules" = "Módulos";
+"settings.display.module.hidden_hint" = "Oculto ahora mismo — actívalo en Módulos.";
+"settings.display.modules.spacing" = "Separación";
+"settings.display.modules.spacing.caption" = "Cuánto aire deja cada módulo en la barra de menús. Juntos los fusiona en un solo bloque, con clic por módulo igual.";
+"settings.display.modules.graph" = "Largo de gráfica";
+"settings.display.modules.graph.caption" = "Largo de la gráfica de este módulo.";
+"settings.display.modules.color" = "Estilo de color";
+"settings.display.modules.color.caption" = "Multicolor mantiene el tinte propio del módulo; Por carga pinta la gráfica con tus colores de temperatura según sube el uso.";
+"settings.display.modules.color.caption.network" = "Las flechas de subida y bajada siguen el estilo elegido.";
+"fan.color.caption" = "Temperatura sigue tus colores de temperatura de abajo; Mono usa el color propio de la barra.";
+"module.color.temperature" = "Temperatura";
+"module.spacing.together" = "Juntos";
+"module.spacing.tight" = "Pegados";
+"module.spacing.regular" = "Normal";
+"module.spacing.roomy" = "Separados";
+"module.graph.compact" = "Compacta";
+"module.graph.medium" = "Mediana";
+"module.graph.wide" = "Larga";
+"module.color.multicolor" = "Multicolor";
+"module.color.mono" = "Mono";
+"module.color.gray" = "Gris";
+"module.color.load" = "Por carga";
 
 /* Safety tab */
 "settings.safety.privileged_helper" = "Asistente con privilegios";

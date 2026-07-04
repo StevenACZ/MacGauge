@@ -53,6 +53,7 @@ final class StatusItemController: NSObject {
             model.settings.$normalColorHex.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$mediumColorHex.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$hotColorHex.map { _ in () }.eraseToAnyPublisher(),
+            model.settings.$fanColorStyle.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$animateFanIcon.map { _ in () }.eraseToAnyPublisher()
         )
         .sink { [weak self] _ in
@@ -177,6 +178,14 @@ final class StatusItemController: NSObject {
     }
 
     private func statusColor(for temperature: Double?) -> NSColor {
+        switch model.settings.fanColorStyle {
+        case .mono:
+            return .labelColor
+        case .gray:
+            return .secondaryLabelColor
+        case .temperature:
+            break
+        }
         switch model.settings.visualRules.band(for: temperature) {
         case .normal:
             return readableMenuBarColor(NSColor(hexString: model.settings.normalColorHex), fallback: .white)

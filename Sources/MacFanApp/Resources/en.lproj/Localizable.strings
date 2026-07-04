@@ -72,11 +72,35 @@
 "settings.display.from" = "From";
 "settings.display.menubar_modules" = "Menu Bar Modules";
 "settings.display.module_cpu" = "CPU usage";
-"settings.display.module_cpu.caption" = "Adds its own menu bar item with live usage; click it for cores and top apps.";
+"settings.display.module_cpu.caption" = "Live usage in the menu bar; click it for cores and top apps.";
 "settings.display.module_memory" = "Memory usage";
 "settings.display.module_memory.caption" = "Live used memory and pressure; click it for the apps using the most.";
 "settings.display.module_network" = "Network activity";
 "settings.display.module_network.caption" = "Live download and upload rates; click it for IPs and session totals.";
+"settings.display.section.fan" = "Fan";
+"settings.display.section.temperature" = "Temperature";
+"settings.display.section.modules" = "Modules";
+"settings.display.module.hidden_hint" = "Hidden right now — enable it in Modules.";
+"settings.display.modules.spacing" = "Spacing";
+"settings.display.modules.spacing.caption" = "How much breathing room every module keeps in the menu bar. Together fuses them into one block, with clicks still per module.";
+"settings.display.modules.graph" = "Graph length";
+"settings.display.modules.graph.caption" = "Length of this module's chart.";
+"settings.display.modules.color" = "Color style";
+"settings.display.modules.color.caption" = "Multicolor keeps the module's own tint; By load paints the chart with your temperature colors as usage climbs.";
+"settings.display.modules.color.caption.network" = "The up and down arrows follow the selected style.";
+"fan.color.caption" = "Temperature follows your temperature colors below; Mono uses the menu bar's own color.";
+"module.color.temperature" = "Temperature";
+"module.spacing.together" = "Together";
+"module.spacing.tight" = "Tight";
+"module.spacing.regular" = "Normal";
+"module.spacing.roomy" = "Wide";
+"module.graph.compact" = "Compact";
+"module.graph.medium" = "Medium";
+"module.graph.wide" = "Long";
+"module.color.multicolor" = "Multicolor";
+"module.color.mono" = "Mono";
+"module.color.gray" = "Gray";
+"module.color.load" = "By load";
 
 /* Safety tab */
 "settings.safety.privileged_helper" = "Privileged Helper";

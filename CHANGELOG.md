@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Spacing control for the menu bar modules (Settings > Display): Together,
+  Tight, Normal, or Wide. Tight, Normal, and Wide keep one independent menu
+  bar item per module (own click, popover, and drag position) and trim or
+  grow the dead space around each; Together fuses the modules into a single
+  block so even the system's own gap between items disappears, while clicks
+  stay per-module — no whole-block highlight, and each click opens only that
+  module's popover anchored to it.
+- Per-module graph length for the CPU and memory charts: Compact, Medium, or
+  Long, chosen independently for each.
+- Per-module color style: Multicolor (the module's own tint), Mono (menu bar
+  label color), Gray, or By load — the chart takes the same normal/medium/hot
+  colors as the fan temperature bands as usage climbs (CPU by sustained
+  usage, memory by real memory pressure). The network arrows follow their own
+  selected style, and the fan item gets its own Temperature/Mono/Gray choice.
+
+### Changed
+
+- Settings > Display redesigned as a visual-configuration screen with a
+  section sidebar (fan, temperature colors, modules, CPU, RAM, network): one
+  card at a time instead of a long scroll, each with a live preview that
+  reflects the current style choices in real time, with the previews running
+  while the tab is open even if a module is hidden.
+- Menu bar module animations polished: percent values and network rates roll
+  with a numeric transition, chart colors cross-fade when the style or load
+  band changes, and the network arrows dim while their direction is idle.
+
 ## [1.1.0] - 2026-07-03
 
 ### Added

@@ -4,6 +4,9 @@ import SwiftUI
 
 /// Creates and tears down the optional CPU/RAM/network menu bar items as the
 /// Display settings toggles change. Owns the shared detail-data monitors.
+/// At Together spacing the modules fuse into one status item; every other
+/// level keeps one independent item per module. The remaining style settings
+/// (padding, graph length, colors) apply live through the label views.
 @MainActor
 final class MenuBarModulesCoordinator {
     private let model: AppModel
@@ -13,23 +16,34 @@ final class MenuBarModulesCoordinator {
     private var cpuController: MetricStatusItemController?
     private var memoryController: MetricStatusItemController?
     private var networkController: MetricStatusItemController?
+    private var fusedController: FusedModulesStatusItemController?
     private var cancellables = Set<AnyCancellable>()
 
     init(model: AppModel) {
         self.model = model
 
-        Publishers.CombineLatest3(
+        Publishers.CombineLatest4(
             model.settings.$showsCPUModule.removeDuplicates(),
             model.settings.$showsMemoryModule.removeDuplicates(),
-            model.settings.$showsNetworkModule.removeDuplicates()
+            model.settings.$showsNetworkModule.removeDuplicates(),
+            model.settings.$moduleSpacing.map { $0 == .together }.removeDuplicates()
         )
-        .sink { [weak self] showsCPU, showsMemory, showsNetwork in
-            self?.sync(showsCPU: showsCPU, showsMemory: showsMemory, showsNetwork: showsNetwork)
+        .sink { [weak self] showsCPU, showsMemory, showsNetwork, fused in
+            self?.sync(showsCPU: showsCPU, showsMemory: showsMemory, showsNetwork: showsNetwork, fused: fused)
         }
         .store(in: &cancellables)
     }
 
-    private func sync(showsCPU: Bool, showsMemory: Bool, showsNetwork: Bool) {
+    private func sync(showsCPU: Bool, showsMemory: Bool, showsNetwork: Bool, fused: Bool) {
+        guard !fused else {
+            cpuController = nil
+            memoryController = nil
+            networkController = nil
+            syncFused(showsCPU: showsCPU, showsMemory: showsMemory, showsNetwork: showsNetwork)
+            return
+        }
+        fusedController = nil
+
         // Creation order fixes the default left-to-right order to
         // CPU · RAM · NET, always left of the fan item.
         if showsNetwork, networkController == nil {
@@ -51,6 +65,29 @@ final class MenuBarModulesCoordinator {
         }
     }
 
+    private func syncFused(showsCPU: Bool, showsMemory: Bool, showsNetwork: Bool) {
+        var modules: [SystemModuleKind] = []
+        if showsCPU { modules.append(.cpu) }
+        if showsMemory { modules.append(.memory) }
+        if showsNetwork { modules.append(.network) }
+
+        guard !modules.isEmpty else {
+            fusedController = nil
+            return
+        }
+
+        if let fusedController {
+            fusedController.setModules(modules)
+        } else {
+            fusedController = FusedModulesStatusItemController(
+                model: model,
+                processMonitor: processMonitor,
+                networkInfoMonitor: networkInfoMonitor,
+                modules: modules
+            )
+        }
+    }
+
     private func makeCPUController() -> MetricStatusItemController {
         let model = self.model
         let processMonitor = self.processMonitor
@@ -62,11 +99,8 @@ final class MenuBarModulesCoordinator {
                     AnyView(
                         PercentModuleStatusLabel(
                             stats: model.systemStats,
-                            title: "system.cpu".localized,
-                            metric: \.cpuPercent,
-                            history: \.cpuHistory,
-                            color: Theme.accent,
-                            tickSeconds: model.settings.controlTickSeconds
+                            settings: model.settings,
+                            metric: .cpu
                         )
                     )
                 },
@@ -94,11 +128,8 @@ final class MenuBarModulesCoordinator {
                     AnyView(
                         PercentModuleStatusLabel(
                             stats: model.systemStats,
-                            title: "system.memory".localized,
-                            metric: \.memoryPercent,
-                            history: \.memoryHistory,
-                            color: .indigo,
-                            tickSeconds: model.settings.controlTickSeconds
+                            settings: model.settings,
+                            metric: .memory
                         )
                     )
                 },
@@ -123,7 +154,12 @@ final class MenuBarModulesCoordinator {
                 autosaveName: "MacFan.module.network",
                 accessibilityTitle: "system.network".localized,
                 makeLabel: {
-                    AnyView(NetworkModuleStatusLabel(stats: model.systemStats))
+                    AnyView(
+                        NetworkModuleStatusLabel(
+                            stats: model.systemStats,
+                            settings: model.settings
+                        )
+                    )
                 },
                 makeDetail: {
                     AnyView(

@@ -20,6 +20,13 @@ final class AppSettingsStore: ObservableObject {
         static let showsCPUModule = "showsCPUModule"
         static let showsMemoryModule = "showsMemoryModule"
         static let showsNetworkModule = "showsNetworkModule"
+        static let moduleSpacing = "menuBarModulesSpacing"
+        static let cpuGraphWidth = "cpuModuleGraphWidth"
+        static let memoryGraphWidth = "memoryModuleGraphWidth"
+        static let cpuColorMode = "cpuModuleColorMode"
+        static let memoryColorMode = "memoryModuleColorMode"
+        static let networkColorMode = "networkModuleColorMode"
+        static let fanColorStyle = "fanColorStyle"
     }
 
     static let controlTickRange: ClosedRange<Double> = 0.5...10
@@ -90,6 +97,34 @@ final class AppSettingsStore: ObservableObject {
         didSet { defaults.set(showsNetworkModule, forKey: Key.showsNetworkModule) }
     }
 
+    @Published var moduleSpacing: ModuleSpacingLevel {
+        didSet { defaults.set(moduleSpacing.rawValue, forKey: Key.moduleSpacing) }
+    }
+
+    @Published var cpuGraphWidth: ModuleGraphWidth {
+        didSet { defaults.set(cpuGraphWidth.rawValue, forKey: Key.cpuGraphWidth) }
+    }
+
+    @Published var memoryGraphWidth: ModuleGraphWidth {
+        didSet { defaults.set(memoryGraphWidth.rawValue, forKey: Key.memoryGraphWidth) }
+    }
+
+    @Published var cpuColorMode: ModuleColorMode {
+        didSet { defaults.set(cpuColorMode.rawValue, forKey: Key.cpuColorMode) }
+    }
+
+    @Published var memoryColorMode: ModuleColorMode {
+        didSet { defaults.set(memoryColorMode.rawValue, forKey: Key.memoryColorMode) }
+    }
+
+    @Published var networkColorMode: ModuleColorMode {
+        didSet { defaults.set(networkColorMode.rawValue, forKey: Key.networkColorMode) }
+    }
+
+    @Published var fanColorStyle: FanColorStyle {
+        didSet { defaults.set(fanColorStyle.rawValue, forKey: Key.fanColorStyle) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -127,6 +162,14 @@ final class AppSettingsStore: ObservableObject {
         showsCPUModule = defaults.bool(forKey: Key.showsCPUModule)
         showsMemoryModule = defaults.bool(forKey: Key.showsMemoryModule)
         showsNetworkModule = defaults.bool(forKey: Key.showsNetworkModule)
+
+        moduleSpacing = ModuleSpacingLevel(rawValue: defaults.string(forKey: Key.moduleSpacing) ?? "") ?? .tight
+        cpuGraphWidth = ModuleGraphWidth(rawValue: defaults.string(forKey: Key.cpuGraphWidth) ?? "") ?? .medium
+        memoryGraphWidth = ModuleGraphWidth(rawValue: defaults.string(forKey: Key.memoryGraphWidth) ?? "") ?? .medium
+        cpuColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.cpuColorMode) ?? "") ?? .multicolor
+        memoryColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.memoryColorMode) ?? "") ?? .multicolor
+        networkColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.networkColorMode) ?? "") ?? .multicolor
+        fanColorStyle = FanColorStyle(rawValue: defaults.string(forKey: Key.fanColorStyle) ?? "") ?? .temperature
     }
 
     var curveCommandPoints: String {

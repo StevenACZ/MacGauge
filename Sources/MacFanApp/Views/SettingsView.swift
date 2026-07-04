@@ -41,6 +41,7 @@ struct SettingsView: View {
             )
             tabContent(
                 DisplaySettingsTab(
+                    model: model,
                     settings: settings,
                     monitor: model.monitor,
                     isActive: selectedTab == .display
