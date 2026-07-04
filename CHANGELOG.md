@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Optional menu bar modules (Settings > Display) for CPU, memory, and network,
+  each with its own compact live menu bar item — percent plus a mini scrolling
+  chart, or stacked download/upload rates — refreshed on the same tick as the
+  fan monitor and universal across Apple Silicon.
+- Module detail popovers: CPU shows usage history, chip, core layout
+  (performance + efficiency), awake-since time, and the apps using the most
+  CPU; memory shows used/available, a pressure badge, and the apps using the
+  most memory; network shows live download/upload charts, interface, local and
+  public IP (copyable), router, and session traffic totals.
+- Real RPM context while editing the fan curve: the drag bubble and the point
+  editor show the estimated RPM for each percent, a right-hand RPM axis maps
+  the percent scale to the fan's real range, and the live marker carries a
+  label with the fan's actual measured RPM as it moves.
+
+### Changed
+
+- Menu bar modules now keep a constant width: values reserve their widest
+  realistic size (three digits plus unit), so the network item no longer
+  shifts left and right as rates change between two and three digits.
+- The CPU popover shows the performance/efficiency split as one square per
+  core with a compact "8P + 4E" label, and "Awake since" as a duration with
+  the boot date on its own line — no more truncated text.
+- The fan icon now spins continuously, accelerating and coasting down with
+  the fan's real speed instead of stepping between four fixed rates.
+- Module charts start as a flat line at the current level while their history
+  builds up, instead of repeatedly climbing out of zero at the left edge.
+- The memory pressure badge reads the kernel's actual pressure level
+  (`kern.memorystatus_vm_pressure_level`) instead of inferring it from the
+  used percentage, matching Activity Monitor; the percent thresholds remain
+  as a fallback.
+- The curve chart now extends flat to both chart edges beyond the outermost
+  points, matching how targets are actually computed, so curves with few
+  points no longer look cut off.
+
 ## [1.0.1] - 2026-07-02
 
 ### Fixed

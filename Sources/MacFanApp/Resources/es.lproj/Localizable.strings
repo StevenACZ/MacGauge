@@ -59,6 +59,7 @@
 "settings.control.curve_hint" = "Arrastra los puntos · doble clic para agregar · clic derecho para eliminar";
 "settings.control.temperature" = "Temperatura";
 "settings.control.fan_speed" = "Velocidad";
+"settings.control.estimated_rpm" = "Vel. estimada";
 "curve.delete_point" = "Eliminar punto";
 
 /* Display tab */
@@ -69,6 +70,11 @@
 "settings.display.hot" = "Caliente";
 "settings.display.up_to" = "Hasta";
 "settings.display.from" = "Desde";
+"settings.display.menubar_modules" = "Módulos de la barra de menús";
+"settings.display.module_cpu" = "Uso de CPU";
+"settings.display.module_memory" = "Uso de memoria";
+"settings.display.module_network" = "Actividad de red";
+"settings.display.modules_hint" = "Cada módulo agrega su propio ícono a la barra de menús con un gráfico en vivo. Haz clic para ver detalles.";
 
 /* Safety tab */
 "settings.safety.title" = "Seguridad";
@@ -135,6 +141,37 @@
 /* Manual slider (accessibility) */
 "slider.accessibility.label" = "Objetivo manual del ventilador";
 "slider.accessibility.value" = "%d por ciento";
+
+/* System modules */
+"system.cpu" = "CPU";
+"system.memory" = "RAM";
+"system.network" = "Red";
+"module.copy" = "Copiar";
+"module.cpu.chip" = "Chip";
+"module.cpu.cores" = "Núcleos";
+"module.cpu.cores_value" = "%d (%d rendimiento + %d eficiencia)";
+"module.cpu.cores_split" = "%dP + %dE";
+"module.cpu.uptime" = "Encendido desde";
+"module.apps.cpu" = "Apps que más CPU usan";
+"module.apps.memory" = "Apps que más memoria usan";
+"module.apps.collecting" = "Midiendo…";
+"module.memory.used" = "Usada";
+"module.memory.free" = "Disponible";
+"module.memory.pressure" = "Presión";
+"module.memory.pressure.normal" = "Normal";
+"module.memory.pressure.elevated" = "Media";
+"module.memory.pressure.high" = "Alta";
+"module.memory.of_total" = "%@ de %@";
+"module.network.interface" = "Interfaz";
+"module.network.local_ip" = "IP local";
+"module.network.public_ip" = "IP pública";
+"module.network.router" = "Router";
+"module.network.session" = "Esta sesión";
+"module.network.fetch_error" = "No disponible";
+"module.network.refresh_public_ip" = "Actualizar IP pública";
+"uptime.days_hours" = "%dd %dh";
+"uptime.hours_minutes" = "%dh %dm";
+"uptime.minutes" = "%dm";
 
 /* Formatters */
 "formatter.temperature_unavailable" = "No disponible";

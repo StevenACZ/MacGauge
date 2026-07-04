@@ -78,6 +78,9 @@ private struct CurveControlSection: View {
                     targetPercent: model.effectiveCurveTargetPercent,
                     percentRange: model.manualPercentRange,
                     isEditingEnabled: !model.isWriting,
+                    animatesLiveMarker: true,
+                    estimatedRPM: { model.rpmEquivalent(for: $0) },
+                    currentRPM: monitor.snapshot.fan?.currentRPM,
                     updatePoint: { settings.updateCurvePoint($0) },
                     addPoint: { temperature, percent in
                         settings.addCurvePoint(temperatureCelsius: temperature, percent: percent)
@@ -120,6 +123,7 @@ private struct CurveControlSection: View {
                     point: binding(for: point),
                     percentRange: model.manualPercentRange,
                     canRemove: settings.curvePoints.count > 2,
+                    estimatedRPM: { model.rpmEquivalent(for: $0) },
                     remove: { settings.removeCurvePoint(id: point.id) }
                 )
             }
@@ -147,6 +151,7 @@ private struct CurvePointChip: View {
 
     let percentRange: ClosedRange<Double>
     let canRemove: Bool
+    let estimatedRPM: (Double) -> Double?
     let remove: () -> Void
 
     @State private var isEditing = false
@@ -191,6 +196,7 @@ private struct CurvePointChip: View {
                 point: $point,
                 percentRange: percentRange,
                 canRemove: canRemove,
+                estimatedRPM: estimatedRPM,
                 remove: {
                     isEditing = false
                     remove()
@@ -205,6 +211,7 @@ private struct CurvePointEditor: View {
 
     let percentRange: ClosedRange<Double>
     let canRemove: Bool
+    let estimatedRPM: (Double) -> Double?
     let remove: () -> Void
 
     var body: some View {
@@ -227,6 +234,19 @@ private struct CurvePointEditor: View {
                     .frame(width: 56)
                 Text("%")
                     .foregroundStyle(.secondary)
+            }
+
+            if let rpm = estimatedRPM(point.percent) {
+                HStack(spacing: 8) {
+                    Text("settings.control.estimated_rpm".localized)
+                        .frame(width: 92, alignment: .leading)
+                        .foregroundStyle(.secondary)
+                    Text(AppFormatters.approximateRPM(rpm))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                        .animation(.default, value: Int(rpm.rounded()))
+                }
+                .font(.callout)
             }
 
             if canRemove {

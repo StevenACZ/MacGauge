@@ -204,6 +204,8 @@ struct MenuBarPopoverView: View {
                 percentRange: model.manualPercentRange,
                 isEditingEnabled: false,
                 animatesLiveMarker: true,
+                estimatedRPM: { model.rpmEquivalent(for: $0) },
+                currentRPM: monitor.snapshot.fan?.currentRPM,
                 updatePoint: { _ in }
             )
             .frame(height: 168)

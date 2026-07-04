@@ -85,17 +85,26 @@ private let testFan = FanInfo(
     }
 }
 
-@Test func fanAnimationIntervalsFollowEffectiveRPM() {
+@Test func fanAnimationSpeedFollowsEffectiveRPM() {
     let rules = FanAnimationRules()
 
-    #expect(rules.animationInterval(currentRPM: 1_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000) == nil)
-    #expect(rules.animationInterval(currentRPM: 1_500, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000) == 2.4)
-    #expect(rules.animationInterval(currentRPM: 3_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000) == 0.45)
-    #expect(rules.animationInterval(currentRPM: 5_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000) == 0.12)
+    #expect(rules.rotationDegreesPerSecond(currentRPM: 1_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000) == nil)
+
+    let low = rules.rotationDegreesPerSecond(currentRPM: 1_500, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000)
+    let mid = rules.rotationDegreesPerSecond(currentRPM: 3_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000)
+    let high = rules.rotationDegreesPerSecond(currentRPM: 5_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000)
+
+    #expect(low != nil && mid != nil && high != nil)
+    if let low, let mid, let high {
+        #expect(low > 0)
+        #expect(low < mid)
+        #expect(mid < high)
+        #expect(high == 400)
+    }
 }
 
 @Test func fanAnimationUsesTargetRPMWhenCurrentRPMIsUnavailable() {
     let rules = FanAnimationRules()
 
-    #expect(rules.animationInterval(currentRPM: nil, targetRPM: 5_000, minRPM: 1_000, maxRPM: 5_000) == 0.12)
+    #expect(rules.rotationDegreesPerSecond(currentRPM: nil, targetRPM: 5_000, minRPM: 1_000, maxRPM: 5_000) == 400)
 }

@@ -38,6 +38,35 @@ struct DisplaySettingsTab: View {
                     colorHex: colorHexBinding(\.hotColorHex)
                 )
             }
+
+            SettingsSurface(icon: "menubar.rectangle", title: "settings.display.menubar_modules".localized) {
+                SettingsRow(title: "settings.display.module_cpu".localized) {
+                    Toggle("", isOn: $settings.showsCPUModule)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                SettingsDivider()
+
+                SettingsRow(title: "settings.display.module_memory".localized) {
+                    Toggle("", isOn: $settings.showsMemoryModule)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                SettingsDivider()
+
+                SettingsRow(title: "settings.display.module_network".localized) {
+                    Toggle("", isOn: $settings.showsNetworkModule)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                Text("settings.display.modules_hint".localized)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

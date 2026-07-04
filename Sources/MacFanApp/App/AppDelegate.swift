@@ -5,6 +5,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
     private var statusController: StatusItemController?
+    private var modulesCoordinator: MenuBarModulesCoordinator?
     private var settingsWindowController: NSWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -14,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         model.start()
         statusController = StatusItemController(model: model)
+        modulesCoordinator = MenuBarModulesCoordinator(model: model)
     }
 
     func applicationWillTerminate(_ notification: Notification) {

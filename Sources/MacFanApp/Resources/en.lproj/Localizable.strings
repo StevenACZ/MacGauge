@@ -59,6 +59,7 @@
 "settings.control.curve_hint" = "Drag points · double-click to add · right-click to delete";
 "settings.control.temperature" = "Temperature";
 "settings.control.fan_speed" = "Fan speed";
+"settings.control.estimated_rpm" = "Est. speed";
 "curve.delete_point" = "Delete point";
 
 /* Display tab */
@@ -69,6 +70,11 @@
 "settings.display.hot" = "Hot";
 "settings.display.up_to" = "Up to";
 "settings.display.from" = "From";
+"settings.display.menubar_modules" = "Menu Bar Modules";
+"settings.display.module_cpu" = "CPU usage";
+"settings.display.module_memory" = "Memory usage";
+"settings.display.module_network" = "Network activity";
+"settings.display.modules_hint" = "Each module adds its own menu bar item with a live chart. Click it for details.";
 
 /* Safety tab */
 "settings.safety.title" = "Safety";
@@ -135,6 +141,37 @@
 /* Manual slider (accessibility) */
 "slider.accessibility.label" = "Manual fan target";
 "slider.accessibility.value" = "%d percent";
+
+/* System modules */
+"system.cpu" = "CPU";
+"system.memory" = "RAM";
+"system.network" = "Network";
+"module.copy" = "Copy";
+"module.cpu.chip" = "Chip";
+"module.cpu.cores" = "Cores";
+"module.cpu.cores_value" = "%d (%d performance + %d efficiency)";
+"module.cpu.cores_split" = "%dP + %dE";
+"module.cpu.uptime" = "Awake since";
+"module.apps.cpu" = "Apps using the most CPU";
+"module.apps.memory" = "Apps using the most memory";
+"module.apps.collecting" = "Measuring...";
+"module.memory.used" = "Used";
+"module.memory.free" = "Available";
+"module.memory.pressure" = "Pressure";
+"module.memory.pressure.normal" = "Normal";
+"module.memory.pressure.elevated" = "Elevated";
+"module.memory.pressure.high" = "High";
+"module.memory.of_total" = "%@ of %@";
+"module.network.interface" = "Interface";
+"module.network.local_ip" = "Local IP";
+"module.network.public_ip" = "Public IP";
+"module.network.router" = "Router";
+"module.network.session" = "This session";
+"module.network.fetch_error" = "Unavailable";
+"module.network.refresh_public_ip" = "Refresh public IP";
+"uptime.days_hours" = "%dd %dh";
+"uptime.hours_minutes" = "%dh %dm";
+"uptime.minutes" = "%dm";
 
 /* Formatters */
 "formatter.temperature_unavailable" = "Unavailable";
