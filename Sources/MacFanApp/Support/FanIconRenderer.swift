@@ -37,6 +37,11 @@ enum FanIconRenderer {
             return image
         }
 
+        // Resolve the lazy pivot before locking focus: measuring inside a
+        // locked-focus context breaks the offscreen bitmap's user-space
+        // scaling and yields a garbage center (glyph orbits the whole canvas).
+        let pivot = glyphCenter
+
         let image = NSImage(size: canvasSize)
         image.lockFocus()
         defer { image.unlockFocus() }
@@ -50,7 +55,7 @@ enum FanIconRenderer {
         let transform = NSAffineTransform()
         transform.translateX(by: canvasSize.width / 2, yBy: canvasSize.height / 2)
         transform.rotate(byDegrees: rotation)
-        transform.translateX(by: -glyphCenter.x, yBy: -glyphCenter.y)
+        transform.translateX(by: -pivot.x, yBy: -pivot.y)
         transform.concat()
 
         if let symbol {
@@ -112,10 +117,14 @@ enum FanIconRenderer {
         else {
             return nil
         }
-        rep.size = canvasSize
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
+        // Scale user space explicitly; relying on rep.size-based scaling is
+        // fragile depending on the surrounding graphics-context state.
+        let scaleTransform = NSAffineTransform()
+        scaleTransform.scale(by: scale)
+        scaleTransform.concat()
         symbol.draw(in: symbolRect, from: .zero, operation: .sourceOver, fraction: 1)
         context.flushGraphics()
         NSGraphicsContext.restoreGraphicsState()
@@ -143,6 +152,13 @@ enum FanIconRenderer {
         // Bitmap rows run top-down while the drawing context is bottom-up.
         let centerX = CGFloat(minX + maxX + 1) / 2 / scale
         let centerY = canvasSize.height - CGFloat(minY + maxY + 1) / 2 / scale
+
+        // The optical center can only sit near the canvas center (baseline
+        // padding is ~1pt); anything farther means the measurement context
+        // was broken, and the canvas-center fallback beats a wild pivot.
+        guard abs(centerX - canvasSize.width / 2) < 3, abs(centerY - canvasSize.height / 2) < 3 else {
+            return nil
+        }
         return NSPoint(x: centerX, y: centerY)
     }
 
