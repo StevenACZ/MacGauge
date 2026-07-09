@@ -6,6 +6,7 @@ public enum HelperAction: String, Codable, Sendable {
     case automatic
     case removeLegacyHelper
     case shutdown
+    case disarmWatchdog
 }
 
 public struct HelperCommand: Codable, Sendable {
@@ -54,7 +55,7 @@ public struct HelperFanResult: Codable, Sendable {
 }
 
 public struct HelperResponse: Codable, Sendable {
-    public static let currentProtocolVersion = 4
+    public static let currentProtocolVersion = 5
 
     public var id: String
     public var ok: Bool

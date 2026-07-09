@@ -8,7 +8,13 @@ import os
 private let toolPath = "/Library/PrivilegedHelperTools/\(HelperPaths.label)"
 private let plistPath = "/Library/LaunchDaemons/\(HelperPaths.launchDaemonPlistName)"
 private let helperLog = Logger(subsystem: "com.stevenacz.MacFan", category: "helper")
-private let helperVersion = "4.0"
+private let helperVersion = "5.0"
+
+/// Awake-time seconds; unlike wall clock it never advances during sleep, so
+/// watchdog staleness only counts time the machine was actually running.
+private func uptimeNow() -> TimeInterval {
+    TimeInterval(clock_gettime_nsec_np(CLOCK_UPTIME_RAW)) / 1_000_000_000
+}
 
 @main
 struct MacFanHelper {
@@ -141,13 +147,49 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
     private let listener = NSXPCListener(machServiceName: HelperPaths.machServiceName)
     private let commandQueue = DispatchQueue(label: "\(HelperPaths.label).commands")
     private let safety = HelperCommandSafety()
+    // Guarded by commandQueue, like every SMC write.
+    private var watchdog = HelperWatchdogState(nowUptime: uptimeNow())
+    private var watchdogTimer: DispatchSourceTimer?
 
     func run() throws -> Never {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         listener.delegate = self
         listener.resume()
+        startWatchdogTimer()
         RunLoop.current.run()
         throw MacFanError("Helper listener stopped unexpectedly.")
+    }
+
+    private func startWatchdogTimer() {
+        let timer = DispatchSource.makeTimerSource(queue: commandQueue)
+        timer.schedule(
+            deadline: .now() + HelperWatchdogState.checkIntervalSeconds,
+            repeating: HelperWatchdogState.checkIntervalSeconds,
+            leeway: .seconds(5)
+        )
+        timer.setEventHandler { [weak self] in
+            self?.watchdogTick()
+        }
+        timer.resume()
+        watchdogTimer = timer
+    }
+
+    private func watchdogTick() {
+        guard watchdog.shouldRestoreAutomatic(nowUptime: uptimeNow()) else { return }
+        helperLog.warning(
+            "watchdog fired: manual control armed and no client activity for \(Int(HelperWatchdogState.silenceTimeoutSeconds), privacy: .public)s; restoring automatic"
+        )
+        let failures = restoreAllFansToAutomatic()
+        if failures.isEmpty {
+            watchdog.disarm()
+            helperLog.info("watchdog restored automatic control")
+        } else {
+            // Back off a full silence window instead of hammering the SMC
+            // every tick while a fan refuses to release.
+            watchdog.recordClientActivity(nowUptime: uptimeNow())
+            helperLog.error(
+                "watchdog restore incomplete: \(failures.joined(separator: "; "), privacy: .public)")
+        }
     }
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
@@ -182,6 +224,12 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
             helperLog.error("command failed: \(error.localizedDescription, privacy: .public)")
             reply(encode(HelperResponse(id: "unknown", ok: false, message: error.localizedDescription)))
             return
+        }
+
+        // Any authenticated command counts as client activity for the
+        // watchdog; the async hop keeps ping replies off the command queue.
+        commandQueue.async { [weak self] in
+            self?.watchdog.recordClientActivity(nowUptime: uptimeNow())
         }
 
         // Pings answer immediately so the app's health check cannot starve
@@ -252,6 +300,10 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
             guard !fans.isEmpty else {
                 throw MacFanError("This Mac reports no controllable fans.")
             }
+            // Arm before the first write: a partial failure can still leave a
+            // fan pinned manual, and a stray arm over automatic fans is a
+            // harmless no-op restore.
+            watchdog.armForManualControl(nowUptime: uptimeNow())
             helperLog.info(
                 "setPercent requested fans=\(fans.map(\.index), privacy: .public) percent=\(percent, privacy: .public)"
             )
@@ -287,11 +339,33 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
                 fans: results
             )
         case .automatic:
+            let failures = restoreAllFansToAutomatic()
+            guard failures.isEmpty else {
+                let detail = failures.joined(separator: "; ")
+                helperLog.error("automatic restore incomplete: \(detail, privacy: .public)")
+                return HelperResponse(id: command.id, ok: false, message: "Automatic restore incomplete: \(detail)")
+            }
+            watchdog.disarm()
+            helperLog.info("automatic control restored")
+            return HelperResponse(id: command.id, ok: true, message: "Automatic control restored")
+        case .disarmWatchdog:
+            watchdog.disarm()
+            helperLog.info("watchdog disarmed by client; manual control stays as-is")
+            return HelperResponse(id: command.id, ok: true, message: "Watchdog disarmed", helperVersion: helperVersion)
+        case .removeLegacyHelper:
+            let message = removeLegacyHelper()
+            helperLog.info("legacy helper cleanup: \(message, privacy: .public)")
+            return HelperResponse(id: command.id, ok: true, message: message)
+        }
+    }
+
+    // Best effort: one stuck fan must not leave the others pinned manual or
+    // skip the Ftst reset.
+    private func restoreAllFansToAutomatic() -> [String] {
+        do {
             let smc = try SMCClient()
             let controller = FanController(smc: smc)
             let fans = try controller.allFans()
-            // Best effort: one stuck fan must not leave the others pinned
-            // manual or skip the Ftst reset.
             var failures: [String] = []
             for fan in fans {
                 do {
@@ -305,17 +379,9 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
             } catch {
                 failures.append("Ftst reset: \(error.localizedDescription)")
             }
-            guard failures.isEmpty else {
-                let detail = failures.joined(separator: "; ")
-                helperLog.error("automatic restore incomplete: \(detail, privacy: .public)")
-                return HelperResponse(id: command.id, ok: false, message: "Automatic restore incomplete: \(detail)")
-            }
-            helperLog.info("automatic control restored")
-            return HelperResponse(id: command.id, ok: true, message: "Automatic control restored")
-        case .removeLegacyHelper:
-            let message = removeLegacyHelper()
-            helperLog.info("legacy helper cleanup: \(message, privacy: .public)")
-            return HelperResponse(id: command.id, ok: true, message: message)
+            return failures
+        } catch {
+            return [error.localizedDescription]
         }
     }
 

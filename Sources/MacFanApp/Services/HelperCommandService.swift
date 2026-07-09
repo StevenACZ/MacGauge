@@ -336,6 +336,14 @@ final class HelperCommandService: ObservableObject {
         return response.message
     }
 
+    /// Best-effort dead-man release for a clean quit that intentionally keeps
+    /// manual control; an old helper without the watchdog answers with an
+    /// error this deliberately ignores.
+    func disarmWatchdog() async {
+        guard isReady else { return }
+        _ = try? await sendUnchecked(.init(action: .disarmWatchdog), timeout: Self.pingTimeout)
+    }
+
     func removeLegacyHelper() async throws -> String {
         let response = try await sendReadyCommand(.init(action: .removeLegacyHelper))
         return response.message
