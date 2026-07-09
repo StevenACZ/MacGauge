@@ -3,7 +3,6 @@ import Foundation
 public enum HelperPaths {
     public static let label = "com.stevenacz.MacFan.XPCHelper"
     public static let launchDaemonPlistName = "\(label).plist"
-    public static let bundleProgram = "Contents/MacOS/MacFanHelper"
     public static let machServiceName = label
 }
 

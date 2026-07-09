@@ -138,6 +138,9 @@ public struct SMCValue {
 
 public final class SMCClient {
     private let connection: io_connect_t
+    // Key metadata is immutable per boot; callers recreate the client after
+    // failures, which naturally resets this cache.
+    private var keyInfoCache: [String: SMCKeyInfo] = [:]
 
     public init() throws {
         let stride = MemoryLayout<SMCParamStruct>.stride
@@ -168,6 +171,10 @@ public final class SMCClient {
     }
 
     public func keyInfo(_ key: String) throws -> SMCKeyInfo {
+        if let cached = keyInfoCache[key] {
+            return cached
+        }
+
         var input = SMCParamStruct()
         input.key = try fourCharCode(key)
         input.data8 = SMCCommand.readKeyInfo.rawValue
@@ -175,11 +182,13 @@ public final class SMCClient {
         let output = try call(input)
         try checkFirmwareResult(output.result, key: key)
 
-        return SMCKeyInfo(
+        let info = SMCKeyInfo(
             size: output.keyInfo.dataSize,
             typeCode: output.keyInfo.dataType,
             attributes: output.keyInfo.dataAttributes
         )
+        keyInfoCache[key] = info
+        return info
     }
 
     public func readKey(_ key: String) throws -> SMCValue {
@@ -271,7 +280,7 @@ enum SMCCodec {
             guard bytes.count >= 2 else { return nil }
             let raw = UInt16(bytes[0]) << 8 | UInt16(bytes[1])
             return Double(Int16(bitPattern: raw)) / 256.0
-        case "ui8 ":
+        case "ui8 ", "flag":
             guard let first = bytes.first else { return nil }
             return Double(first)
         case "ui16":
@@ -302,7 +311,7 @@ enum SMCCodec {
                 UInt8((raw >> 24) & 0xff),
             ]
         case "fpe2":
-            let raw = UInt16(max(0, value * 4.0).rounded())
+            let raw = UInt16(max(0, min(Double(UInt16.max), (value * 4.0).rounded())))
             return [UInt8((raw >> 8) & 0xff), UInt8(raw & 0xff)]
         case "ui8 ", "flag":
             return [UInt8(max(0, min(255, value.rounded())))]

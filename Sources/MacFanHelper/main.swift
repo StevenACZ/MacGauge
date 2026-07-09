@@ -75,10 +75,6 @@ private enum LegacyInstaller {
               <true/>
               <key>KeepAlive</key>
               <true/>
-              <key>StandardOutPath</key>
-              <string>/tmp/\(HelperPaths.label).out.log</string>
-              <key>StandardErrorPath</key>
-              <string>/tmp/\(HelperPaths.label).err.log</string>
             </dict>
             </plist>
             """
@@ -112,10 +108,21 @@ private enum LegacyInstaller {
         process.standardOutput = output
         process.standardError = error
         try process.run()
+
+        // Drain both pipes before waiting so output beyond the pipe buffer
+        // cannot deadlock waitUntilExit.
+        var errorData = Data()
+        let errorDrained = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            errorData = error.fileHandleForReading.readDataToEndOfFile()
+            errorDrained.signal()
+        }
+        let outputData = output.fileHandleForReading.readDataToEndOfFile()
+        errorDrained.wait()
         process.waitUntilExit()
 
-        let stdout = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let stderr = String(data: error.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let stdout = String(data: outputData, encoding: .utf8) ?? ""
+        let stderr = String(data: errorData, encoding: .utf8) ?? ""
         if process.terminationStatus != 0 && !allowFailure {
             throw MacFanError((stderr.isEmpty ? stdout : stderr).trimmingCharacters(in: .whitespacesAndNewlines))
         }
@@ -126,8 +133,6 @@ private enum LegacyInstaller {
 private struct ConsoleUser {
     let name: String
     let uid: uid_t
-    let gid: gid_t
-    let homeDirectory: URL
 }
 
 private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProtocol {
@@ -160,23 +165,52 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
         return true
     }
 
+    private static let maxCommandBytes = 64 * 1024
+    private static let maxCommandAge: TimeInterval = 30
+
     func runCommand(_ commandData: Data, withReply reply: @escaping (Data) -> Void) {
+        guard commandData.count <= Self.maxCommandBytes else {
+            helperLog.error("command rejected: payload of \(commandData.count, privacy: .public) bytes exceeds limit")
+            reply(encode(HelperResponse(id: "unknown", ok: false, message: "Command payload too large.")))
+            return
+        }
+
+        let command: HelperCommand
+        do {
+            command = try decoder.decode(HelperCommand.self, from: commandData)
+        } catch {
+            helperLog.error("command failed: \(error.localizedDescription, privacy: .public)")
+            reply(encode(HelperResponse(id: "unknown", ok: false, message: error.localizedDescription)))
+            return
+        }
+
+        // Pings answer immediately so the app's health check cannot starve
+        // behind a slow fan write on the serial command queue.
+        if command.action == .ping {
+            reply(encode(response(for: command)))
+            return
+        }
+
         commandQueue.async { [weak self] in
             guard let self else { return }
-            reply(self.responseData(for: commandData))
+            reply(self.encode(self.response(for: command)))
         }
     }
 
-    private func responseData(for commandData: Data) -> Data {
-        let response: HelperResponse
+    private func response(for command: HelperCommand) -> HelperResponse {
         do {
-            let command = try decoder.decode(HelperCommand.self, from: commandData)
-            response = try execute(command)
+            let age = Date().timeIntervalSince(command.createdAt)
+            if command.action != .ping, age > Self.maxCommandAge {
+                throw MacFanError("Rejected command created \(Int(age))s ago; too old to run safely.")
+            }
+            return try execute(command)
         } catch {
             helperLog.error("command failed: \(error.localizedDescription, privacy: .public)")
-            response = HelperResponse(id: "unknown", ok: false, message: error.localizedDescription)
+            return HelperResponse(id: command.id, ok: false, message: error.localizedDescription)
         }
+    }
 
+    private func encode(_ response: HelperResponse) -> Data {
         do {
             return try encoder.encode(response)
         } catch {
@@ -192,7 +226,9 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
             return HelperResponse(id: command.id, ok: true, message: "helper ready", helperVersion: helperVersion)
         case .shutdown:
             helperLog.info("shutdown requested; exiting so launchd relaunches the current binary")
-            DispatchQueue.global().asyncAfter(deadline: .now() + 0.2) {
+            // Exiting via the serial command queue lets in-flight commands
+            // finish; the short delay lets this reply flush first.
+            commandQueue.asyncAfter(deadline: .now() + 0.2) {
                 exit(0)
             }
             return HelperResponse(id: command.id, ok: true, message: "Helper exiting for reload", helperVersion: helperVersion)
@@ -254,10 +290,26 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
             let smc = try SMCClient()
             let controller = FanController(smc: smc)
             let fans = try controller.allFans()
+            // Best effort: one stuck fan must not leave the others pinned
+            // manual or skip the Ftst reset.
+            var failures: [String] = []
             for fan in fans {
-                try controller.returnToAutomatic(index: fan.index)
+                do {
+                    try controller.returnToAutomatic(index: fan.index)
+                } catch {
+                    failures.append("fan \(fan.index): \(error.localizedDescription)")
+                }
             }
-            try controller.resetForceTestIfAvailable()
+            do {
+                try controller.resetForceTestIfAvailable()
+            } catch {
+                failures.append("Ftst reset: \(error.localizedDescription)")
+            }
+            guard failures.isEmpty else {
+                let detail = failures.joined(separator: "; ")
+                helperLog.error("automatic restore incomplete: \(detail, privacy: .public)")
+                return HelperResponse(id: command.id, ok: false, message: "Automatic restore incomplete: \(detail)")
+            }
             helperLog.info("automatic control restored")
             return HelperResponse(id: command.id, ok: true, message: "Automatic control restored")
         case .removeLegacyHelper:
@@ -322,11 +374,10 @@ private final class Daemon: NSObject, NSXPCListenerDelegate, MacFanHelperXPCProt
         var gid: gid_t = 0
         guard let user = SCDynamicStoreCopyConsoleUser(nil, &uid, &gid) as String?,
             user != "loginwindow",
-            !user.isEmpty,
-            let home = FileManager.default.homeDirectory(forUser: user)
+            !user.isEmpty
         else {
             return nil
         }
-        return ConsoleUser(name: user, uid: uid, gid: gid, homeDirectory: home)
+        return ConsoleUser(name: user, uid: uid)
     }
 }

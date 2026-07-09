@@ -44,6 +44,12 @@ private let rules = HelperHealthRules()
             == .waitForNextTick)
 }
 
+@Test func transientPingFailureWaitsEvenDuringRepairCooldown() {
+    #expect(
+        rules.decision(status: .enabled, ping: .failed, consecutivePingFailures: 1, canRepair: false)
+            == .waitForNextTick)
+}
+
 @Test func persistentPingFailureReregistersWhenRepairAllowed() {
     #expect(
         rules.decision(

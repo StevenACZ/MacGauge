@@ -10,6 +10,9 @@ public final class TemperatureReader {
     private let smc: SMCClient
 
     private let knownTemperatureKeys = TemperatureEstimator.preferredThermalMassKeys
+    // The key list is immutable per boot; enumerating it costs hundreds of
+    // kernel calls, so discover once and reuse across polls.
+    private var discoveredTemperatureKeys: [String]?
 
     public init(smc: SMCClient) {
         self.smc = smc
@@ -17,8 +20,11 @@ public final class TemperatureReader {
 
     public func readings(includeAll: Bool) throws -> [TemperatureReading] {
         let direct = knownTemperatureKeys.compactMap { try? readTemperature(key: $0) }
-        guard includeAll else {
-            return TemperatureEstimator.representativeReadings(from: direct)
+        if !includeAll {
+            let preferred = TemperatureEstimator.representativeReadings(from: direct)
+            if !preferred.isEmpty {
+                return preferred
+            }
         }
 
         let discovered = try discoveredReadings()
@@ -39,9 +45,14 @@ public final class TemperatureReader {
     }
 
     private func discoveredReadings() throws -> [TemperatureReading] {
-        try smc.enumerateKeys()
-            .filter { $0.hasPrefix("T") }
-            .compactMap { try? readTemperature(key: $0) }
+        let keys: [String]
+        if let discoveredTemperatureKeys {
+            keys = discoveredTemperatureKeys
+        } else {
+            keys = try smc.enumerateKeys().filter { $0.hasPrefix("T") }
+            discoveredTemperatureKeys = keys
+        }
+        return keys.compactMap { try? readTemperature(key: $0) }
     }
 
     private func representativeCandidates(from readings: [TemperatureReading]) -> [TemperatureReading] {
