@@ -22,9 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // before any queued async work (or an XPC round-trip) gets to run, so the
     // quit-time restore must gate termination itself.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard model.needsRestoreOnQuit else { return .terminateNow }
+        guard model.needsHelperCoordinationOnQuit else { return .terminateNow }
         Task {
-            await model.restoreAutomaticForQuit()
+            await model.coordinateHelperForQuit()
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater

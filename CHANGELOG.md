@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- The privileged helper now carries a dead-man watchdog: if the app stops
+  responding (a crash, a force quit) while fans are under manual or curve
+  control, the helper hands control back to macOS after three minutes of
+  silence instead of leaving fans pinned at the last target until the next
+  launch. Quitting normally with "restore automatic on quit" disabled keeps
+  manual control exactly as before — the app explicitly releases the
+  watchdog on a clean exit. Time asleep never counts toward the silence
+  window. Helper protocol bumped to v5; the app upgrades an older running
+  helper automatically.
+
 ## [1.3.0] - 2026-07-09
 
 ### Fixed

@@ -221,19 +221,26 @@ final class AppModel: ObservableObject {
         NSApp.terminate(nil)
     }
 
-    var needsRestoreOnQuit: Bool {
-        settings.restoreAutomaticOnQuit && didRunLiveControl && helperReady
+    var needsHelperCoordinationOnQuit: Bool {
+        didRunLiveControl && helperReady
     }
 
-    /// Runs the quit-time restore with a hard bound so a hung helper can
-    /// never block app termination.
-    func restoreAutomaticForQuit(timeoutSeconds: Double = 2) async {
+    /// Runs the quit-time helper handshake — restore automatic, or only
+    /// disarm the helper's dead-man watchdog when the user keeps manual
+    /// control on quit — with a hard bound so a hung helper can never block
+    /// app termination.
+    func coordinateHelperForQuit(timeoutSeconds: Double = 2) async {
         stopCurveRun()
         manualApplyTask?.cancel()
         let service = helperService
+        let restoresAutomatic = settings.restoreAutomaticOnQuit
         await withTaskGroup(of: Void.self) { group in
             group.addTask { @MainActor in
-                _ = try? await service.restoreAutomatic()
+                if restoresAutomatic {
+                    _ = try? await service.restoreAutomatic()
+                } else {
+                    await service.disarmWatchdog()
+                }
             }
             group.addTask {
                 try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
