@@ -26,14 +26,6 @@ struct ParsedArguments {
         flags.contains(name)
     }
 
-    func int(_ name: String, default defaultValue: Int) throws -> Int {
-        guard let raw = value(name) else { return defaultValue }
-        guard let parsed = Int(raw) else {
-            throw CLIError("Invalid integer for --\(name): \(raw)")
-        }
-        return parsed
-    }
-
     func double(_ name: String) throws -> Double? {
         guard let raw = value(name) else { return nil }
         guard let parsed = Double(raw) else {
@@ -51,6 +43,10 @@ struct CLI {
     }
 
     func run() throws {
+        if parsed.has("help") {
+            printHelp()
+            return
+        }
         switch parsed.command {
         case "help", "--help", "-h":
             printHelp()
@@ -72,6 +68,20 @@ struct CLI {
             throw CLIError("Unknown command '\(parsed.command)'. Run macfan help.", exitCode: 2)
         }
     }
+
+    private static let allowedOptionNames: [String: Set<String>] = [
+        "help": [], "--help": [], "-h": [],
+        "status": [],
+        "fans": [],
+        "temps": ["all"],
+        "set": ["fan", "rpm", "percent", "live", "i-understand", "allow-dangerous", "allow-zero"],
+        "auto": ["fan", "live", "i-understand", "keep-ftst"],
+        "curve": [
+            "points", "interval", "duration", "fan", "once", "live", "i-understand",
+            "allow-dangerous", "allow-zero", "no-restore-auto",
+        ],
+        "doctor": [],
+    ]
 
     private static func parse(_ arguments: [String]) throws -> ParsedArguments {
         var command = "status"
@@ -98,6 +108,15 @@ struct CLI {
             } else {
                 flags.insert(name)
                 index += 1
+            }
+        }
+
+        if let allowed = allowedOptionNames[command] {
+            // --help is always accepted and handled in run().
+            let unknown = Set(options.keys).union(flags).subtracting(allowed).subtracting(["help"]).sorted()
+            guard unknown.isEmpty else {
+                let listed = unknown.map { "--\($0)" }.joined(separator: ", ")
+                throw CLIError("Unknown option(s) for '\(command)': \(listed). Run macfan help.", exitCode: 2)
             }
         }
 
@@ -214,11 +233,25 @@ struct CLI {
         }
 
         try requireLivePermission()
+        // Best effort: one stuck fan must not leave the others pinned manual
+        // or skip the Ftst reset.
+        var failures: [String] = []
         for fan in fanIndexes {
-            try controller.returnToAutomatic(index: fan)
+            do {
+                try controller.returnToAutomatic(index: fan)
+            } catch {
+                failures.append("fan \(fan): \(error.localizedDescription)")
+            }
         }
         if !parsed.has("keep-ftst") {
-            try controller.resetForceTestIfAvailable()
+            do {
+                try controller.resetForceTestIfAvailable()
+            } catch {
+                failures.append("Ftst reset: \(error.localizedDescription)")
+            }
+        }
+        guard failures.isEmpty else {
+            throw CLIError("Automatic restore incomplete: \(failures.joined(separator: "; "))")
         }
         stdoutLine("Returned fan(s) \(fanIndexes.map(String.init).joined(separator: ", ")) to automatic control.")
     }
@@ -256,11 +289,26 @@ struct CLI {
         var wroteLive = false
         defer {
             if live, wroteLive, !parsed.has("no-restore-auto") {
+                var failures: [String] = []
                 for fan in fans {
-                    try? controller.returnToAutomatic(index: fan.index)
+                    do {
+                        try controller.returnToAutomatic(index: fan.index)
+                    } catch {
+                        failures.append("fan \(fan.index)")
+                    }
                 }
-                try? controller.resetForceTestIfAvailable()
-                stderrLine("restored fan(s) \(fans.map { String($0.index) }.joined(separator: ", ")) to automatic control")
+                do {
+                    try controller.resetForceTestIfAvailable()
+                } catch {
+                    failures.append("Ftst reset")
+                }
+                if failures.isEmpty {
+                    stderrLine("restored fan(s) \(fans.map { String($0.index) }.joined(separator: ", ")) to automatic control")
+                } else {
+                    stderrLine(
+                        "WARNING: automatic restore failed for \(failures.joined(separator: ", ")); run 'sudo macfan auto --live --i-understand'"
+                    )
+                }
             }
         }
 
@@ -287,8 +335,18 @@ struct CLI {
 
             if once { break }
             if let duration, Date().timeIntervalSince(start) >= duration { break }
-            Thread.sleep(forTimeInterval: max(1, interval))
+            sleepUnlessStopped(seconds: max(1, interval))
         } while !StopFlag.shouldStop
+    }
+
+    // Sleeps in short chunks so Ctrl-C interrupts long curve intervals fast.
+    private func sleepUnlessStopped(seconds: Double) {
+        let deadline = Date().addingTimeInterval(seconds)
+        while !StopFlag.shouldStop {
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 0 else { return }
+            Thread.sleep(forTimeInterval: min(0.25, remaining))
+        }
     }
 
     private func doctor() throws {
@@ -343,6 +401,8 @@ struct CLI {
         throw CLIError("Provide --rpm N or --percent N.")
     }
 
+    // Maps the shared HelperCommandSafety policy onto CLI flags and richer
+    // error text; curve targets get no extra leniency over direct ones.
     private func validateTarget(_ rpm: Double, fan: FanInfo, percent: Double? = nil, fromCurve: Bool = false) throws {
         guard rpm.isFinite, rpm >= 0 else {
             throw CLIError("Target RPM must be a finite value >= 0.")
@@ -353,12 +413,14 @@ struct CLI {
                 "0 RPM is dangerous. Add --allow-zero --allow-dangerous only for deliberate, supervised zero-RPM testing.")
         }
 
-        let belowRecommended = fan.minRPM.map { rpm < $0 } ?? false
-        let aboveRecommended = fan.maxRPM.map { rpm > $0 } ?? false
-        let percentDanger = percent.map { $0 <= 10 || $0 >= 95 } ?? false
-        let curveDanger = fromCurve && (belowRecommended || aboveRecommended || percentDanger)
-
-        if (belowRecommended || aboveRecommended || percentDanger || curveDanger) && !parsed.has("allow-dangerous") {
+        let safety = HelperCommandSafety()
+        let allowDangerous = parsed.has("allow-dangerous")
+        do {
+            if let percent {
+                try safety.validate(percent: percent, allowDangerous: allowDangerous, allowZero: parsed.has("allow-zero"))
+            }
+            try safety.validate(rpm: rpm, fan: fan, percent: percent ?? 0, allowDangerous: allowDangerous)
+        } catch {
             let minText = formatRPM(fan.minRPM)
             let maxText = formatRPM(fan.maxRPM)
             throw CLIError(

@@ -28,49 +28,58 @@ final class MenuBarModulesCoordinator {
             model.settings.$showsNetworkModule.removeDuplicates(),
             model.settings.$moduleSpacing.map { $0 == .together }.removeDuplicates()
         )
-        .sink { [weak self] showsCPU, showsMemory, showsNetwork, fused in
-            self?.sync(showsCPU: showsCPU, showsMemory: showsMemory, showsNetwork: showsNetwork, fused: fused)
+        .sink { [weak self] _ in
+            // @Published emits on willSet; hop one runloop turn so sync reads
+            // the committed toggle and spacing values from the store.
+            DispatchQueue.main.async {
+                self?.sync()
+            }
         }
         .store(in: &cancellables)
+
+        // The animated flag is captured when a detail view is built; rebuild
+        // live so a Reduce Motion change reaches labels and open popovers.
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification)
+            .sink { [weak self] _ in
+                self?.rebuildModuleViews()
+            }
+            .store(in: &cancellables)
     }
 
-    private func sync(showsCPU: Bool, showsMemory: Bool, showsNetwork: Bool, fused: Bool) {
-        guard !fused else {
+    private func sync() {
+        let modules = model.settings.enabledModules
+        guard model.settings.moduleSpacing != .together else {
             cpuController = nil
             memoryController = nil
             networkController = nil
-            syncFused(showsCPU: showsCPU, showsMemory: showsMemory, showsNetwork: showsNetwork)
+            syncFused(modules: modules)
             return
         }
         fusedController = nil
 
         // Creation order fixes the default left-to-right order to
         // CPU · RAM · NET, always left of the fan item.
-        if showsNetwork, networkController == nil {
+        if modules.contains(.network), networkController == nil {
             networkController = makeNetworkController()
-        } else if !showsNetwork {
+        } else if !modules.contains(.network) {
             networkController = nil
         }
 
-        if showsMemory, memoryController == nil {
+        if modules.contains(.memory), memoryController == nil {
             memoryController = makeMemoryController()
-        } else if !showsMemory {
+        } else if !modules.contains(.memory) {
             memoryController = nil
         }
 
-        if showsCPU, cpuController == nil {
+        if modules.contains(.cpu), cpuController == nil {
             cpuController = makeCPUController()
-        } else if !showsCPU {
+        } else if !modules.contains(.cpu) {
             cpuController = nil
         }
     }
 
-    private func syncFused(showsCPU: Bool, showsMemory: Bool, showsNetwork: Bool) {
-        var modules: [SystemModuleKind] = []
-        if showsCPU { modules.append(.cpu) }
-        if showsMemory { modules.append(.memory) }
-        if showsNetwork { modules.append(.network) }
-
+    private func syncFused(modules: [SystemModuleKind]) {
         guard !modules.isEmpty else {
             fusedController = nil
             return
@@ -81,20 +90,69 @@ final class MenuBarModulesCoordinator {
         } else {
             fusedController = FusedModulesStatusItemController(
                 model: model,
-                processMonitor: processMonitor,
                 networkInfoMonitor: networkInfoMonitor,
-                modules: modules
+                modules: modules,
+                makeDetail: { [weak self] module in
+                    self?.makeDetailContent(for: module) ?? AnyView(EmptyView())
+                }
+            )
+        }
+    }
+
+    private func rebuildModuleViews() {
+        cpuController?.rebuildViews()
+        memoryController?.rebuildViews()
+        networkController?.rebuildViews()
+        fusedController?.rebuildViews()
+    }
+
+    /// Single construction point for the module detail popovers, shared by
+    /// the split items and the fused item.
+    private func makeDetailContent(for kind: SystemModuleKind) -> AnyView {
+        // Reduce Motion gates continuous chart motion like Efficient mode.
+        let animated =
+            model.settings.performanceMode == .full
+            && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        switch kind {
+        case .cpu:
+            return AnyView(
+                CPUModuleDetailView(
+                    stats: model.systemStats,
+                    processes: processMonitor,
+                    settings: model.settings,
+                    tickSeconds: model.settings.controlTickSeconds,
+                    animated: animated
+                )
+            )
+        case .memory:
+            return AnyView(
+                MemoryModuleDetailView(
+                    stats: model.systemStats,
+                    processes: processMonitor,
+                    settings: model.settings,
+                    tickSeconds: model.settings.controlTickSeconds,
+                    animated: animated
+                )
+            )
+        case .network:
+            return AnyView(
+                NetworkModuleDetailView(
+                    stats: model.systemStats,
+                    info: networkInfoMonitor,
+                    settings: model.settings,
+                    tickSeconds: model.settings.controlTickSeconds,
+                    animated: animated
+                )
             )
         }
     }
 
     private func makeCPUController() -> MetricStatusItemController {
         let model = self.model
-        let processMonitor = self.processMonitor
         return MetricStatusItemController(
             configuration: .init(
                 autosaveName: "MacFan.module.cpu",
-                accessibilityTitle: "system.cpu".localized,
+                makeAccessibilityTitle: { "system.cpu".localized },
                 makeLabel: {
                     AnyView(
                         PercentModuleStatusLabel(
@@ -104,16 +162,8 @@ final class MenuBarModulesCoordinator {
                         )
                     )
                 },
-                makeDetail: {
-                    AnyView(
-                        CPUModuleDetailView(
-                            stats: model.systemStats,
-                            processes: processMonitor,
-                            settings: model.settings,
-                            tickSeconds: model.settings.controlTickSeconds,
-                            animated: model.settings.performanceMode == .full
-                        )
-                    )
+                makeDetail: { [weak self] in
+                    self?.makeDetailContent(for: .cpu) ?? AnyView(EmptyView())
                 }
             )
         )
@@ -121,11 +171,10 @@ final class MenuBarModulesCoordinator {
 
     private func makeMemoryController() -> MetricStatusItemController {
         let model = self.model
-        let processMonitor = self.processMonitor
         return MetricStatusItemController(
             configuration: .init(
                 autosaveName: "MacFan.module.memory",
-                accessibilityTitle: "system.memory".localized,
+                makeAccessibilityTitle: { "system.memory".localized },
                 makeLabel: {
                     AnyView(
                         PercentModuleStatusLabel(
@@ -135,16 +184,8 @@ final class MenuBarModulesCoordinator {
                         )
                     )
                 },
-                makeDetail: {
-                    AnyView(
-                        MemoryModuleDetailView(
-                            stats: model.systemStats,
-                            processes: processMonitor,
-                            settings: model.settings,
-                            tickSeconds: model.settings.controlTickSeconds,
-                            animated: model.settings.performanceMode == .full
-                        )
-                    )
+                makeDetail: { [weak self] in
+                    self?.makeDetailContent(for: .memory) ?? AnyView(EmptyView())
                 }
             )
         )
@@ -156,7 +197,7 @@ final class MenuBarModulesCoordinator {
         return MetricStatusItemController(
             configuration: .init(
                 autosaveName: "MacFan.module.network",
-                accessibilityTitle: "system.network".localized,
+                makeAccessibilityTitle: { "system.network".localized },
                 makeLabel: {
                     AnyView(
                         NetworkModuleStatusLabel(
@@ -165,16 +206,8 @@ final class MenuBarModulesCoordinator {
                         )
                     )
                 },
-                makeDetail: {
-                    AnyView(
-                        NetworkModuleDetailView(
-                            stats: model.systemStats,
-                            info: networkInfoMonitor,
-                            settings: model.settings,
-                            tickSeconds: model.settings.controlTickSeconds,
-                            animated: model.settings.performanceMode == .full
-                        )
-                    )
+                makeDetail: { [weak self] in
+                    self?.makeDetailContent(for: .network) ?? AnyView(EmptyView())
                 },
                 onPopoverOpen: {
                     networkInfoMonitor.refresh()

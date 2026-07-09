@@ -12,7 +12,6 @@
 .build/
 .swiftpm/
 Packages/
-Package.resolved
 
 # Xcode build output and user state
 build/

@@ -19,9 +19,5 @@
   <true/>
   <key>KeepAlive</key>
   <true/>
-  <key>StandardOutPath</key>
-  <string>/tmp/com.stevenacz.MacFan.XPCHelper.out.log</string>
-  <key>StandardErrorPath</key>
-  <string>/tmp/com.stevenacz.MacFan.XPCHelper.err.log</string>
 </dict>
 </plist>

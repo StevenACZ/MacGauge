@@ -35,7 +35,8 @@ struct SettingsView: View {
                     model: model,
                     settings: settings,
                     monitor: model.monitor,
-                    helperService: helperService
+                    helperService: helperService,
+                    isActive: selectedTab == .control
                 ),
                 tab: .control
             )
@@ -51,7 +52,8 @@ struct SettingsView: View {
                 SafetySettingsTab(
                     model: model,
                     settings: settings,
-                    helperService: helperService
+                    helperService: helperService,
+                    isActive: selectedTab == .safety
                 ),
                 tab: .safety
             )
@@ -72,6 +74,7 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .fixedSize()
+                .accessibilityLabel("popover.settings".localized)
             }
 
             ToolbarItem(placement: .confirmationAction) {

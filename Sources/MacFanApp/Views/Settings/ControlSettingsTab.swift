@@ -6,6 +6,10 @@ struct ControlSettingsTab: View {
     @ObservedObject var monitor: FanMonitor
     @ObservedObject var helperService: HelperCommandService
 
+    /// False while another tab is selected so the live curve marker stops
+    /// animating behind the hidden tab.
+    let isActive: Bool
+
     var body: some View {
         SettingsPane {
             SettingsSurface(icon: "fanblades", title: "settings.control.title".localized) {
@@ -32,7 +36,8 @@ struct ControlSettingsTab: View {
                     model: model,
                     settings: settings,
                     monitor: monitor,
-                    helperService: helperService
+                    helperService: helperService,
+                    isActive: isActive
                 )
             }
         }
@@ -68,6 +73,7 @@ private struct CurveControlSection: View {
     @ObservedObject var settings: AppSettingsStore
     @ObservedObject var monitor: FanMonitor
     @ObservedObject var helperService: HelperCommandService
+    let isActive: Bool
 
     var body: some View {
         SettingsSurface(icon: "point.3.connected.trianglepath.dotted", title: "settings.control.fan_curve".localized) {
@@ -78,7 +84,7 @@ private struct CurveControlSection: View {
                     targetPercent: model.effectiveCurveTargetPercent,
                     percentRange: model.manualPercentRange,
                     isEditingEnabled: !model.isWriting,
-                    animatesLiveMarker: true,
+                    animatesLiveMarker: isActive,
                     estimatedRPM: { model.rpmEquivalent(for: $0) },
                     currentRPM: monitor.snapshot.fan?.currentRPM,
                     updatePoint: { settings.updateCurvePoint($0) },
@@ -166,16 +172,10 @@ private struct CurvePointChip: View {
                 .monospacedDigit()
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: Theme.Layout.badgeRadius, style: .continuous)
-                        .fill(isHovered || isEditing ? Theme.accent.opacity(0.16) : Theme.Layout.cardFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.Layout.badgeRadius, style: .continuous)
-                                .strokeBorder(
-                                    isHovered || isEditing ? Theme.accent.opacity(0.4) : Theme.Layout.cardStroke,
-                                    lineWidth: 1
-                                )
-                        )
+                .cardChrome(
+                    radius: Theme.Layout.badgeRadius,
+                    fill: isHovered || isEditing ? Theme.accent.opacity(0.16) : Theme.Layout.cardFill,
+                    stroke: isHovered || isEditing ? Theme.accent.opacity(0.4) : Theme.Layout.cardStroke
                 )
                 .contentShape(RoundedRectangle(cornerRadius: Theme.Layout.badgeRadius, style: .continuous))
         }
@@ -244,7 +244,7 @@ private struct CurvePointEditor: View {
                     Text(AppFormatters.approximateRPM(rpm))
                         .monospacedDigit()
                         .contentTransition(.numericText())
-                        .animation(.default, value: Int(rpm.rounded()))
+                        .animation(Theme.Anim.value, value: Int(rpm.rounded()))
                 }
                 .font(.callout)
             }

@@ -13,7 +13,7 @@ For the menu bar app bundle:
 
 ```bash
 make stage
-./script/build_and_run.sh run
+./scripts/build_and_run.sh run
 ```
 
 ## Workflow

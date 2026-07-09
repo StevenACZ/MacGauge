@@ -10,6 +10,9 @@ public struct FanCurve {
 
         let sorted = points.sorted { $0.0 < $1.0 }
         for point in sorted {
+            guard point.0.isFinite, point.1.isFinite else {
+                throw MacFanError("Curve points must be finite numbers.")
+            }
             guard point.1 >= 0, point.1 <= 100 else {
                 throw MacFanError("Curve percent \(point.1) is outside 0...100.")
             }
@@ -46,8 +49,8 @@ public struct FanCurve {
         let points = try source.split(separator: ",").map { item -> (Double, Double) in
             let pieces = item.split(separator: ":")
             guard pieces.count == 2,
-                let temperature = Double(pieces[0]),
-                let percent = Double(pieces[1])
+                let temperature = Double(pieces[0].trimmingCharacters(in: .whitespaces)),
+                let percent = Double(pieces[1].trimmingCharacters(in: .whitespaces))
             else {
                 throw MacFanError("Invalid curve point '\(item)'. Use temp:percent, for example 40:40,60:50.")
             }

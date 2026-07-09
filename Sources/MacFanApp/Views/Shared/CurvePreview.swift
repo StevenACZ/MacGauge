@@ -156,7 +156,7 @@ struct CurvePreview: View {
                     }
                 }
             }
-            .animation(animatesLiveMarker ? .easeOut(duration: 0.28) : nil, value: liveMarkerAnimationKey)
+            .animation(animatesLiveMarker ? Theme.Anim.liveMarker : nil, value: liveMarkerAnimationKey)
             .transaction { transaction in
                 if !animatesLiveMarker {
                     transaction.animation = nil

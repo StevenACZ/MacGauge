@@ -15,8 +15,9 @@ help:
 	@printf "  make lint-all      Check all Swift sources explicitly\n"
 	@printf "  make build         Build SwiftPM release binaries\n"
 	@printf "  make test          Run SwiftPM tests\n"
-	@printf "  make stage         Stage the menu bar app bundle via script/build_and_run.sh\n"
+	@printf "  make stage         Stage the menu bar app bundle via scripts/build_and_run.sh\n"
 	@printf "  make install-dev   Install signed app bundle to ~/Applications\n"
+	@printf "  make notarized-dmg Build, notarize, and staple the release DMG\n"
 	@printf "  make ci-check      Local gate: lint + build + test\n"
 	@printf "  make hooks-install Install optional Lefthook git hooks\n"
 
@@ -48,7 +49,7 @@ test:
 	swift test
 
 stage:
-	./script/build_and_run.sh stage
+	./scripts/build_and_run.sh stage
 
 install-dev:
 	@chmod +x scripts/install_dev.sh

@@ -176,8 +176,6 @@
 "status.applying" = "Applying...";
 "status.apply_queued" = "Apply queued";
 "status.applying_after_slider" = "Applying after slider settles...";
-"status.manual_applied" = "Manual target applied";
-"status.curve_applied" = "Curve target applied";
 "status.login_enabled" = "Start at login enabled";
 "status.login_disabled" = "Start at login disabled";
 "status.login_failed" = "Login item failed: %@";

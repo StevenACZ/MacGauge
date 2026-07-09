@@ -4,6 +4,77 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - 2026-07-09
+
+### Fixed
+
+- Restore automatic on quit now actually runs: the restore used to be
+  scheduled while the process was already exiting, so fans stayed pinned at
+  the last manual or curve target after quitting. Termination now waits
+  (bounded to two seconds) for the helper to hand control back to macOS.
+- Fan control no longer misses the moment the helper becomes ready: launching
+  with a saved curve, or authorizing the helper in manual mode, could leave
+  the control loop stopped until the temperature drifted enough. The app now
+  acts on the committed helper state.
+- Menu bar appearance changes (temperature unit, band colors, color styles,
+  fan animation toggle) apply immediately instead of waiting for the next
+  meaningful sensor change.
+- The helper's own health check can no longer kill it mid-write: pings answer
+  instantly even while a slow fan-mode unlock is running, and helper restarts
+  now wait for in-flight commands to finish.
+- Restoring automatic control is best-effort per fan everywhere (app, helper,
+  CLI): one stuck fan no longer leaves the others pinned manual or skips the
+  force-test reset, and failures are reported honestly.
+- A failed target write rolls the fan back to automatic instead of leaving it
+  pinned manual with a stale target.
+- Fan writes report "contested" from the target readback instead of the
+  instantaneous RPM, so a large legitimate speed change no longer flashes a
+  false conflict warning.
+- Network rates survive 4 GiB counter wraps: interface statistics now come
+  from 64-bit counters, so sustained fast transfers no longer freeze the menu
+  bar rate or lose session totals.
+- The network popover's public IP refreshes after switching networks or VPN
+  instead of staying stale; IPv6-only networks now show interface, router,
+  and local address.
+- Curve points must be finite numbers (a crafted curve string could silently
+  drive fans to 100%), and CLI curve strings tolerate spaces around values.
+- Fan RPM encoding clamps out-of-range values instead of crashing when
+  dangerous ranges are unlocked.
+- Fanless Macs read as zero fans again instead of an SMC error that also hid
+  the temperature readout, and a corrupt fan count can no longer hang polling.
+- The SwiftUI Settings scene now forwards to the real settings window, so it
+  can never open an unpinned duplicate.
+- Top-process sampling for the CPU and RAM popovers runs off the main thread.
+- macOS Reduce Motion is honored: the fan spin, sliding charts, and settings
+  animations go still while it is on, and the spin also pauses while the
+  display sleeps.
+- The Safety tab refreshes helper status when switching to it, not only when
+  the settings window opens.
+- CLI: unknown flags error out instead of being silently accepted, and Ctrl-C
+  interrupts long curve intervals promptly.
+
+### Changed
+
+- Settings controls that used the system accent color now use the app accent,
+  so the window no longer mixes two accents on Macs with a custom system
+  accent.
+- The fan popover's status banner can wrap to three lines so longer helper
+  messages stay readable in Spanish.
+- The manual slider is keyboard-operable (focusable, arrow keys), color
+  swatches expose their selected state, and symbol-only buttons carry
+  accessibility labels.
+- Internal restructure with no visual changes: the Display settings pane
+  split into focused section files, repeated UI extracted into shared
+  components, views organized into Popover/Shared/Settings folders, and the
+  pure fan-range and curve-editor math moved into MacFanCore under tests.
+- `script/build_and_run.sh` moved to `scripts/` with the rest of the tooling.
+
+### Security
+
+- The privileged helper no longer writes logs to predictable /tmp paths,
+  rejects oversized command payloads, and refuses queued commands older than
+  30 seconds (for example commands stranded across a sleep).
+
 ## [1.2.0] - 2026-07-04
 
 ### Added

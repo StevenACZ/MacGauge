@@ -72,6 +72,15 @@ import Testing
     #expect(decoded.fans?[0].targetRPM == 2000)
 }
 
+@Test func helperCommandDecodesLegacyPayloadWithoutFanIndexesOrPercent() throws {
+    let json = #"{"id":"a","action":"automatic","allowDangerous":false,"allowZero":false,"createdAt":0}"#
+        .data(using: .utf8)!
+    let command = try JSONDecoder().decode(HelperCommand.self, from: json)
+    #expect(command.action == .automatic)
+    #expect(command.fanIndexes == nil)
+    #expect(command.percent == nil)
+}
+
 @Test func legacyDaemonWouldRejectUnknownAction() throws {
     // A protocol-2 daemon fails to decode actions it does not know, replying
     // ok=false; the app treats that as "shutdown unsupported" and re-registers.

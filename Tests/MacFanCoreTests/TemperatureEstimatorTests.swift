@@ -70,3 +70,23 @@ import Testing
 
     #expect(abs((smoother.update(with: 40) ?? 0) - 68.6) < 0.001)
 }
+
+@Test func temperatureSmootherIgnoresMissingAndNonFiniteReadings() {
+    var smoother = TemperatureSmoother(initial: 60)
+
+    #expect(smoother.update(with: nil) == nil)
+    #expect(smoother.update(with: .nan) == nil)
+    #expect(smoother.update(with: .infinity) == nil)
+    // Dropped samples must not disturb the smoothed state.
+    #expect(smoother.update(with: 60) == 60)
+}
+
+@Test func temperatureSmootherResetRestartsFromNextReading() {
+    var smoother = TemperatureSmoother(initial: 60)
+
+    smoother.reset()
+    #expect(smoother.update(with: 90) == 90)
+
+    smoother.reset(to: 40)
+    #expect(abs((smoother.update(with: 90) ?? 0) - 42.25) < 0.001)
+}

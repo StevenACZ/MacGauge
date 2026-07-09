@@ -247,10 +247,26 @@ private final class SystemLoadSampler: @unchecked Sendable {
             let name = String(cString: interface.ifa_name)
             guard !name.hasPrefix("awdl"), !name.hasPrefix("llw") else { continue }
 
-            guard let data = interface.ifa_data?.assumingMemoryBound(to: if_data.self) else { continue }
-            received &+= UInt64(data.pointee.ifi_ibytes)
-            sent &+= UInt64(data.pointee.ifi_obytes)
+            // getifaddrs only carries 32-bit byte counters, which wrap every
+            // 4 GiB and freeze the displayed rate; prefer the 64-bit sysctl
+            // row and keep the 32-bit read as the fallback.
+            if let counters = read64BitCounters(interfaceIndex: if_nametoindex(name)) {
+                received &+= counters.received
+                sent &+= counters.sent
+            } else if let data = interface.ifa_data?.assumingMemoryBound(to: if_data.self) {
+                received &+= UInt64(data.pointee.ifi_ibytes)
+                sent &+= UInt64(data.pointee.ifi_obytes)
+            }
         }
         return (received, sent)
+    }
+
+    private static func read64BitCounters(interfaceIndex: UInt32) -> (received: UInt64, sent: UInt64)? {
+        guard interfaceIndex != 0 else { return nil }
+        var mib: [Int32] = [CTL_NET, PF_LINK, NETLINK_GENERIC, IFMIB_IFDATA, Int32(interfaceIndex), IFDATA_GENERAL]
+        var data = ifmibdata()
+        var size = MemoryLayout<ifmibdata>.size
+        guard sysctl(&mib, u_int(mib.count), &data, &size, nil, 0) == 0 else { return nil }
+        return (data.ifmd_data.ifi_ibytes, data.ifmd_data.ifi_obytes)
     }
 }

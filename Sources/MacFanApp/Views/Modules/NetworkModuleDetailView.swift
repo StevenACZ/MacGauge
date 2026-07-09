@@ -88,7 +88,6 @@ struct NetworkModuleDetailView: View {
         }
         .padding(14)
         .frame(width: 300)
-        .onAppear { info.refresh() }
     }
 
     private var publicIPRow: some View {
@@ -119,32 +118,17 @@ struct NetworkModuleDetailView: View {
             .buttonStyle(.plain)
             .disabled(info.isFetchingPublicIP)
             .help("module.network.refresh_public_ip".localized)
+            .accessibilityLabel("module.network.refresh_public_ip".localized)
         }
         .font(.callout)
     }
 
     private func rateLine(symbol: String, text: String, tint: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(tint)
-            Text(text)
-                .font(.callout.weight(.semibold))
-                .monospacedDigit()
-                .contentTransition(.numericText())
-        }
+        ArrowRateText(symbol: symbol, text: text, tint: tint, font: .callout.weight(.semibold))
     }
 
     private func sessionTotal(symbol: String, text: String, tint: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(tint)
-            Text(text)
-                .font(.callout)
-                .monospacedDigit()
-                .contentTransition(.numericText())
-        }
+        ArrowRateText(symbol: symbol, text: text, tint: tint, font: .callout)
     }
 
     private var interfaceText: String {
@@ -163,5 +147,25 @@ struct NetworkModuleDetailView: View {
     private var chartPeak: Double {
         let highest = max(stats.downloadHistory.max() ?? 0, stats.uploadHistory.max() ?? 0)
         return max(1_048_576, highest)
+    }
+}
+
+/// One arrow + value line, shared by the header rates and session totals.
+private struct ArrowRateText: View {
+    let symbol: String
+    let text: String
+    let tint: Color
+    let font: Font
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(tint)
+            Text(text)
+                .font(font)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+        }
     }
 }

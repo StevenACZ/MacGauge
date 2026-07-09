@@ -61,14 +61,11 @@ struct FanRPMChip: View {
         .font(.caption)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Layout.badgeRadius, style: .continuous)
-                .fill(Theme.Layout.cardFill)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Layout.badgeRadius, style: .continuous)
-                        .strokeBorder(Theme.Layout.cardStroke, lineWidth: 1)
-                )
+        .cardChrome(
+            radius: Theme.Layout.badgeRadius,
+            fill: Theme.Layout.cardFill,
+            stroke: Theme.Layout.cardStroke
         )
-        .animation(.default, value: fan.currentRPM)
+        .animation(Theme.Anim.value, value: fan.currentRPM)
     }
 }

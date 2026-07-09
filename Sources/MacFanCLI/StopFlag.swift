@@ -1,10 +1,18 @@
 import Foundation
 
 enum StopFlag {
-    nonisolated(unsafe) static var shouldStop = false
+    // sig_atomic_t so assignment from a signal handler is async-signal-safe.
+    nonisolated(unsafe) private static var stopRequested: sig_atomic_t = 0
+
+    static var shouldStop: Bool {
+        stopRequested != 0
+    }
 
     static func installSignalHandlers() {
-        signal(SIGINT) { _ in StopFlag.shouldStop = true }
-        signal(SIGTERM) { _ in StopFlag.shouldStop = true }
+        // Touch the static before handlers exist so its lazy initialization
+        // never runs inside a signal handler.
+        stopRequested = 0
+        signal(SIGINT) { _ in StopFlag.stopRequested = 1 }
+        signal(SIGTERM) { _ in StopFlag.stopRequested = 1 }
     }
 }

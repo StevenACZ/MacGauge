@@ -39,45 +39,20 @@ struct CPUModuleDetailView: View {
                 uptimeRow
             }
 
-            ModuleCard {
-                Text("module.apps.cpu".localized)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                if processes.hasSampledCPU, !processes.topCPUApps.isEmpty {
-                    ForEach(processes.topCPUApps.prefix(rowLimit)) { usage in
-                        AppUsageRow(
-                            usage: usage,
-                            valueText: String(format: "%.1f%%", usage.cpuPercent),
-                            fraction: usage.cpuPercent / barScale,
-                            tint: tint
-                        )
-                    }
-                    if processes.topCPUApps.count > ProcessStatsMonitor.collapsedCount {
-                        ShowMoreButton(isExpanded: $isExpanded)
-                    }
-                } else {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("module.apps.collecting".localized)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 8)
-                }
-            }
-            .animation(Theme.Anim.content, value: processes.topCPUApps.map(\.pid))
-            .animation(Theme.Anim.content, value: isExpanded)
+            TopAppsCard(
+                title: "module.apps.cpu".localized,
+                apps: processes.topCPUApps,
+                hasSampled: processes.hasSampledCPU,
+                valueText: { String(format: "%.1f%%", $0.cpuPercent) },
+                fraction: { $0.cpuPercent / barScale },
+                tint: tint,
+                isExpanded: $isExpanded
+            )
         }
         .padding(14)
         .frame(width: 300)
         .onAppear { processes.start() }
         .onDisappear { processes.stop() }
-    }
-
-    private var rowLimit: Int {
-        isExpanded ? ProcessStatsMonitor.expandedCount : ProcessStatsMonitor.collapsedCount
     }
 
     /// Bars are relative to the busiest process (floor of one core) so the
@@ -151,12 +126,22 @@ struct CPUModuleDetailView: View {
         return "uptime.minutes".localized(minutes)
     }
 
-    private var bootDateText: String {
-        guard let bootDate = SystemInfo.bootDate else { return "" }
+    // Built once — this row re-renders every tick and DateFormatter is
+    // expensive to create. Only the locale is re-checked per render.
+    private static let bootDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
-        formatter.locale = LocalizationManager.shared.locale
+        return formatter
+    }()
+
+    private var bootDateText: String {
+        guard let bootDate = SystemInfo.bootDate else { return "" }
+        let formatter = Self.bootDateFormatter
+        let locale = LocalizationManager.shared.locale
+        if formatter.locale != locale {
+            formatter.locale = locale
+        }
         return formatter.string(from: bootDate)
     }
 }

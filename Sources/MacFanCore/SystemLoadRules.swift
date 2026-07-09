@@ -63,19 +63,6 @@ public enum SystemLoadRules {
         return Double(currentBytes - previousBytes) / elapsedSeconds
     }
 
-    /// CPU effort band; ceilings picked so brief spikes stay quiet and only
-    /// sustained heavy use turns the chart hot.
-    public static func cpuLoadBand(forPercent percent: Double?) -> LoadBand {
-        switch percent ?? 0 {
-        case ..<60:
-            return .normal
-        case ..<85:
-            return .elevated
-        default:
-            return .high
-        }
-    }
-
     /// Band from user-configurable percent thresholds (the customizable
     /// "By load" colors). Thresholds are clamped to 0...100 and kept ordered
     /// so a misconfigured pair can never invert the bands.
@@ -92,19 +79,6 @@ public enum SystemLoadRules {
         case ..<hotLower:
             return .elevated
         default:
-            return .high
-        }
-    }
-
-    /// Memory band mirrors the pressure level — used percent alone
-    /// overstates pressure on macOS.
-    public static func memoryLoadBand(forPressure pressure: MemoryPressureLevel) -> LoadBand {
-        switch pressure {
-        case .normal:
-            return .normal
-        case .elevated:
-            return .elevated
-        case .high:
             return .high
         }
     }

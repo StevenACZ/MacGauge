@@ -27,7 +27,7 @@ final class AppModel: ObservableObject {
     private var manualApplyTask: Task<Void, Never>?
     private var curveTask: Task<Void, Never>?
     private var curveRunID: UUID?
-    private var pendingFanTargetApply: (percent: Double, message: String)?
+    private var pendingFanTargetApplyPercent: Double?
     private var lastAppliedCurvePercent: Double?
     private var didRunLiveControl = false
     private var suppressManualApply = false
@@ -68,20 +68,17 @@ final class AppModel: ObservableObject {
     }
 
     var minimumFanPercent: Double {
-        let floors = monitor.snapshot.fans.compactMap { fan -> Double? in
-            guard let minRPM = fan.minRPM, let maxRPM = fan.maxRPM, maxRPM > 0 else { return nil }
-            return min(100, minRPM / maxRPM * 100)
-        }
-        guard let strictestFloor = floors.max() else {
-            return settings.dangerousRangesUnlocked ? 0 : 20
-        }
-        return max(settings.dangerousRangesUnlocked ? 0 : 20, strictestFloor)
+        targetRules.minimumPercentFloor(
+            fans: monitor.snapshot.fans,
+            dangerousUnlocked: settings.dangerousRangesUnlocked
+        )
     }
 
     var manualPercentRange: ClosedRange<Double> {
-        let lower = minimumFanPercent
-        let upper = min(100, max(lower, settings.dangerousRangesUnlocked ? 100 : 90))
-        return lower...upper
+        targetRules.manualPercentRange(
+            fans: monitor.snapshot.fans,
+            dangerousUnlocked: settings.dangerousRangesUnlocked
+        )
     }
 
     var curveTargetPercent: Double? {
@@ -146,7 +143,7 @@ final class AppModel: ObservableObject {
         }
         let percent = manualDisplayPercent
         isManualControlActive = true
-        applyManualPercent(percent: percent, message: "status.manual_applied".localized)
+        applyManualPercent(percent)
     }
 
     func restoreAutomatic() {
@@ -154,8 +151,8 @@ final class AppModel: ObservableObject {
             lastActionMessage = helperStatusSummary
             return
         }
-        stopCurveRun(message: nil)
-        pendingFanTargetApply = nil
+        stopCurveRun()
+        pendingFanTargetApplyPercent = nil
         isWriting = true
         lastActionMessage = "status.restoring_automatic".localized
         Task {
@@ -186,7 +183,9 @@ final class AppModel: ObservableObject {
         curveTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                let snapshot = await self.monitor.refreshNow()
+                // The monitor's own poll already refreshes at the control tick;
+                // reading the published snapshot avoids doubling SMC traffic.
+                let snapshot = self.monitor.snapshot
                 let percent = self.effectiveCurveTargetPercent(for: snapshot.temperatureCelsius)
                 self.log.debug(
                     "curve tick temp=\(snapshot.temperatureCelsius ?? -1, privacy: .public) percent=\(percent ?? -1, privacy: .public) writing=\(self.isWriting, privacy: .public) helperReady=\(self.helperReady, privacy: .public)"
@@ -222,9 +221,26 @@ final class AppModel: ObservableObject {
         NSApp.terminate(nil)
     }
 
-    func restoreAutomaticOnQuitIfNeeded() {
-        guard settings.restoreAutomaticOnQuit, didRunLiveControl, helperReady else { return }
-        Task { try? await helperService.restoreAutomatic() }
+    var needsRestoreOnQuit: Bool {
+        settings.restoreAutomaticOnQuit && didRunLiveControl && helperReady
+    }
+
+    /// Runs the quit-time restore with a hard bound so a hung helper can
+    /// never block app termination.
+    func restoreAutomaticForQuit(timeoutSeconds: Double = 2) async {
+        stopCurveRun()
+        manualApplyTask?.cancel()
+        let service = helperService
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { @MainActor in
+                _ = try? await service.restoreAutomatic()
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+            }
+            await group.next()
+            group.cancelAll()
+        }
     }
 
     func estimatedRPM(for percent: Double) -> Double? {
@@ -267,7 +283,11 @@ final class AppModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] state in
                 guard state == .ready else { return }
-                self?.activateSelectedModeAfterHelperReady()
+                // $state publishes on willSet, so helperReady still reads the
+                // old value here; hop one runloop to act on the committed one.
+                DispatchQueue.main.async {
+                    self?.activateSelectedModeAfterHelperReady()
+                }
             }
             .store(in: &cancellables)
     }
@@ -347,11 +367,11 @@ final class AppModel: ObservableObject {
         switch mode {
         case .manual:
             pendingModeActivationAfterHelperReady = !helperReady
-            stopCurveRun(message: nil)
+            stopCurveRun()
             applyManualPercentNow()
         case .curve:
             pendingModeActivationAfterHelperReady = !helperReady
-            pendingFanTargetApply = nil
+            pendingFanTargetApplyPercent = nil
             lastAppliedCurvePercent = nil
             manualApplyTask?.cancel()
             isManualControlActive = false
@@ -370,20 +390,12 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func stopCurveRun(message: String?) {
-        guard curveTask != nil else {
-            if let message {
-                lastActionMessage = message
-            }
-            return
-        }
+    private func stopCurveRun() {
+        guard curveTask != nil else { return }
         curveRunID = nil
         curveTask?.cancel()
         curveTask = nil
         lastAppliedCurvePercent = nil
-        if let message {
-            lastActionMessage = message
-        }
     }
 
     private func scheduleManualApply(percent: Double) {
@@ -404,7 +416,7 @@ final class AppModel: ObservableObject {
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                self?.applyManualPercent(percent: boundedPercent, message: "status.manual_applied".localized)
+                self?.applyManualPercent(boundedPercent)
             }
         }
     }
@@ -421,9 +433,9 @@ final class AppModel: ObservableObject {
         return UInt64(seconds * 1_000_000_000)
     }
 
-    private func applyManualPercent(percent: Double, message: String) {
+    private func applyManualPercent(_ percent: Double) {
         Task {
-            await applyManualPercentAsync(percent: percent, message: message)
+            await applyManualPercentAsync(percent: percent)
         }
     }
 
@@ -436,14 +448,14 @@ final class AppModel: ObservableObject {
             return
         }
         guard !fanApplyInFlight else {
-            pendingFanTargetApply = (boundedPercent, "status.curve_applied".localized)
+            pendingFanTargetApplyPercent = boundedPercent
             log.debug("curve apply queued; percent=\(boundedPercent, privacy: .public)")
             return
         }
         log.info(
             "curve applying percent=\(boundedPercent, privacy: .public) targetRPM=\(self.curveTargetRPM ?? -1, privacy: .public) reason=\(targetOutOfSync ? "target-out-of-sync" : "percent-change", privacy: .public)"
         )
-        await applyManualPercentAsync(percent: boundedPercent, message: "status.curve_applied".localized)
+        await applyManualPercentAsync(percent: boundedPercent)
     }
 
     private var fanTargetOutOfSync: Bool {
@@ -462,7 +474,16 @@ final class AppModel: ObservableObject {
     }
 
     private func evaluateControlContested(for snapshot: FanSnapshot) {
-        guard didRunLiveControl, !snapshot.fans.isEmpty, let percent = currentLivePercent else {
+        // $snapshot publishes on willSet, so derive the live percent from the
+        // received snapshot instead of re-reading the stale stored one.
+        let livePercent: Double?
+        switch settings.controlMode {
+        case .manual:
+            livePercent = manualDisplayPercent
+        case .curve:
+            livePercent = effectiveCurveTargetPercent(for: snapshot.temperatureCelsius)
+        }
+        guard didRunLiveControl, !snapshot.fans.isEmpty, let percent = livePercent else {
             contestedStreak = 0
             controlContested = false
             return
@@ -497,16 +518,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private var currentLiveTargetRPM: Double? {
-        switch settings.controlMode {
-        case .manual:
-            return manualTargetRPM
-        case .curve:
-            return curveTargetRPM
-        }
-    }
-
-    private func applyManualPercentAsync(percent: Double, message: String) async {
+    private func applyManualPercentAsync(percent: Double) async {
         guard helperReady else {
             lastActionMessage = helperStatusSummary
             return
@@ -515,7 +527,7 @@ final class AppModel: ObservableObject {
         let boundedPercent = boundedManualPercent(percent)
         let showsApplyingState = settings.controlMode == .manual
         if fanApplyInFlight {
-            pendingFanTargetApply = (boundedPercent, message)
+            pendingFanTargetApplyPercent = boundedPercent
             if showsApplyingState {
                 lastActionMessage = "status.apply_queued".localized
             }
@@ -552,12 +564,12 @@ final class AppModel: ObservableObject {
         if showsApplyingState {
             isApplyingFanTarget = false
         }
-        if let pending = pendingFanTargetApply {
-            pendingFanTargetApply = nil
+        if let pendingPercent = pendingFanTargetApplyPercent {
+            pendingFanTargetApplyPercent = nil
             if settings.controlMode == .curve {
-                await applyCurveTargetIfNeeded(percent: pending.percent)
+                await applyCurveTargetIfNeeded(percent: pendingPercent)
             } else {
-                await applyManualPercentAsync(percent: pending.percent, message: pending.message)
+                await applyManualPercentAsync(percent: pendingPercent)
             }
         }
     }

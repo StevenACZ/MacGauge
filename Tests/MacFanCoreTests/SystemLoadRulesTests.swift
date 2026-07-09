@@ -59,22 +59,6 @@ import Testing
     #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: nil, usedPercent: nil) == .normal)
 }
 
-@Test func cpuLoadBandThresholds() {
-    #expect(SystemLoadRules.cpuLoadBand(forPercent: nil) == .normal)
-    #expect(SystemLoadRules.cpuLoadBand(forPercent: 0) == .normal)
-    #expect(SystemLoadRules.cpuLoadBand(forPercent: 59.9) == .normal)
-    #expect(SystemLoadRules.cpuLoadBand(forPercent: 60) == .elevated)
-    #expect(SystemLoadRules.cpuLoadBand(forPercent: 84.9) == .elevated)
-    #expect(SystemLoadRules.cpuLoadBand(forPercent: 85) == .high)
-    #expect(SystemLoadRules.cpuLoadBand(forPercent: 100) == .high)
-}
-
-@Test func memoryLoadBandMirrorsPressureLevel() {
-    #expect(SystemLoadRules.memoryLoadBand(forPressure: .normal) == .normal)
-    #expect(SystemLoadRules.memoryLoadBand(forPressure: .elevated) == .elevated)
-    #expect(SystemLoadRules.memoryLoadBand(forPressure: .high) == .high)
-}
-
 @Test func customLoadBandUsesConfiguredThresholds() {
     #expect(SystemLoadRules.loadBand(forPercent: nil, normalUpperPercent: 10, hotLowerPercent: 60) == .normal)
     #expect(SystemLoadRules.loadBand(forPercent: 9.9, normalUpperPercent: 10, hotLowerPercent: 60) == .normal)

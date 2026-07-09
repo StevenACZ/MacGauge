@@ -5,6 +5,10 @@ struct SafetySettingsTab: View {
     @ObservedObject var settings: AppSettingsStore
     @ObservedObject var helperService: HelperCommandService
 
+    /// False while another tab is selected so decorative motion stops and the
+    /// helper state refreshes on every return to this tab.
+    let isActive: Bool
+
     var body: some View {
         SettingsPane {
             helperSurface
@@ -13,6 +17,11 @@ struct SafetySettingsTab: View {
         }
         .onAppear {
             model.refreshHelperState()
+        }
+        .onChange(of: isActive) { active in
+            if active {
+                model.refreshHelperState()
+            }
         }
     }
 
@@ -36,7 +45,7 @@ struct SafetySettingsTab: View {
             )
 
             if let currentStep = setupStepIndex {
-                HelperSetupSteps(currentStep: currentStep)
+                HelperSetupSteps(currentStep: currentStep, isActive: isActive)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
@@ -90,14 +99,11 @@ struct SafetySettingsTab: View {
 
     private var rangesSurface: some View {
         SettingsSurface(icon: "speedometer", title: "settings.safety.ranges.title".localized) {
-            SettingsRow(
+            SettingsToggleRow(
                 title: "settings.safety.unlock_ranges".localized,
-                subtitle: rangesCaption
-            ) {
-                Toggle("", isOn: $settings.dangerousRangesUnlocked)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-            }
+                subtitle: rangesCaption,
+                isOn: $settings.dangerousRangesUnlocked
+            )
 
             SettingsDivider()
 
@@ -177,19 +183,7 @@ private struct HelperStatusCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(state.tint.opacity(0.15))
-                if isBusy {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: state.symbolName)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(state.tint)
-                }
-            }
-            .frame(width: 36, height: 36)
+            TintedIconCircle(icon: state.symbolName, tint: state.tint, size: 36, iconSize: 16, isBusy: isBusy)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.localizedTitle)
@@ -213,13 +207,10 @@ private struct HelperStatusCard: View {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Layout.cardRadius, style: .continuous)
-                .fill(state.tint.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Layout.cardRadius, style: .continuous)
-                        .strokeBorder(state.tint.opacity(0.18), lineWidth: 1)
-                )
+        .cardChrome(
+            radius: Theme.Layout.cardRadius,
+            fill: state.tint.opacity(0.06),
+            stroke: state.tint.opacity(0.18)
         )
     }
 }
@@ -228,6 +219,7 @@ private struct HelperStatusCard: View {
 /// needs the user; completed steps get a check, the current one pulses.
 private struct HelperSetupSteps: View {
     let currentStep: Int
+    let isActive: Bool
 
     private var steps: [String] {
         [
@@ -262,7 +254,7 @@ private struct HelperSetupSteps: View {
                 Circle()
                     .fill(isDone || isCurrent ? Theme.accent.opacity(0.16) : Color.primary.opacity(0.06))
                 if isCurrent {
-                    PulsingRing()
+                    PulsingRing(isActive: isActive)
                 }
                 if isDone {
                     Image(systemName: "checkmark")
@@ -288,16 +280,30 @@ private struct HelperSetupSteps: View {
 }
 
 private struct PulsingRing: View {
+    let isActive: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var expanded = false
 
     var body: some View {
         Circle()
             .stroke(Theme.accent.opacity(expanded ? 0 : 0.55), lineWidth: 2)
             .scaleEffect(expanded ? 1.65 : 1)
-            .onAppear {
-                withAnimation(.easeOut(duration: 1.3).repeatForever(autoreverses: false)) {
-                    expanded = true
-                }
-            }
+            .onAppear { updatePulse() }
+            .onChange(of: isActive) { _ in updatePulse() }
+            .onChange(of: reduceMotion) { _ in updatePulse() }
+            .accessibilityHidden(true)
+    }
+
+    /// Runs the pulse only while the tab is visible (restarting on return)
+    /// and never under Reduce Motion.
+    private func updatePulse() {
+        withAnimation(nil) {
+            expanded = false
+        }
+        guard isActive, !reduceMotion else { return }
+        withAnimation(Theme.Anim.pulse.repeatForever(autoreverses: false)) {
+            expanded = true
+        }
     }
 }

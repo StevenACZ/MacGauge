@@ -31,6 +31,7 @@ struct ColorPresetPicker: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(preset.name)
+                .accessibilityAddTraits(selectionMatches(preset) ? .isSelected : [])
             }
         }
     }
@@ -41,20 +42,9 @@ struct ColorPresetPicker: View {
 
     private func borderColor(for preset: ColorPreset) -> Color {
         if selectionMatches(preset) {
-            return .accentColor
+            return Theme.accent
         }
         return preset.hex == "#FFFFFF" ? .secondary : .clear
-    }
-}
-
-struct HelperStatusBadge: View {
-    let state: HelperCommandService.HelperState
-
-    var body: some View {
-        Circle()
-            .fill(state.tint)
-            .frame(width: 10, height: 10)
-            .accessibilityLabel(state.localizedTitle)
     }
 }
 

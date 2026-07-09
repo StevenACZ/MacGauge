@@ -33,6 +33,9 @@ public struct FanWriteResult: Sendable {
 public enum FanContestedRules {
     public static let manualModeValue = 1
     public static let contestedRPMThreshold = 400.0
+    // fpe2 stores quarter-RPM steps, so a faithful readback can differ from
+    // the requested value by fractions of an RPM.
+    public static let targetReadbackToleranceRPM = 2.0
 
     public static func isContested(mode: Int?, actualRPM: Double?, targetRPM: Double?) -> Bool {
         let modeReverted = mode.map { $0 != manualModeValue } ?? false
@@ -40,6 +43,14 @@ public enum FanContestedRules {
             actualRPM.flatMap { actual in
                 targetRPM.map { target in abs(actual - target) > contestedRPMThreshold }
             } ?? false
+        return modeReverted || targetMissed
+    }
+
+    // At-write check: the fan has not spun to the target yet, so compare the
+    // F{i}Tg readback instead of the instantaneous RPM.
+    public static func isContestedAtWrite(mode: Int?, targetReadback: Double?, requestedRPM: Double) -> Bool {
+        let modeReverted = mode.map { $0 != manualModeValue } ?? false
+        let targetMissed = targetReadback.map { abs($0 - requestedRPM) > targetReadbackToleranceRPM } ?? false
         return modeReverted || targetMissed
     }
 }
@@ -58,6 +69,26 @@ public struct FanTargetRules: Sendable {
         }
         return max(minRPM, requestedRPM)
     }
+
+    /// Lowest safe manual percent across the given fans: the strictest
+    /// min/max floor, never below the 20% guard rail unless dangerous ranges
+    /// are unlocked.
+    public func minimumPercentFloor(fans: [FanInfo], dangerousUnlocked: Bool) -> Double {
+        let floors = fans.compactMap { fan -> Double? in
+            guard let minRPM = fan.minRPM, let maxRPM = fan.maxRPM, maxRPM > 0 else { return nil }
+            return min(100, minRPM / maxRPM * 100)
+        }
+        guard let strictestFloor = floors.max() else {
+            return dangerousUnlocked ? 0 : 20
+        }
+        return max(dangerousUnlocked ? 0 : 20, strictestFloor)
+    }
+
+    public func manualPercentRange(fans: [FanInfo], dangerousUnlocked: Bool) -> ClosedRange<Double> {
+        let lower = minimumPercentFloor(fans: fans, dangerousUnlocked: dangerousUnlocked)
+        let upper = min(100, max(lower, dangerousUnlocked ? 100 : 90))
+        return lower...upper
+    }
 }
 
 public final class FanController {
@@ -69,8 +100,15 @@ public final class FanController {
     }
 
     public func fanCount() throws -> Int {
-        guard let count = try smc.readKey("FNum").number else { return 0 }
-        return max(0, Int(count))
+        let count: Double?
+        do {
+            count = try smc.readKey("FNum").number
+        } catch SMCError.firmware(_, let result) where result == SMCResult.notFound.rawValue {
+            // Fanless Macs simply have no FNum key.
+            return 0
+        }
+        guard let count, count.isFinite else { return 0 }
+        return Int(max(0, min(20, count)))
     }
 
     public func allFans() throws -> [FanInfo] {
@@ -113,30 +151,52 @@ public final class FanController {
 
     public func setTargetRPM(index: Int, rpm: Double) throws -> FanWriteStrategy {
         let strategy = try enableManualMode(index: index)
-        try writeTarget(index: index, rpm: rpm)
+        do {
+            try writeTarget(index: index, rpm: rpm)
+        } catch {
+            rollBackManualMode(index: index, strategy: strategy)
+            throw error
+        }
         return strategy
     }
 
     public func setTargetRPMVerified(index: Int, rpm: Double) throws -> FanWriteResult {
         var strategy = try enableManualMode(index: index)
-        try writeTarget(index: index, rpm: rpm)
-
-        var mode = (try? readMode(index: index))?.mode
-        var actual = try? readNumber("F\(index)Ac")
-
-        let maxReassertions = 3
-        var attempts = 0
-        while mode != FanContestedRules.manualModeValue, attempts < maxReassertions {
-            Thread.sleep(forTimeInterval: 0.08)
-            strategy = (try? enableManualMode(index: index)) ?? strategy
+        var mode: Int?
+        var actual: Double?
+        do {
             try writeTarget(index: index, rpm: rpm)
+
             mode = (try? readMode(index: index))?.mode
             actual = try? readNumber("F\(index)Ac")
-            attempts += 1
+
+            let maxReassertions = 3
+            var attempts = 0
+            while mode != FanContestedRules.manualModeValue, attempts < maxReassertions {
+                Thread.sleep(forTimeInterval: 0.08)
+                strategy = (try? enableManualMode(index: index)) ?? strategy
+                try writeTarget(index: index, rpm: rpm)
+                mode = (try? readMode(index: index))?.mode
+                actual = try? readNumber("F\(index)Ac")
+                attempts += 1
+            }
+        } catch {
+            rollBackManualMode(index: index, strategy: strategy)
+            throw error
         }
 
-        let contested = FanContestedRules.isContested(mode: mode, actualRPM: actual, targetRPM: rpm)
+        let targetReadback = try? readNumber("F\(index)Tg")
+        let contested = FanContestedRules.isContestedAtWrite(mode: mode, targetReadback: targetReadback, requestedRPM: rpm)
         return FanWriteResult(strategy: strategy, actualRPM: actual, mode: mode, contested: contested)
+    }
+
+    // A failed target write must not leave the fan pinned in manual mode with
+    // a stale target.
+    private func rollBackManualMode(index: Int, strategy: FanWriteStrategy) {
+        try? returnToAutomatic(index: index)
+        if strategy == .ftstUnlock {
+            try? resetForceTestIfAvailable()
+        }
     }
 
     private func writeTarget(index: Int, rpm: Double) throws {

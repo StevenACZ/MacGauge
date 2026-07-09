@@ -7,16 +7,6 @@ struct GeneralSettingsTab: View {
 
     let setLaunchAtLogin: (Bool) -> Void
 
-    init(
-        settings: AppSettingsStore,
-        loginManager: LaunchAtLoginManager,
-        setLaunchAtLogin: @escaping (Bool) -> Void
-    ) {
-        self.settings = settings
-        self.loginManager = loginManager
-        self.setLaunchAtLogin = setLaunchAtLogin
-    }
-
     var body: some View {
         SettingsPane {
             SettingsSurface(icon: "gearshape", title: "settings.general.title".localized) {
@@ -47,33 +37,24 @@ struct GeneralSettingsTab: View {
 
                 SettingsDivider()
 
-                SettingsRow(
+                SettingsToggleRow(
                     title: "settings.general.launch_at_login".localized,
                     subtitle: "settings.general.launch_at_login.caption".localized,
-                    icon: "power"
-                ) {
-                    Toggle(
-                        "",
-                        isOn: Binding(
-                            get: { loginManager.isEnabled },
-                            set: { setLaunchAtLogin($0) }
-                        )
+                    icon: "power",
+                    isOn: Binding(
+                        get: { loginManager.isEnabled },
+                        set: { setLaunchAtLogin($0) }
                     )
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                }
+                )
 
                 SettingsDivider()
 
-                SettingsRow(
+                SettingsToggleRow(
                     title: "settings.general.restore_on_quit".localized,
                     subtitle: "settings.general.restore_on_quit.caption".localized,
-                    icon: "arrow.uturn.backward.circle"
-                ) {
-                    Toggle("", isOn: $settings.restoreAutomaticOnQuit)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
+                    icon: "arrow.uturn.backward.circle",
+                    isOn: $settings.restoreAutomaticOnQuit
+                )
             }
         }
     }
@@ -123,7 +104,7 @@ private struct PerformanceModeCard: View {
                     Spacer(minLength: 0)
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.5))
+                        .foregroundStyle(isSelected ? Theme.accent : Color.secondary.opacity(0.5))
                 }
 
                 Text(mode.localizedCaption)
@@ -137,12 +118,12 @@ private struct PerformanceModeCard: View {
             .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.04))
+                    .fill(isSelected ? Theme.accent.opacity(0.14) : Color.primary.opacity(0.04))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(
-                        isSelected ? Color.accentColor.opacity(0.65) : Color.primary.opacity(0.08),
+                        isSelected ? Theme.accent.opacity(0.65) : Color.primary.opacity(0.08),
                         lineWidth: isSelected ? 1.5 : 1
                     )
             )

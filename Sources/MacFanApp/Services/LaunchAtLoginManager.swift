@@ -25,10 +25,6 @@ final class LaunchAtLoginManager: ObservableObject {
         refresh()
     }
 
-    func openSystemSettings() {
-        SMAppService.openSystemSettingsLoginItems()
-    }
-
     private static func describe(_ status: SMAppService.Status) -> String {
         switch status {
         case .enabled:
