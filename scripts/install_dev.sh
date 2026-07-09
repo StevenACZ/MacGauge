@@ -24,7 +24,7 @@ fi
 # Drop the pre-rename bundle so two copies never race for the menu bar.
 rm -rf "$LEGACY_APP"
 
-SIGN_IDENTITY="$SIGN_IDENTITY" ./script/build_and_run.sh --install
+SIGN_IDENTITY="$SIGN_IDENTITY" ./scripts/build_and_run.sh --install
 
 if [[ ! -d "$APP_DST" ]]; then
   echo "install-dev: expected app bundle at $APP_DST" >&2

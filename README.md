@@ -66,7 +66,7 @@ MacGauge to Applications.
 git clone https://github.com/StevenACZ/MacGauge.git
 cd MacGauge
 make stage            # builds dist/MacGauge.app (ad-hoc signed)
-./script/build_and_run.sh run
+./scripts/build_and_run.sh run
 ```
 
 For a signed local install to `~/Applications` (requires an Apple Development

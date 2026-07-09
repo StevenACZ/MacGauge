@@ -56,7 +56,7 @@ echo "==> Validating notary profile: $NOTARY_PROFILE"
 xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null
 
 echo "==> Staging release bundle"
-CONFIG=release ./script/build_and_run.sh stage
+CONFIG=release ./scripts/build_and_run.sh stage
 
 echo "==> Signing with Developer ID + Hardened Runtime"
 codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \

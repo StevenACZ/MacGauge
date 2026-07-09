@@ -55,6 +55,11 @@ control and live system stats (CPU, memory, network).
   shell execution.
 - Never store administrator passwords; use system authorization/helper
   installation instead.
+- `@Published` emits on willSet: inside a Combine sink the stored property
+  still holds the OLD value. Always act on the value the sink receives; if
+  the handler must read other state from the publishing object, defer one
+  runloop hop (`DispatchQueue.main.async`). This broke mode activation and
+  menu bar settings rendering twice (2026-07-04, 2026-07-09).
 
 ## Menu Bar Performance (learned 2026-07-04)
 
@@ -100,7 +105,7 @@ make ci-check
 ```
 
 - `make ci-check` runs lint, `swift build`, and `swift test`.
-- Use `./script/build_and_run.sh stage` / `run` for the GUI app bundle.
+- Use `./scripts/build_and_run.sh stage` / `run` for the GUI app bundle.
 - Use `make install-dev` for a signed local install to `~/Applications`.
 - Use `make format` / `make lint` before commits; optional Lefthook via
   `make hooks-install`.
