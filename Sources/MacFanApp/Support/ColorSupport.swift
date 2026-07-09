@@ -30,9 +30,3 @@ extension Color {
         self.init(nsColor: NSColor(hexString: hexString) ?? .labelColor)
     }
 }
-
-extension NSColor {
-    static func fromSwiftUIColor(_ color: Color) -> NSColor {
-        NSColor(color).usingColorSpace(.sRGB) ?? .labelColor
-    }
-}

@@ -3,6 +3,32 @@ import SwiftUI
 
 /// Shared building blocks for the CPU/RAM/network detail popovers.
 
+/// Tinted circle with a symbol (or a small spinner while busy), shared by the
+/// popover header, module detail headers, and the helper status card.
+struct TintedIconCircle: View {
+    let icon: String
+    let tint: Color
+    let size: CGFloat
+    let iconSize: CGFloat
+    var isBusy = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(tint.opacity(0.15))
+            if isBusy {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: icon)
+                    .font(.system(size: iconSize, weight: .medium))
+                    .foregroundStyle(tint)
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 struct ModuleDetailHeader<Trailing: View>: View {
     let icon: String
     let title: String
@@ -11,14 +37,7 @@ struct ModuleDetailHeader<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(tint.opacity(0.15))
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(tint)
-            }
-            .frame(width: 30, height: 30)
+            TintedIconCircle(icon: icon, tint: tint, size: 30, iconSize: 14)
 
             Text(title)
                 .font(.headline)
@@ -39,14 +58,60 @@ struct ModuleCard<Content: View>: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Layout.cardRadius, style: .continuous)
-                .fill(Theme.Layout.cardFill)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Layout.cardRadius, style: .continuous)
-                        .strokeBorder(Theme.Layout.cardStroke, lineWidth: 1)
-                )
+        .cardChrome(
+            radius: Theme.Layout.cardRadius,
+            fill: Theme.Layout.cardFill,
+            stroke: Theme.Layout.cardStroke
         )
+    }
+}
+
+/// The "top apps" card shared by the CPU and RAM popovers: caption header,
+/// a measuring state until sampling lands, then rows plus show-more.
+struct TopAppsCard: View {
+    let title: String
+    let apps: [AppResourceUsage]
+    var hasSampled = true
+    let valueText: (AppResourceUsage) -> String
+    let fraction: (AppResourceUsage) -> Double
+    let tint: Color
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        ModuleCard {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            if hasSampled, !apps.isEmpty {
+                ForEach(apps.prefix(rowLimit)) { usage in
+                    AppUsageRow(
+                        usage: usage,
+                        valueText: valueText(usage),
+                        fraction: fraction(usage),
+                        tint: tint
+                    )
+                }
+                if apps.count > ProcessStatsMonitor.collapsedCount {
+                    ShowMoreButton(isExpanded: $isExpanded)
+                }
+            } else {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("module.apps.collecting".localized)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 8)
+            }
+        }
+        .animation(Theme.Anim.content, value: apps.map(\.pid))
+        .animation(Theme.Anim.content, value: isExpanded)
+    }
+
+    private var rowLimit: Int {
+        isExpanded ? ProcessStatsMonitor.expandedCount : ProcessStatsMonitor.collapsedCount
     }
 }
 
@@ -78,6 +143,7 @@ struct CopyIconButton: View {
     let value: String
 
     @State private var justCopied = false
+    @State private var resetTask: Task<Void, Never>?
 
     var body: some View {
         Button {
@@ -86,8 +152,10 @@ struct CopyIconButton: View {
             withAnimation(Theme.Anim.easeOut) {
                 justCopied = true
             }
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 1_400_000_000)
+            resetTask?.cancel()
+            resetTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.4))
+                guard !Task.isCancelled else { return }
                 withAnimation(Theme.Anim.easeOut) {
                     justCopied = false
                 }
@@ -99,6 +167,7 @@ struct CopyIconButton: View {
         }
         .buttonStyle(.plain)
         .help("module.copy".localized)
+        .accessibilityLabel("module.copy".localized)
     }
 }
 

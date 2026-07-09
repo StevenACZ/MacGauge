@@ -58,14 +58,7 @@ struct MenuBarPopoverView: View {
 
     private var identityHeader: some View {
         HStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(temperatureTint.opacity(0.15))
-                Image(systemName: "fan.fill")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(temperatureTint)
-            }
-            .frame(width: 32, height: 32)
+            TintedIconCircle(icon: "fan.fill", tint: temperatureTint, size: 32, iconSize: 15)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("MacGauge")
@@ -86,7 +79,7 @@ struct MenuBarPopoverView: View {
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
-                    .animation(.default, value: monitor.snapshot.temperatureCelsius)
+                    .animation(Theme.Anim.value, value: monitor.snapshot.temperatureCelsius)
                     .frame(minWidth: 132, alignment: .leading)
                 Spacer()
                 if !monitor.snapshot.isFanless {
@@ -95,7 +88,7 @@ struct MenuBarPopoverView: View {
                             .font(.system(.title3, design: .rounded, weight: .medium))
                             .monospacedDigit()
                             .contentTransition(.numericText())
-                            .animation(.default, value: headerRPM)
+                            .animation(Theme.Anim.value, value: headerRPM)
                         Text(headerRPMLabel)
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -168,7 +161,7 @@ struct MenuBarPopoverView: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .contentTransition(.numericText())
-                    .animation(.default, value: model.manualDisplayPercent)
+                    .animation(Theme.Anim.value, value: model.manualDisplayPercent)
             }
 
             ManualPercentSlider(
@@ -193,7 +186,7 @@ struct MenuBarPopoverView: View {
                 )
                 .monospacedDigit()
                 .contentTransition(.numericText())
-                .animation(.default, value: model.effectiveCurveTargetPercent)
+                .animation(Theme.Anim.value, value: model.effectiveCurveTargetPercent)
             }
             .font(.callout)
 
@@ -343,7 +336,7 @@ struct StatusBanner: View {
             }
             Text(message)
                 .font(.callout)
-                .lineLimit(2)
+                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if let actionTitle, let action {
@@ -354,13 +347,10 @@ struct StatusBanner: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Layout.rowRadius + 1, style: .continuous)
-                .fill(severity.tint.opacity(0.12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Layout.rowRadius + 1, style: .continuous)
-                        .strokeBorder(severity.tint.opacity(0.18), lineWidth: 1)
-                )
+        .cardChrome(
+            radius: Theme.Layout.rowRadius + 1,
+            fill: severity.tint.opacity(0.12),
+            stroke: severity.tint.opacity(0.18)
         )
         .foregroundStyle(severity.tint)
     }

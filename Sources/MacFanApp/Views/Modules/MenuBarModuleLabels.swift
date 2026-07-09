@@ -176,7 +176,7 @@ struct PercentModuleSegment: View {
             )
             .frame(width: graphWidth, height: 15)
             .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
-            .animation(Theme.Anim.smooth, value: color)
+            .animation(animated ? Theme.Anim.smooth : nil, value: color)
         }
         .fixedSize()
     }

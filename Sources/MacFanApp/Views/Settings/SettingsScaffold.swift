@@ -45,7 +45,7 @@ struct SettingsSurface<Content: View>: View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
                     .frame(width: 20, alignment: .leading)
 
                 Text(title)
@@ -103,6 +103,25 @@ struct SettingsRow<Content: View>: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// The recurring settings row whose trailing control is a bare switch.
+struct SettingsToggleRow: View {
+    let title: String
+    var subtitle: String?
+    var icon: String?
+    var trailingWidth: CGFloat = SettingsLayout.trailingControlWidth
+    @Binding var isOn: Bool
+    var isDisabled = false
+
+    var body: some View {
+        SettingsRow(title: title, subtitle: subtitle, icon: icon, trailingWidth: trailingWidth) {
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .disabled(isDisabled)
+        }
     }
 }
 

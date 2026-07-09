@@ -62,45 +62,19 @@ struct MemoryModuleDetailView: View {
                 .font(.callout)
             }
 
-            ModuleCard {
-                Text("module.apps.memory".localized)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                if processes.topMemoryApps.isEmpty {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("module.apps.collecting".localized)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 8)
-                } else {
-                    ForEach(processes.topMemoryApps.prefix(rowLimit)) { usage in
-                        AppUsageRow(
-                            usage: usage,
-                            valueText: AppFormatters.memoryAmount(usage.memoryBytes),
-                            fraction: Double(usage.memoryBytes) / barScale,
-                            tint: tint
-                        )
-                    }
-                    if processes.topMemoryApps.count > ProcessStatsMonitor.collapsedCount {
-                        ShowMoreButton(isExpanded: $isExpanded)
-                    }
-                }
-            }
-            .animation(Theme.Anim.content, value: processes.topMemoryApps.map(\.pid))
-            .animation(Theme.Anim.content, value: isExpanded)
+            TopAppsCard(
+                title: "module.apps.memory".localized,
+                apps: processes.topMemoryApps,
+                valueText: { AppFormatters.memoryAmount($0.memoryBytes) },
+                fraction: { Double($0.memoryBytes) / barScale },
+                tint: tint,
+                isExpanded: $isExpanded
+            )
         }
         .padding(14)
         .frame(width: 300)
         .onAppear { processes.start() }
         .onDisappear { processes.stop() }
-    }
-
-    private var rowLimit: Int {
-        isExpanded ? ProcessStatsMonitor.expandedCount : ProcessStatsMonitor.collapsedCount
     }
 
     private var availableBytes: UInt64? {

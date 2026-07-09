@@ -27,7 +27,7 @@ struct ManualPercentSlider: View {
                     .position(x: totalWidth / 2, y: centerY)
 
                 Capsule()
-                    .fill(Color.accentColor.opacity(isDisabled ? 0.5 : 1))
+                    .fill(Theme.accent.opacity(isDisabled ? 0.5 : 1))
                     .frame(width: max(0, thumbCenter), height: trackHeight)
                     .position(x: thumbCenter / 2, y: centerY)
 
@@ -63,6 +63,18 @@ struct ManualPercentSlider: View {
         .frame(height: thumbDiameter)
         .onHover { hovering in
             isHovered = hovering
+        }
+        .focusable()
+        .onMoveCommand { direction in
+            guard !isDisabled else { return }
+            switch direction {
+            case .left, .down:
+                value = Self.snap(value - step, step: step, in: range)
+            case .right, .up:
+                value = Self.snap(value + step, step: step, in: range)
+            @unknown default:
+                break
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("slider.accessibility.label".localized))
