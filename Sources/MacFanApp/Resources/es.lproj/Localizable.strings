@@ -176,8 +176,6 @@
 "status.applying" = "Aplicando…";
 "status.apply_queued" = "Aplicación en cola";
 "status.applying_after_slider" = "Aplicando cuando el deslizador se detenga…";
-"status.manual_applied" = "Objetivo manual aplicado";
-"status.curve_applied" = "Objetivo de curva aplicado";
 "status.login_enabled" = "Inicio al iniciar sesión activado";
 "status.login_disabled" = "Inicio al iniciar sesión desactivado";
 "status.login_failed" = "Falló el elemento de inicio: %@";

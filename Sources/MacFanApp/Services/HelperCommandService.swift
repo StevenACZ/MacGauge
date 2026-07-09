@@ -311,7 +311,6 @@ final class HelperCommandService: ObservableObject {
         let actualRPM: Double?
         let mode: Int?
         let contested: Bool
-        let fans: [HelperFanResult]
     }
 
     func setPercent(_ percent: Double, allowDangerous: Bool, allowZero: Bool) async throws -> SetPercentResult {
@@ -328,8 +327,7 @@ final class HelperCommandService: ObservableObject {
             message: response.message,
             actualRPM: response.actualRPM,
             mode: response.mode,
-            contested: response.contested ?? false,
-            fans: response.fans ?? []
+            contested: response.contested ?? false
         )
     }
 
@@ -391,10 +389,15 @@ final class HelperCommandService: ObservableObject {
 
         return try await withCheckedThrowingContinuation { continuation in
             let singleShot = SingleShotContinuation(continuation)
-            let timeoutTask = Task {
+            let timeoutTask = Task { @MainActor [weak self] in
                 let delay = UInt64(timeout * 1_000_000_000)
                 try? await Task.sleep(nanoseconds: delay)
-                singleShot.resume(throwing: HelperUnavailableError())
+                guard !Task.isCancelled else { return }
+                // The connection may be wedged mid-call; dropping it here
+                // keeps the next command from queueing behind a hung reply.
+                if singleShot.resume(throwing: HelperUnavailableError()) {
+                    self?.invalidateConnection()
+                }
             }
 
             guard
@@ -468,17 +471,24 @@ private final class SingleShotContinuation<Value>: @unchecked Sendable {
         self.continuation = continuation
     }
 
-    func resume(returning value: Value) {
+    /// Returns whether this call won the race and actually resumed.
+    @discardableResult
+    func resume(returning value: Value) -> Bool {
         lock.withLock {
-            continuation?.resume(returning: value)
-            continuation = nil
+            guard let continuation else { return false }
+            continuation.resume(returning: value)
+            self.continuation = nil
+            return true
         }
     }
 
-    func resume(throwing error: Error) {
+    @discardableResult
+    func resume(throwing error: Error) -> Bool {
         lock.withLock {
-            continuation?.resume(throwing: error)
-            continuation = nil
+            guard let continuation else { return false }
+            continuation.resume(throwing: error)
+            self.continuation = nil
+            return true
         }
     }
 }

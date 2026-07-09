@@ -11,8 +11,10 @@ import SwiftUI
 @MainActor
 final class FusedModulesStatusItemController: NSObject {
     private let model: AppModel
-    private let processMonitor: ProcessStatsMonitor
     private let networkInfoMonitor: NetworkInfoMonitor
+    /// Injected by the coordinator so the detail-view construction lives in
+    /// exactly one place, shared with the split per-module items.
+    private let makeDetail: (SystemModuleKind) -> AnyView
 
     private let statusItem: NSStatusItem
     private var labelHostingView: NSHostingView<AnyView>?
@@ -23,14 +25,14 @@ final class FusedModulesStatusItemController: NSObject {
 
     init(
         model: AppModel,
-        processMonitor: ProcessStatsMonitor,
         networkInfoMonitor: NetworkInfoMonitor,
-        modules: [SystemModuleKind]
+        modules: [SystemModuleKind],
+        makeDetail: @escaping (SystemModuleKind) -> AnyView
     ) {
         self.model = model
-        self.processMonitor = processMonitor
         self.networkInfoMonitor = networkInfoMonitor
         self.modules = modules
+        self.makeDetail = makeDetail
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.autosaveName = "MacFan.modules"
 
@@ -84,7 +86,7 @@ final class FusedModulesStatusItemController: NSObject {
     func rebuildViews() {
         labelHostingView?.rootView = makeLabel()
         for (module, popover) in popovers where popover.contentViewController != nil {
-            (popover.contentViewController as? NSHostingController<AnyView>)?.rootView = makeDetail(for: module)
+            (popover.contentViewController as? NSHostingController<AnyView>)?.rootView = makeDetail(module)
         }
         updateAccessibility()
         updateLength()
@@ -107,42 +109,6 @@ final class FusedModulesStatusItemController: NSObject {
                 }
             }
         )
-    }
-
-    private func makeDetail(for module: SystemModuleKind) -> AnyView {
-        let animated = model.settings.performanceMode == .full
-        switch module {
-        case .cpu:
-            return AnyView(
-                CPUModuleDetailView(
-                    stats: model.systemStats,
-                    processes: processMonitor,
-                    settings: model.settings,
-                    tickSeconds: model.settings.controlTickSeconds,
-                    animated: animated
-                )
-            )
-        case .memory:
-            return AnyView(
-                MemoryModuleDetailView(
-                    stats: model.systemStats,
-                    processes: processMonitor,
-                    settings: model.settings,
-                    tickSeconds: model.settings.controlTickSeconds,
-                    animated: animated
-                )
-            )
-        case .network:
-            return AnyView(
-                NetworkModuleDetailView(
-                    stats: model.systemStats,
-                    info: networkInfoMonitor,
-                    settings: model.settings,
-                    tickSeconds: model.settings.controlTickSeconds,
-                    animated: animated
-                )
-            )
-        }
     }
 
     // MARK: - Popovers
@@ -184,7 +150,7 @@ final class FusedModulesStatusItemController: NSObject {
         if clicked == .network {
             networkInfoMonitor.refresh()
         }
-        let controller = NSHostingController(rootView: makeDetail(for: clicked))
+        let controller = NSHostingController(rootView: makeDetail(clicked))
         controller.sizingOptions = [.preferredContentSize]
         popover.contentViewController = controller
         popover.show(relativeTo: anchorRect(for: clicked, in: button), of: button, preferredEdge: .minY)

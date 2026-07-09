@@ -16,6 +16,7 @@ final class StatusItemController: NSObject {
     private var rotationSpeed: Double = 0
     private var targetRotationSpeed: Double = 0
     private var lastFrameTime: CFTimeInterval?
+    private var displayAsleep = false
     private let animationRules = FanAnimationRules()
 
     init(model: AppModel) {
@@ -55,7 +56,12 @@ final class StatusItemController: NSObject {
             model.settings.$animateFanIcon.map { _ in () }.eraseToAnyPublisher()
         )
         .sink { [weak self] _ in
-            self?.updateStatusItem(snapshot: model.monitor.snapshot)
+            // @Published emits on willSet; hop one runloop turn so the redraw
+            // reads the committed settings values instead of the outgoing ones.
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.updateStatusItem(snapshot: self.model.monitor.snapshot)
+            }
         }
         .store(in: &cancellables)
 
@@ -68,6 +74,33 @@ final class StatusItemController: NSObject {
             .sink { [weak self] mode in
                 guard let self else { return }
                 self.updateAnimation(snapshot: self.model.monitor.snapshot, mode: mode)
+            }
+            .store(in: &cancellables)
+
+        // Each frame that lands a new image makes AppKit re-snapshot the
+        // status item even while the display sleeps; park the spin until
+        // the screens come back.
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
+        workspaceCenter.publisher(for: NSWorkspace.screensDidSleepNotification)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.displayAsleep = true
+                self.stopAnimationTimer()
+            }
+            .store(in: &cancellables)
+        workspaceCenter.publisher(for: NSWorkspace.screensDidWakeNotification)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.displayAsleep = false
+                self.updateAnimation(snapshot: self.model.monitor.snapshot)
+            }
+            .store(in: &cancellables)
+
+        // Reduce Motion toggles do not re-run updateAnimation on their own.
+        workspaceCenter.publisher(for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.updateAnimation(snapshot: self.model.monitor.snapshot)
             }
             .store(in: &cancellables)
 
@@ -131,7 +164,11 @@ final class StatusItemController: NSObject {
         // Every frame that lands a new image makes AppKit re-snapshot the
         // status item (several ms each), so the continuous spin is a Full
         // luxury; Efficient keeps the icon still and lets color carry state.
-        let spins = model.settings.animateFanIcon && (mode ?? model.settings.performanceMode) == .full
+        // Accessibility Reduce Motion gates continuous motion like Efficient.
+        let spins =
+            model.settings.animateFanIcon
+            && (mode ?? model.settings.performanceMode) == .full
+            && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         targetRotationSpeed =
             spins
             ? animationRules.rotationDegreesPerSecond(
@@ -148,7 +185,7 @@ final class StatusItemController: NSObject {
     }
 
     private func startAnimationTimerIfNeeded() {
-        guard animationTimer == nil else { return }
+        guard animationTimer == nil, !displayAsleep else { return }
         lastFrameTime = nil
         let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -157,6 +194,12 @@ final class StatusItemController: NSObject {
         }
         RunLoop.main.add(timer, forMode: .common)
         animationTimer = timer
+    }
+
+    private func stopAnimationTimer() {
+        animationTimer?.invalidate()
+        animationTimer = nil
+        lastFrameTime = nil
     }
 
     /// Integrates the rotation each frame while easing the speed toward its
@@ -173,9 +216,7 @@ final class StatusItemController: NSObject {
         if targetRotationSpeed <= 0, rotationSpeed < 4 {
             rotationSpeed = 0
             rotation = 0
-            animationTimer?.invalidate()
-            animationTimer = nil
-            lastFrameTime = nil
+            stopAnimationTimer()
             redrawFanIcon()
             return
         }

@@ -18,8 +18,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modulesCoordinator = MenuBarModulesCoordinator(model: model)
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        model.restoreAutomaticOnQuitIfNeeded()
+    // applicationWillTerminate cannot host the restore: the process exits
+    // before any queued async work (or an XPC round-trip) gets to run, so the
+    // quit-time restore must gate termination itself.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard model.needsRestoreOnQuit else { return .terminateNow }
+        Task {
+            await model.restoreAutomaticForQuit()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     private func showSettings(tab: SettingsTab) {
@@ -45,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: NSSize(width: 680, height: 520)),
+            contentRect: NSRect(origin: .zero, size: Self.settingsWindowSize),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false

@@ -95,7 +95,14 @@ final class AppSettingsStore: ObservableObject {
     }
 
     @Published var controlTickSeconds: Double {
-        didSet { defaults.set(Self.clampedControlTick(controlTickSeconds), forKey: Key.controlTickSeconds) }
+        didSet {
+            let clamped = Self.clampedControlTick(controlTickSeconds)
+            guard clamped == controlTickSeconds else {
+                controlTickSeconds = clamped
+                return
+            }
+            defaults.set(clamped, forKey: Key.controlTickSeconds)
+        }
     }
 
     @Published var showsCPUModule: Bool {
@@ -254,13 +261,12 @@ final class AppSettingsStore: ObservableObject {
         networkDownColorHex = defaults.string(forKey: Key.networkDownColorHex) ?? "#0A84FF"
     }
 
-    var curveCommandPoints: String {
-        curvePoints
-            .sorted { $0.temperatureCelsius < $1.temperatureCelsius }
-            .map { point in
-                "\(Int(point.temperatureCelsius.rounded())):\(Int(point.percent.rounded()))"
-            }
-            .joined(separator: ",")
+    var enabledModules: [SystemModuleKind] {
+        var modules: [SystemModuleKind] = []
+        if showsCPUModule { modules.append(.cpu) }
+        if showsMemoryModule { modules.append(.memory) }
+        if showsNetworkModule { modules.append(.network) }
+        return modules
     }
 
     var curve: FanCurve? {
@@ -273,19 +279,11 @@ final class AppSettingsStore: ObservableObject {
 
     func addCurvePoint() {
         let sorted = curvePoints.sorted { $0.temperatureCelsius < $1.temperatureCelsius }
-        let newPoint: CurvePoint
-
-        if let gap = largestTemperatureGap(in: sorted), gap.width >= 2 {
-            newPoint = CurvePoint(
-                temperatureCelsius: (gap.lower.temperatureCelsius + gap.upper.temperatureCelsius) / 2,
-                percent: (gap.lower.percent + gap.upper.percent) / 2
-            )
-        } else {
-            let nextTemperature = min(CurvePoint.temperatureRange.upperBound, (sorted.last?.temperatureCelsius ?? 60) + 10)
-            let nextPercent = min(90, (sorted.last?.percent ?? 50) + 10)
-            newPoint = CurvePoint(temperatureCelsius: nextTemperature, percent: nextPercent)
-        }
-
+        let insertion = CurveEditRules.insertionPoint(
+            sortedPoints: sorted.map { (temperature: $0.temperatureCelsius, percent: $0.percent) },
+            temperatureRange: CurvePoint.temperatureRange
+        )
+        let newPoint = CurvePoint(temperatureCelsius: insertion.temperature, percent: insertion.percent)
         curvePoints = Self.normalizedCurvePoints(sorted + [newPoint])
     }
 
@@ -349,52 +347,18 @@ final class AppSettingsStore: ObservableObject {
 
     private static func normalizedCurvePoints(_ points: [CurvePoint]) -> [CurvePoint] {
         guard !points.isEmpty else { return points }
-
-        var sorted =
-            points
-            .map { point in
-                CurvePoint(
-                    id: point.id,
-                    temperatureCelsius: rounded(
-                        min(max(point.temperatureCelsius, CurvePoint.temperatureRange.lowerBound), CurvePoint.temperatureRange.upperBound)
-                    ),
-                    percent: rounded(min(max(point.percent, 0), 100))
-                )
+        let sorted = points.sorted { lhs, rhs in
+            if lhs.temperatureCelsius == rhs.temperatureCelsius {
+                return lhs.id.uuidString < rhs.id.uuidString
             }
-            .sorted { lhs, rhs in
-                if lhs.temperatureCelsius == rhs.temperatureCelsius {
-                    return lhs.id.uuidString < rhs.id.uuidString
-                }
-                return lhs.temperatureCelsius < rhs.temperatureCelsius
-            }
-
-        guard sorted.count > 1 else { return sorted }
-
-        for index in sorted.indices.dropFirst() {
-            let minimum = sorted[sorted.index(before: index)].temperatureCelsius + 1
-            if sorted[index].temperatureCelsius < minimum {
-                sorted[index].temperatureCelsius = min(CurvePoint.temperatureRange.upperBound, minimum)
-            }
+            return lhs.temperatureCelsius < rhs.temperatureCelsius
         }
-
-        for index in sorted.indices.dropLast().reversed() {
-            let maximum = sorted[sorted.index(after: index)].temperatureCelsius - 1
-            if sorted[index].temperatureCelsius > maximum {
-                sorted[index].temperatureCelsius = max(CurvePoint.temperatureRange.lowerBound, maximum)
-            }
+        let normalized = CurveEditRules.normalized(
+            sorted.map { (temperature: $0.temperatureCelsius, percent: $0.percent) },
+            temperatureRange: CurvePoint.temperatureRange
+        )
+        return zip(sorted, normalized).map { point, values in
+            CurvePoint(id: point.id, temperatureCelsius: values.temperature, percent: values.percent)
         }
-
-        return sorted
-    }
-
-    private static func rounded(_ value: Double) -> Double {
-        value.rounded()
-    }
-
-    private func largestTemperatureGap(in points: [CurvePoint]) -> (lower: CurvePoint, upper: CurvePoint, width: Double)? {
-        guard points.count >= 2 else { return nil }
-        return zip(points, points.dropFirst())
-            .map { lower, upper in (lower: lower, upper: upper, width: upper.temperatureCelsius - lower.temperatureCelsius) }
-            .max { $0.width < $1.width }
     }
 }

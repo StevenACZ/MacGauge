@@ -19,7 +19,8 @@ private struct StatusLabelWidthKey: PreferenceKey {
 final class MetricStatusItemController: NSObject {
     struct Configuration {
         let autosaveName: String
-        let accessibilityTitle: String
+        /// Closure so the title re-resolves on language change.
+        let makeAccessibilityTitle: () -> String
         let makeLabel: () -> AnyView
         let makeDetail: () -> AnyView
         var onPopoverOpen: (() -> Void)?
@@ -48,7 +49,7 @@ final class MetricStatusItemController: NSObject {
         if let button = statusItem.button {
             button.target = self
             button.action = #selector(togglePopover)
-            button.setAccessibilityTitle(configuration.accessibilityTitle)
+            button.setAccessibilityTitle(configuration.makeAccessibilityTitle())
 
             let hostingView = NSHostingView(rootView: wrappedLabel())
             hostingView.translatesAutoresizingMaskIntoConstraints = false
@@ -79,6 +80,7 @@ final class MetricStatusItemController: NSObject {
     }
 
     func rebuildViews() {
+        statusItem.button?.setAccessibilityTitle(configuration.makeAccessibilityTitle())
         labelHostingView?.rootView = wrappedLabel()
         (popover.contentViewController as? NSHostingController<AnyView>)?.rootView = configuration.makeDetail()
         updateLength()
