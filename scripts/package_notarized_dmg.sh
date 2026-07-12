@@ -124,11 +124,14 @@ hdiutil verify "$OUTPUT_DMG"
 echo "==> Notarizing DMG"
 xcrun notarytool submit "$OUTPUT_DMG" --keychain-profile "$NOTARY_PROFILE" --wait
 
-echo "==> Stapling DMG"
+echo "==> Stapling app for Sparkle and DMG for direct installs"
+xcrun stapler staple "$APP_BUNDLE"
+xcrun stapler validate "$APP_BUNDLE"
 xcrun stapler staple "$OUTPUT_DMG"
 xcrun stapler validate "$OUTPUT_DMG"
 
 echo "==> Gatekeeper assessment"
+spctl -a -t exec -vv "$APP_BUNDLE"
 spctl -a -t open --context context:primary-signature -vv "$OUTPUT_DMG"
 
 echo "==> SHA-256"

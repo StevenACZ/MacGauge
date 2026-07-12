@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.1] - 2026-07-12
+
+### Added
+
+- A dedicated MacGauge app icon now appears in Finder, the Applications
+  folder, the DMG, and system surfaces that represent the app bundle.
+
+### Fixed
+
+- Sparkle update archives now carry the app's stapled notarization ticket,
+  so update installs retain offline Gatekeeper verification as well as the
+  notarized DMG used for direct installs.
+
 ## [1.5.0] - 2026-07-11
 
 ### Added

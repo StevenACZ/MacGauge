@@ -16,8 +16,8 @@ HELPER_NAME="MacFanHelper"
 BUNDLE_ID="com.stevenacz.MacFan"
 MIN_SYSTEM_VERSION="13.0"
 # Overridable for local update-flow testing (fake higher version builds).
-APP_VERSION="${APP_VERSION:-1.5.0}"
-APP_BUILD="${APP_BUILD:-11}"
+APP_VERSION="${APP_VERSION:-1.5.1}"
+APP_BUILD="${APP_BUILD:-12}"
 # Sparkle in-app updates: public feed + EdDSA public key (private key lives in
 # the login Keychain; never in the repo).
 SPARKLE_FEED_URL="https://github.com/StevenACZ/MacGauge/releases/latest/download/appcast.xml"
@@ -36,6 +36,7 @@ INFO_PLIST="$APP_CONTENTS/Info.plist"
 INSTALL_DIR="$HOME/Applications"
 INSTALLED_APP="$INSTALL_DIR/$APP_NAME.app"
 HELPER_PLIST_SRC="$ROOT_DIR/Resources/LaunchDaemons/com.stevenacz.MacFan.XPCHelper.plist"
+APP_ICON_SRC="$ROOT_DIR/Resources/AppIcon.icns"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 usage() {
@@ -63,6 +64,7 @@ stage_bundle() {
   cp "$build_dir/$CLI_NAME" "$APP_RESOURCES/$CLI_NAME"
   cp "$build_dir/$HELPER_NAME" "$APP_MACOS/$HELPER_NAME"
   cp "$HELPER_PLIST_SRC" "$APP_LAUNCH_DAEMONS/"
+  cp "$APP_ICON_SRC" "$APP_RESOURCES/AppIcon.icns"
   chmod +x "$APP_BINARY" "$APP_RESOURCES/$CLI_NAME" "$APP_MACOS/$HELPER_NAME"
 
   # SwiftPM target resources (localized strings). Bundle.module aborts at
@@ -108,6 +110,8 @@ stage_bundle() {
   <string>$APP_NAME</string>
   <key>CFBundleDisplayName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon.icns</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

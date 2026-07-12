@@ -1,5 +1,9 @@
 # MacGauge
 
+<p align="center">
+  <img src="Resources/AppIcon.png" width="160" alt="MacGauge app icon">
+</p>
+
 Fan control, thermal monitoring, and live system stats (CPU, memory, network)
 for Apple Silicon Macs (M1 and later), built as a Swift Package: a menu bar
 app, a CLI, and a narrow privileged helper.
