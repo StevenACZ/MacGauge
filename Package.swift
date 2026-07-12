@@ -16,6 +16,9 @@ let package = Package(
         .executable(name: "MacFanApp", targets: ["MacFanApp"]),
         .executable(name: "MacFanHelper", targets: ["MacFanHelper"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.4")
+    ],
     targets: [
         .target(
             name: "MacFanCore",
@@ -29,9 +32,21 @@ let package = Package(
         ),
         .executableTarget(
             name: "MacFanApp",
-            dependencies: ["MacFanCore"],
+            dependencies: [
+                "MacFanCore",
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             resources: [
                 .process("Resources")
+            ],
+            linkerSettings: [
+                // Sparkle.framework is staged into Contents/Frameworks by
+                // scripts/build_and_run.sh; the bundle binary resolves it here.
+                .unsafeFlags(
+                    [
+                        "-Xlinker", "-rpath",
+                        "-Xlinker", "@executable_path/../Frameworks",
+                    ], .when(platforms: [.macOS]))
             ]
         ),
         .executableTarget(
@@ -51,6 +66,10 @@ let package = Package(
         .testTarget(
             name: "MacFanCoreTests",
             dependencies: ["MacFanCore"]
+        ),
+        .testTarget(
+            name: "MacFanAppTests",
+            dependencies: ["MacFanApp"]
         ),
     ]
 )

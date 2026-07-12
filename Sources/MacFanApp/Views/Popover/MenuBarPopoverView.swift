@@ -6,6 +6,7 @@ struct MenuBarPopoverView: View {
     @ObservedObject private var monitor: FanMonitor
     @ObservedObject private var helperService: HelperCommandService
     @ObservedObject private var localization = LocalizationManager.shared
+    @ObservedObject private var updateManager = UpdateManager.shared
 
     init(model: AppModel) {
         self.model = model
@@ -208,6 +209,7 @@ struct MenuBarPopoverView: View {
 
     private var footer: some View {
         VStack(spacing: 2) {
+            UpdateMenuRow(manager: updateManager)
             ActionRow(icon: "gearshape", title: "popover.settings".localized) {
                 model.openSettings()
             }

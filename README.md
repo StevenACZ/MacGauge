@@ -46,8 +46,12 @@ explicit approval: a one-time helper authorization in the app, or deliberate
   continuous animation on Macs with power to spare.
 - English and Spanish UI, following the system language with an in-app
   override.
-- No Accessibility permission and no analytics. The only network request is
-  the optional public-IP lookup when you open the network module's popover.
+- No Accessibility permission and no analytics. The only network requests are
+  the optional public-IP lookup when you open the network module's popover and
+  a once-a-day update check against GitHub Releases (nothing is sent, and it
+  can be turned off in Settings).
+- One-click in-app updates: when a new version is out, a quiet row appears in
+  the popover; one click downloads, installs, and relaunches the app.
 
 ## Requirements
 
@@ -59,6 +63,10 @@ explicit approval: a one-time helper authorization in the app, or deliberate
 Download the latest notarized DMG from
 [Releases](https://github.com/StevenACZ/MacGauge/releases), open it, and drag
 MacGauge to Applications.
+
+After the first install, MacGauge keeps itself up to date: it checks GitHub
+Releases once a day and offers new versions as a one-click install from the
+menu bar popover (EdDSA-signed updates via Sparkle).
 
 ## Build from source
 

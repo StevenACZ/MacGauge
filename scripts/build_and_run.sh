@@ -15,8 +15,13 @@ CLI_NAME="macfan"
 HELPER_NAME="MacFanHelper"
 BUNDLE_ID="com.stevenacz.MacFan"
 MIN_SYSTEM_VERSION="13.0"
-APP_VERSION="1.4.0"
-APP_BUILD="10"
+# Overridable for local update-flow testing (fake higher version builds).
+APP_VERSION="${APP_VERSION:-1.5.0}"
+APP_BUILD="${APP_BUILD:-11}"
+# Sparkle in-app updates: public feed + EdDSA public key (private key lives in
+# the login Keychain; never in the repo).
+SPARKLE_FEED_URL="https://github.com/StevenACZ/MacGauge/releases/latest/download/appcast.xml"
+SPARKLE_PUBLIC_ED_KEY="EjJwYzuWlNuccLSqIcVxHRlGMLg7R6ONwpUjnVbFqY8="
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -24,6 +29,7 @@ APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
+APP_FRAMEWORKS="$APP_CONTENTS/Frameworks"
 APP_LAUNCH_DAEMONS="$APP_CONTENTS/Library/LaunchDaemons"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
@@ -68,6 +74,27 @@ stage_bundle() {
   fi
   cp -R "$resources_bundle" "$APP_RESOURCES/"
 
+  # Sparkle.framework ships inside the bundle; the app binary resolves it via
+  # the @executable_path/../Frameworks rpath set in Package.swift.
+  local sparkle_fw
+  sparkle_fw="$(ls -d "$ROOT_DIR"/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-*/Sparkle.framework 2>/dev/null | head -1)"
+  if [ -z "$sparkle_fw" ]; then
+    echo "error: Sparkle.framework artifact not found under .build/artifacts" >&2
+    exit 1
+  fi
+  mkdir -p "$APP_FRAMEWORKS"
+  ditto "$sparkle_fw" "$APP_FRAMEWORKS/Sparkle.framework"
+
+  # SwiftPM links the binary with an absolute rpath to the local Sparkle
+  # artifact; drop absolute rpaths so the shipped binary only resolves
+  # frameworks relative to the bundle (and leaks no local paths).
+  otool -l "$APP_BINARY" | grep -A2 'cmd LC_RPATH' | awk '/ path /{print $2}' \
+    | while read -r rpath; do
+      case "$rpath" in
+        /*) install_name_tool -delete_rpath "$rpath" "$APP_BINARY" ;;
+      esac
+    done
+
   cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -93,6 +120,12 @@ stage_bundle() {
   <true/>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
+  <key>SUFeedURL</key>
+  <string>$SPARKLE_FEED_URL</string>
+  <key>SUPublicEDKey</key>
+  <string>$SPARKLE_PUBLIC_ED_KEY</string>
+  <key>SUEnableAutomaticChecks</key>
+  <true/>
 </dict>
 </plist>
 PLIST
@@ -102,6 +135,21 @@ sign_bundle() {
   if ! command -v codesign >/dev/null 2>&1; then
     echo "codesign not found; leaving bundle unsigned" >&2
     return
+  fi
+
+  # Sparkle's nested executables keep upstream's signature otherwise; re-sign
+  # inside-out so the whole bundle carries one identity.
+  local sparkle_fw="$APP_FRAMEWORKS/Sparkle.framework"
+  if [ -d "$sparkle_fw" ]; then
+    local nested
+    for nested in \
+      "$sparkle_fw/Versions/B/XPCServices/Downloader.xpc" \
+      "$sparkle_fw/Versions/B/XPCServices/Installer.xpc" \
+      "$sparkle_fw/Versions/B/Updater.app" \
+      "$sparkle_fw/Versions/B/Autoupdate"; do
+      codesign --force --sign "$SIGN_IDENTITY" --preserve-metadata=entitlements "$nested"
+    done
+    codesign --force --sign "$SIGN_IDENTITY" "$sparkle_fw"
   fi
 
   codesign --force --sign "$SIGN_IDENTITY" "$APP_MACOS/$HELPER_NAME"
