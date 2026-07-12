@@ -4,6 +4,7 @@ struct GeneralSettingsTab: View {
     @ObservedObject var settings: AppSettingsStore
     @ObservedObject var loginManager: LaunchAtLoginManager
     @ObservedObject private var localization = LocalizationManager.shared
+    @ObservedObject private var updateManager = UpdateManager.shared
 
     let setLaunchAtLogin: (Bool) -> Void
 
@@ -55,7 +56,106 @@ struct GeneralSettingsTab: View {
                     icon: "arrow.uturn.backward.circle",
                     isOn: $settings.restoreAutomaticOnQuit
                 )
+
+                SettingsDivider()
+
+                SettingsToggleRow(
+                    title: "settings.general.auto_updates".localized,
+                    subtitle: "settings.general.auto_updates.caption".localized,
+                    icon: "arrow.triangle.2.circlepath",
+                    isOn: Binding(
+                        get: { updateManager.autoCheckEnabled },
+                        set: { updateManager.setAutoCheckEnabled($0) }
+                    )
+                )
+
+                SettingsDivider()
+
+                updatesRow
             }
+        }
+    }
+
+    private var updatesRow: some View {
+        SettingsRow(
+            title: "settings.general.updates".localized,
+            subtitle: updatesSubtitle,
+            icon: "arrow.down.circle",
+            trailingWidth: 170
+        ) {
+            updatesControl
+        }
+    }
+
+    private var updatesSubtitle: String {
+        switch updateManager.phase {
+        case .idle:
+            let version =
+                Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                ?? "—"
+            return "settings.general.updates.current".localized(version)
+        case .available(let version):
+            return "settings.general.updates.available".localized(version)
+        case .downloading:
+            return "settings.general.updates.downloading".localized
+        case .installing:
+            return "settings.general.updates.installing".localized
+        case .failed:
+            return "settings.general.updates.failed".localized
+        }
+    }
+
+    @ViewBuilder
+    private var updatesControl: some View {
+        switch updateManager.phase {
+        case .idle:
+            switch updateManager.manualCheckStatus {
+            case .checking:
+                ProgressView()
+                    .controlSize(.small)
+            case .upToDate:
+                Label(
+                    "settings.general.updates.up_to_date".localized,
+                    systemImage: "checkmark.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            case .idle:
+                Button("settings.general.updates.check_now".localized) {
+                    updateManager.checkForUpdatesManually()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+        case .available:
+            VStack(alignment: .trailing, spacing: 4) {
+                Button("settings.general.updates.install".localized) {
+                    updateManager.installPendingUpdate()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                if updateManager.releasePageURL != nil {
+                    Button {
+                        updateManager.openReleasePage()
+                    } label: {
+                        Text("settings.general.updates.release_notes".localized)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        case .downloading, .installing:
+            ProgressView()
+                .controlSize(.small)
+        case .failed:
+            Button("settings.general.updates.retry".localized) {
+                updateManager.installPendingUpdate()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
     }
 

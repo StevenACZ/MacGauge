@@ -226,3 +226,25 @@
 
 /* Formatters */
 "formatter.temperature_unavailable" = "No disponible";
+
+/* In-app updates (Sparkle) */
+"popover.update_available" = "Actualización disponible";
+"popover.update_install_hint" = "v%@ — clic para instalar";
+"popover.update_downloading" = "Descargando actualización…";
+"popover.update_installing" = "Instalando actualización…";
+"popover.update_relaunch" = "MacGauge se relanzará solo";
+"popover.update_failed" = "La actualización falló";
+"popover.update_retry_hint" = "Clic para reintentar";
+"settings.general.auto_updates" = "Buscar actualizaciones automáticamente";
+"settings.general.auto_updates.caption" = "Consulta GitHub Releases una vez al día. No se envía nada.";
+"settings.general.updates" = "Actualizaciones";
+"settings.general.updates.current" = "MacGauge v%@";
+"settings.general.updates.available" = "La versión %@ está lista para instalar";
+"settings.general.updates.downloading" = "Descargando actualización…";
+"settings.general.updates.installing" = "Instalando — MacGauge se relanzará solo";
+"settings.general.updates.failed" = "La actualización no se pudo instalar";
+"settings.general.updates.up_to_date" = "Estás al día";
+"settings.general.updates.check_now" = "Buscar ahora";
+"settings.general.updates.install" = "Instalar";
+"settings.general.updates.retry" = "Reintentar";
+"settings.general.updates.release_notes" = "Ver notas de la versión";

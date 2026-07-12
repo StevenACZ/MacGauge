@@ -1,4 +1,4 @@
-.PHONY: help tools format format-all lint lint-all build test stage install-dev notarized-dmg ci-check hooks-install
+.PHONY: help tools format format-all lint lint-all build test stage install-dev notarized-dmg appcast ci-check hooks-install
 
 .DEFAULT_GOAL := help
 
@@ -18,6 +18,7 @@ help:
 	@printf "  make stage         Stage the menu bar app bundle via scripts/build_and_run.sh\n"
 	@printf "  make install-dev   Install signed app bundle to ~/Applications\n"
 	@printf "  make notarized-dmg Build, notarize, and staple the release DMG\n"
+	@printf "  make appcast       Zip the notarized app, EdDSA-sign it, and write appcast.xml\n"
 	@printf "  make ci-check      Local gate: lint + build + test\n"
 	@printf "  make hooks-install Install optional Lefthook git hooks\n"
 
@@ -65,3 +66,7 @@ hooks-install:
 notarized-dmg:
 	@chmod +x scripts/package_notarized_dmg.sh
 	@scripts/package_notarized_dmg.sh
+
+appcast:
+	@chmod +x scripts/generate_appcast.sh
+	@scripts/generate_appcast.sh

@@ -59,6 +59,21 @@ echo "==> Staging release bundle"
 CONFIG=release ./scripts/build_and_run.sh stage
 
 echo "==> Signing with Developer ID + Hardened Runtime"
+SPARKLE_FW="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+if [[ -d "$SPARKLE_FW" ]]; then
+  # Sparkle's prebuilt xcframework keeps upstream's signature on its nested
+  # executables; Apple notarization rejects them (no Developer ID, no secure
+  # timestamp). Re-sign inside-out per Sparkle's distribution guidance.
+  for NESTED in \
+    "$SPARKLE_FW/Versions/B/XPCServices/Downloader.xpc" \
+    "$SPARKLE_FW/Versions/B/XPCServices/Installer.xpc" \
+    "$SPARKLE_FW/Versions/B/Updater.app" \
+    "$SPARKLE_FW/Versions/B/Autoupdate"; do
+    codesign --force --options runtime --timestamp --preserve-metadata=entitlements \
+      --sign "$SIGN_IDENTITY" "$NESTED"
+  done
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$SPARKLE_FW"
+fi
 codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \
   "$APP_BUNDLE/Contents/MacOS/MacFanHelper"
 codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \

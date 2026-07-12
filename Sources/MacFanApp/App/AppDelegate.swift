@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.showSettings(tab: tab)
         }
         model.start()
+        UpdateManager.shared.start()
         statusController = StatusItemController(model: model)
         modulesCoordinator = MenuBarModulesCoordinator(model: model)
     }
