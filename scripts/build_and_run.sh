@@ -16,8 +16,8 @@ HELPER_NAME="MacFanHelper"
 BUNDLE_ID="com.stevenacz.MacFan"
 MIN_SYSTEM_VERSION="13.0"
 # Overridable for local update-flow testing (fake higher version builds).
-APP_VERSION="${APP_VERSION:-1.5.0}"
-APP_BUILD="${APP_BUILD:-11}"
+APP_VERSION="${APP_VERSION:-1.5.1}"
+APP_BUILD="${APP_BUILD:-12}"
 # Sparkle in-app updates: public feed + EdDSA public key (private key lives in
 # the login Keychain; never in the repo).
 SPARKLE_FEED_URL="https://github.com/StevenACZ/MacGauge/releases/latest/download/appcast.xml"
