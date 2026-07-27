@@ -2,10 +2,6 @@ import XCTest
 
 @testable import MacFanApp
 
-/// Turning "Unlock extreme ranges" back off has to pull a manual target that
-/// sits outside the safe band back inside it. Manual mode has no periodic
-/// re-apply, so an out-of-band target would otherwise survive the re-lock and
-/// keep the fan below the guard rail.
 @MainActor
 final class DangerousRangeRelockTests: XCTestCase {
 
@@ -59,6 +55,31 @@ final class DangerousRangeRelockTests: XCTestCase {
         model.settings.dangerousRangesUnlocked = false
 
         XCTAssertEqual(model.settings.manualPercent, 55)
+    }
+
+    func testRelockingRangesIsRefusedWhileAWriteIsInFlight() {
+        let model = AppModel()
+        model.settings.controlMode = .manual
+        model.settings.dangerousRangesUnlocked = true
+        model.settings.manualPercent = 0
+        model.isWriting = true
+
+        model.setDangerousRangesUnlocked(false)
+
+        XCTAssertTrue(model.settings.dangerousRangesUnlocked)
+        XCTAssertEqual(model.settings.manualPercent, 0)
+    }
+
+    func testRelockingRangesGoesThroughOnceTheWriteFinished() {
+        let model = AppModel()
+        model.settings.controlMode = .manual
+        model.settings.dangerousRangesUnlocked = true
+        model.settings.manualPercent = 0
+
+        model.setDangerousRangesUnlocked(false)
+
+        XCTAssertFalse(model.settings.dangerousRangesUnlocked)
+        XCTAssertEqual(model.settings.manualPercent, 20)
     }
 
     func testUnlockingRangesNeverMovesTheManualTarget() {

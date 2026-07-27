@@ -173,6 +173,11 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func setDangerousRangesUnlocked(_ unlocked: Bool) {
+        guard !isWriting else { return }
+        settings.dangerousRangesUnlocked = unlocked
+    }
+
     func startCurveRun() {
         curveSuspended = false
         if curveTask != nil {

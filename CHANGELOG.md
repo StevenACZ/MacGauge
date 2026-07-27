@@ -22,8 +22,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   daemon is touched, and re-applies the manual target once the repaired helper
   is ready. The helper's dead-man watchdog lives only in the running daemon,
   so a repair could otherwise leave fans pinned with nothing watching them.
-- Buttons and the mode picker no longer stay live during the work they start,
-  so an authorization or a repair already in flight cannot be fired twice.
+- Buttons, the mode picker and the "Unlock extreme ranges" toggle no longer
+  stay live during the work they start, so an authorization or a repair
+  already in flight cannot be fired twice, and re-locking the ranges can no
+  longer move the manual percentage on screen without reaching the fans.
 
 ## [1.5.1] - 2026-07-12
 
