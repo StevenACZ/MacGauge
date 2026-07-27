@@ -179,13 +179,13 @@ final class AppModel: ObservableObject {
     }
 
     func startCurveRun() {
-        curveSuspended = false
-        if curveTask != nil {
+        guard helperReady else {
+            lastActionMessage = helperStatusSummary
             return
         }
 
-        guard helperReady else {
-            lastActionMessage = helperStatusSummary
+        curveSuspended = false
+        if curveTask != nil {
             return
         }
 
