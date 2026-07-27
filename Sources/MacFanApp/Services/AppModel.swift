@@ -30,6 +30,7 @@ final class AppModel: ObservableObject {
     private var pendingFanTargetApplyPercent: Double?
     private var lastAppliedCurvePercent: Double?
     private var didRunLiveControl = false
+    private var curveSuspended = false
     private var suppressManualApply = false
     private var pendingModeActivationAfterHelperReady = false
     private let contestedStreakLimit = 2
@@ -44,6 +45,7 @@ final class AppModel: ObservableObject {
         helperService = HelperCommandService()
         bindManualSlider()
         bindControlMode()
+        bindDangerousRanges()
         bindHelperReadiness()
         bindControlTick()
         bindCurveSnapshot()
@@ -151,6 +153,7 @@ final class AppModel: ObservableObject {
             lastActionMessage = helperStatusSummary
             return
         }
+        manualApplyTask?.cancel()
         stopCurveRun()
         pendingFanTargetApplyPercent = nil
         isWriting = true
@@ -159,6 +162,7 @@ final class AppModel: ObservableObject {
             do {
                 lastActionMessage = try await helperService.restoreAutomatic()
                 didRunLiveControl = false
+                curveSuspended = true
                 monitor.refresh()
                 resetManualSliderToAutomatic()
             } catch {
@@ -169,6 +173,7 @@ final class AppModel: ObservableObject {
     }
 
     func startCurveRun() {
+        curveSuspended = false
         if curveTask != nil {
             return
         }
@@ -227,8 +232,9 @@ final class AppModel: ObservableObject {
 
     /// Runs the quit-time helper handshake — restore automatic, or only
     /// disarm the helper's dead-man watchdog when the user keeps manual
-    /// control on quit — with a hard bound so a hung helper can never block
-    /// app termination.
+    /// control on quit. `timeoutSeconds` only bounds the wait for the first
+    /// result: the task group still awaits the helper child, so a wedged XPC
+    /// connection adds that command's own timeout on top.
     func coordinateHelperForQuit(timeoutSeconds: Double = 2) async {
         stopCurveRun()
         manualApplyTask?.cancel()
@@ -285,6 +291,34 @@ final class AppModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private func bindDangerousRanges() {
+        settings.$dangerousRangesUnlocked
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] unlocked in
+                self?.reclampManualTarget(dangerousUnlocked: unlocked)
+            }
+            .store(in: &cancellables)
+    }
+
+    /// `$dangerousRangesUnlocked` publishes on willSet: the range must come from
+    /// the received value, never read back from the store.
+    private func reclampManualTarget(dangerousUnlocked: Bool) {
+        let range = targetRules.manualPercentRange(
+            fans: monitor.snapshot.fans,
+            dangerousUnlocked: dangerousUnlocked
+        )
+        let clamped = min(max(settings.manualPercent, range.lowerBound), range.upperBound)
+        guard clamped != settings.manualPercent else { return }
+
+        suppressManualApply = true
+        settings.manualPercent = clamped
+        suppressManualApply = false
+
+        guard settings.controlMode == .manual, helperReady else { return }
+        applyManualPercentNow()
+    }
+
     private func bindHelperReadiness() {
         helperService.$state
             .removeDuplicates()
@@ -310,6 +344,7 @@ final class AppModel: ObservableObject {
             .sink { [weak self] percent in
                 guard let self,
                     self.settings.controlMode == .curve,
+                    !self.curveSuspended,
                     self.helperReady,
                     !self.isWriting,
                     !self.fanApplyInFlight,
@@ -447,7 +482,7 @@ final class AppModel: ObservableObject {
     }
 
     private func applyCurveTargetIfNeeded(percent: Double) async {
-        guard settings.controlMode == .curve, helperReady, !isWriting else { return }
+        guard settings.controlMode == .curve, !curveSuspended, helperReady, !isWriting else { return }
         let boundedPercent = boundedManualPercent(percent)
         let targetOutOfSync = fanTargetOutOfSync
         guard !curvePercentChangeIsNegligible(lastAppliedCurvePercent, boundedPercent) || targetOutOfSync else {
@@ -530,6 +565,7 @@ final class AppModel: ObservableObject {
             lastActionMessage = helperStatusSummary
             return
         }
+        guard !isWriting else { return }
 
         let boundedPercent = boundedManualPercent(percent)
         let showsApplyingState = settings.controlMode == .manual
@@ -607,7 +643,13 @@ final class AppModel: ObservableObject {
             return
         }
 
-        if settings.controlMode == .curve {
+        switch settings.controlMode {
+        case .manual:
+            guard didRunLiveControl else { return }
+            log.info("re-applying manual target after helper became ready")
+            applyManualPercentNow()
+        case .curve:
+            guard !curveSuspended else { return }
             log.info("starting persisted curve mode after helper became ready")
             startCurveRun()
         }
