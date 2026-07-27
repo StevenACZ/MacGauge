@@ -48,6 +48,7 @@ struct MenuBarPopoverView: View {
         .fixedSize(horizontal: false, vertical: true)
         .animation(Theme.Anim.mode, value: settings.controlMode)
         .animation(Theme.Anim.mode, value: model.controlContested)
+        .animation(Theme.Anim.mode, value: model.curveSuspended)
         .animation(Theme.Anim.mode, value: helperService.state)
         .animation(Theme.Anim.mode, value: monitor.snapshot.isFanless)
         .id(localization.language)
@@ -126,6 +127,7 @@ struct MenuBarPopoverView: View {
             .labelsHidden()
             .pickerStyle(.segmented)
             .fixedSize()
+            .disabled(model.isWriting)
 
             Spacer(minLength: 0)
 
@@ -178,6 +180,18 @@ struct MenuBarPopoverView: View {
 
     private var curveContent: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if model.curveSuspended {
+                StatusBanner(
+                    severity: .info,
+                    icon: "pause.circle",
+                    message: "banner.curve_suspended".localized,
+                    actionTitle: "banner.action.resume_curve".localized,
+                    actionDisabled: !helperService.isReady || model.isWriting,
+                    action: { model.startCurveRun() }
+                )
+                .transition(bannerTransition)
+            }
+
             HStack {
                 Text("popover.curve_target".localized)
                     .foregroundStyle(.secondary)
@@ -266,6 +280,7 @@ struct MenuBarPopoverView: View {
             message: helperService.statusSummary,
             showsProgress: helperService.isRecovering || helperService.state == .unknown,
             actionTitle: helperBannerActionTitle,
+            actionDisabled: model.isWriting,
             action: helperBannerActionTitle == nil ? nil : { model.authorizeHelper() }
         )
     }
@@ -326,6 +341,7 @@ struct StatusBanner: View {
     let message: String
     var showsProgress = false
     var actionTitle: String?
+    var actionDisabled = false
     var action: (() -> Void)?
 
     var body: some View {
@@ -345,6 +361,7 @@ struct StatusBanner: View {
                 Button(actionTitle, action: action)
                     .buttonStyle(.borderless)
                     .font(.callout.weight(.semibold))
+                    .disabled(actionDisabled)
             }
         }
         .padding(.horizontal, 12)

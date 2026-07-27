@@ -102,7 +102,11 @@ struct SafetySettingsTab: View {
             SettingsToggleRow(
                 title: "settings.safety.unlock_ranges".localized,
                 subtitle: rangesCaption,
-                isOn: $settings.dangerousRangesUnlocked
+                isOn: Binding(
+                    get: { settings.dangerousRangesUnlocked },
+                    set: { model.setDangerousRangesUnlocked($0) }
+                ),
+                isDisabled: model.isWriting
             )
 
             SettingsDivider()

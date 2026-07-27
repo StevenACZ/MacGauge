@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- "Restore Automatic" now really hands the fans back while a curve is running.
+  The curve loop stayed alive and took the fans straight back on the next
+  tick. The popover no longer shows a live curve target the app is not
+  writing: it says the curve is paused because macOS is controlling the fans
+  again, and offers a "Resume curve" button.
+- Turning "Unlock extreme ranges" back off now pulls a manual target that sits
+  outside the safe band back inside it and writes the corrected target to the
+  fans. The manual percentage visibly moves when this happens. Manual mode has
+  no periodic re-apply, so an unlocked 0% target used to survive the re-lock
+  and keep the fan stopped below the guard rail.
+- Repairing the privileged helper now returns the fans to macOS before the
+  daemon is touched, and re-applies the manual target once the repaired helper
+  is ready. The helper's dead-man watchdog lives only in the running daemon,
+  so a repair could otherwise leave fans pinned with nothing watching them.
+- Buttons, the mode picker and the "Unlock extreme ranges" toggle no longer
+  stay live during the work they start, so an authorization or a repair
+  already in flight cannot be fired twice, and re-locking the ranges can no
+  longer move the manual percentage on screen without reaching the fans.
+
 ## [1.5.1] - 2026-07-12
 
 ### Added

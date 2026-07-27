@@ -157,6 +157,9 @@ final class HelperCommandService: ObservableObject {
         setState(.reloading)
         defer { repairInFlight = false }
 
+        log.info("repair: handing the fans back to automatic before touching the daemon")
+        _ = try? await sendUnchecked(.init(action: .automatic), timeout: Self.pingTimeout)
+
         if decision == .restartDaemon {
             log.info("repair: asking outdated daemon to exit so launchd relaunches the current binary")
             _ = try? await sendUnchecked(.init(action: .shutdown), timeout: Self.pingTimeout)
