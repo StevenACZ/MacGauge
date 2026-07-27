@@ -126,6 +126,7 @@ struct MenuBarPopoverView: View {
             .labelsHidden()
             .pickerStyle(.segmented)
             .fixedSize()
+            .disabled(model.isWriting)
 
             Spacer(minLength: 0)
 
@@ -266,6 +267,7 @@ struct MenuBarPopoverView: View {
             message: helperService.statusSummary,
             showsProgress: helperService.isRecovering || helperService.state == .unknown,
             actionTitle: helperBannerActionTitle,
+            actionDisabled: model.isWriting,
             action: helperBannerActionTitle == nil ? nil : { model.authorizeHelper() }
         )
     }
@@ -326,6 +328,7 @@ struct StatusBanner: View {
     let message: String
     var showsProgress = false
     var actionTitle: String?
+    var actionDisabled = false
     var action: (() -> Void)?
 
     var body: some View {
@@ -345,6 +348,7 @@ struct StatusBanner: View {
                 Button(actionTitle, action: action)
                     .buttonStyle(.borderless)
                     .font(.callout.weight(.semibold))
+                    .disabled(actionDisabled)
             }
         }
         .padding(.horizontal, 12)
