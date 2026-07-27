@@ -17,6 +17,7 @@ final class AppModel: ObservableObject {
     @Published var lastActionMessage = "status.ready".localized
     @Published var isManualControlActive = false
     @Published private(set) var controlContested = false
+    @Published private(set) var curveSuspended = false
 
     var presentSettings: ((SettingsTab) -> Void)?
 
@@ -30,7 +31,6 @@ final class AppModel: ObservableObject {
     private var pendingFanTargetApplyPercent: Double?
     private var lastAppliedCurvePercent: Double?
     private var didRunLiveControl = false
-    private var curveSuspended = false
     private var suppressManualApply = false
     private var pendingModeActivationAfterHelperReady = false
     private let contestedStreakLimit = 2
@@ -114,6 +114,7 @@ final class AppModel: ObservableObject {
     }
 
     func authorizeHelper() {
+        guard !isWriting else { return }
         isWriting = true
         lastActionMessage = "status.checking_helper".localized
         Task {
@@ -155,6 +156,7 @@ final class AppModel: ObservableObject {
         }
         manualApplyTask?.cancel()
         stopCurveRun()
+        curveSuspended = true
         pendingFanTargetApplyPercent = nil
         isWriting = true
         lastActionMessage = "status.restoring_automatic".localized
@@ -162,7 +164,6 @@ final class AppModel: ObservableObject {
             do {
                 lastActionMessage = try await helperService.restoreAutomatic()
                 didRunLiveControl = false
-                curveSuspended = true
                 monitor.refresh()
                 resetManualSliderToAutomatic()
             } catch {

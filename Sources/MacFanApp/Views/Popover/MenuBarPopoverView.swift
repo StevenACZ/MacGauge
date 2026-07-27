@@ -48,6 +48,7 @@ struct MenuBarPopoverView: View {
         .fixedSize(horizontal: false, vertical: true)
         .animation(Theme.Anim.mode, value: settings.controlMode)
         .animation(Theme.Anim.mode, value: model.controlContested)
+        .animation(Theme.Anim.mode, value: model.curveSuspended)
         .animation(Theme.Anim.mode, value: helperService.state)
         .animation(Theme.Anim.mode, value: monitor.snapshot.isFanless)
         .id(localization.language)
@@ -179,6 +180,18 @@ struct MenuBarPopoverView: View {
 
     private var curveContent: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if model.curveSuspended {
+                StatusBanner(
+                    severity: .info,
+                    icon: "pause.circle",
+                    message: "banner.curve_suspended".localized,
+                    actionTitle: "banner.action.resume_curve".localized,
+                    actionDisabled: !helperService.isReady || model.isWriting,
+                    action: { model.startCurveRun() }
+                )
+                .transition(bannerTransition)
+            }
+
             HStack {
                 Text("popover.curve_target".localized)
                     .foregroundStyle(.secondary)

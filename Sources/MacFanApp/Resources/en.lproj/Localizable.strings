@@ -19,6 +19,8 @@
 "banner.action.approve" = "Approve";
 "banner.action.authorize" = "Authorize";
 "banner.action.fix" = "Fix";
+"banner.curve_suspended" = "Curve paused: macOS is controlling the fans again.";
+"banner.action.resume_curve" = "Resume curve";
 
 /* Modes and units */
 "mode.manual" = "Manual";
