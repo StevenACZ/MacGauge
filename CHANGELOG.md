@@ -6,6 +6,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-09-18
+
 ### Fixed
 
 - Quiet checks keep running while an update card is waiting and after a failed update, so a newer version shows up without restarting MacGauge. The card only changes when a newer version is actually found, a failed update keeps its Retry, and nothing is ever installed without "Install now".
