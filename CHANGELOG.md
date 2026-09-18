@@ -6,6 +6,12 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-09-18
+
+### Changed
+
+- Maintenance release: internal cleanup of the update code, no behavior changes. It is also the first version delivered through the new quiet checks, so the update card should show up by itself.
+
 ## [1.6.2] - 2026-09-18
 
 ### Changed
