@@ -4,7 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.6.0] - 2026-09-18
+
+### Added
+
+- A compact, localized Welcome introduces monitoring without requiring fan-control
+  authorization. Optional setup opens the existing Safety settings, and Welcome
+  can be reopened from General settings. Configured installations keep their setup.
+- The popover shows a visible update card under the header: a pending update
+  downloads in one click with a progress bar, and a downloaded update offers
+  "Install now" or "Later" without losing the offer on the next check.
+  Installing quits and reopens MacGauge by itself.
+- A custom About window with version, update state, feature chips and links to
+  the repository and the issue tracker, opened from the popover. It can also
+  check for updates and install a downloaded one.
+
+### Changed
+
+- The menu bar popovers now paint an opaque window surface instead of the
+  translucent system material.
+
+- Settings now uses an integrated window surface with native traffic lights,
+  compact navigation and a trailing-aligned language picker.
 
 ### Fixed
 
