@@ -151,6 +151,7 @@ final class FusedModulesStatusItemController: NSObject {
         }
         guard let clicked, let popover = popovers[clicked] else { return }
 
+        UpdateManager.shared.popoverDidOpen()
         if clicked == .network {
             networkInfoMonitor.refresh()
         }

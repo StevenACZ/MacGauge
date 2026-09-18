@@ -126,6 +126,7 @@ final class StatusItemController: NSObject {
         } else {
             button.bounce()
             model.refreshHelperState()
+            UpdateManager.shared.popoverDidOpen()
             let controller = NSHostingController(rootView: MenuBarPopoverView(model: model))
             controller.sizingOptions = [.preferredContentSize]
             popover.contentViewController = controller

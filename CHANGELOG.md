@@ -6,6 +6,18 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-09-18
+
+### Changed
+
+- New versions show up on their own within minutes: MacGauge checks quietly when you open the popover, after waking and every 30 minutes (only while automatic checks are on).
+
+### Fixed
+
+- Retry and Update never install on their own: a prepared update always stops at "Ready to install" and waits for "Install now".
+- "Check for updates" in Settings always answers now: if a quiet check is still running it shows "Checking…" and runs your check as soon as that one ends.
+- Pressing Update right after a quiet check no longer does nothing: the download starts as soon as that check finishes and still stops at "Ready to install".
+
 ## [1.6.1] - 2026-09-18
 
 ### Fixed
