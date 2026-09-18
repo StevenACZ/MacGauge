@@ -1,3 +1,4 @@
+import AppKit
 import Sparkle
 import XCTest
 
@@ -13,6 +14,12 @@ final class UpdateManagerTests: XCTestCase {
     override func setUp() {
         super.setUp()
         manager = UpdateManager()
+    }
+
+    override func tearDown() {
+        manager.stopBackgroundDiscovery()
+        manager = nil
+        super.tearDown()
     }
 
     // MARK: - Scheduled check surfaces a pending row
@@ -606,6 +613,153 @@ final class UpdateManagerTests: XCTestCase {
 
         XCTAssertTrue(choices.isEmpty)
         XCTAssertEqual(manager.phase, .readyToInstall(version: ""))
+    }
+
+    // MARK: - Silent discovery
+
+    private var discoveryNow: TimeInterval = 0
+    private var backgroundChecks = 0
+
+    private func armDiscovery(enabled: Bool = true) {
+        discoveryNow = 0
+        backgroundChecks = 0
+        manager.setAutoCheckEnabled(enabled)
+        manager.stopBackgroundDiscovery()
+        manager.monotonicClock = { [unowned self] in self.discoveryNow }
+        manager.backgroundCheckStarter = { [unowned self] _ in self.backgroundChecks += 1 }
+        manager.isSessionInProgress = { _ in false }
+        manager.hasLiveUpdater = { _ in true }
+    }
+
+    func testPopoverOpenAsksForASilentCheck() {
+        armDiscovery()
+
+        manager.requestBackgroundCheck()
+
+        XCTAssertEqual(backgroundChecks, 1)
+        XCTAssertEqual(manager.phase, .idle)
+        XCTAssertEqual(manager.manualCheckStatus, .idle)
+    }
+
+    func testWakeAndTimerShareTheFiveMinuteThrottle() {
+        armDiscovery()
+
+        manager.requestBackgroundCheck()
+        discoveryNow = UpdateManager.backgroundCheckThrottle - 1
+        manager.requestBackgroundCheck()
+
+        XCTAssertEqual(backgroundChecks, 1)
+
+        discoveryNow = UpdateManager.backgroundCheckThrottle
+        manager.requestBackgroundCheck()
+
+        XCTAssertEqual(backgroundChecks, 2)
+    }
+
+    func testBackgroundCheckIsSkippedWhileASessionIsInProgress() {
+        armDiscovery()
+        manager.isSessionInProgress = { _ in true }
+
+        manager.requestBackgroundCheck()
+
+        XCTAssertEqual(backgroundChecks, 0)
+    }
+
+    func testBackgroundCheckIsSkippedWhileACardIsShowing() {
+        armDiscovery()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+
+        manager.requestBackgroundCheck()
+
+        XCTAssertEqual(backgroundChecks, 0)
+        XCTAssertEqual(manager.phase, .available(version: "9.9.9"))
+    }
+
+    func testManualCheckIsNeverThrottled() {
+        armDiscovery()
+        var userChecks = 0
+        manager.userCheckStarter = { _ in userChecks += 1 }
+        manager.requestBackgroundCheck()
+
+        manager.checkForUpdatesManually()
+        manager.checkForUpdatesManually()
+
+        XCTAssertEqual(userChecks, 2)
+        XCTAssertEqual(manager.manualCheckStatus, .checking)
+    }
+
+    func testDisabledAutoChecksFireNoTrigger() {
+        armDiscovery(enabled: false)
+
+        manager.requestBackgroundCheck()
+
+        XCTAssertEqual(backgroundChecks, 0)
+        XCTAssertFalse(manager.backgroundDiscoveryArmed)
+    }
+
+    func testWakeNotificationAsksForASilentCheck() {
+        armDiscovery()
+        manager.startBackgroundDiscovery()
+        defer { manager.stopBackgroundDiscovery() }
+
+        NSWorkspace.shared.notificationCenter.post(
+            name: NSWorkspace.didWakeNotification, object: nil)
+
+        XCTAssertTrue(manager.backgroundDiscoveryArmed)
+        XCTAssertEqual(backgroundChecks, 1)
+    }
+
+    func testEnablingAutoChecksArmsTheTimerAndDisablingInvalidatesIt() {
+        manager.setAutoCheckEnabled(true)
+        XCTAssertTrue(manager.backgroundDiscoveryArmed)
+
+        manager.setAutoCheckEnabled(false)
+
+        XCTAssertFalse(manager.backgroundDiscoveryArmed)
+    }
+
+    func testSilentCheckThatFindsNothingChangesNoVisibleState() {
+        armDiscovery()
+        manager.requestBackgroundCheck()
+
+        manager.handleNotFound()
+
+        XCTAssertEqual(manager.phase, .idle)
+        XCTAssertEqual(manager.manualCheckStatus, .idle)
+        XCTAssertNil(manager.pendingVersion)
+    }
+
+    func testSilentCheckThatFailsChangesNoVisibleState() {
+        armDiscovery()
+        manager.requestBackgroundCheck()
+
+        manager.handleError("offline")
+
+        XCTAssertEqual(manager.phase, .idle)
+        XCTAssertEqual(manager.manualCheckStatus, .idle)
+    }
+
+    func testSilentCheckThatFindsAnUpdateShowsTheAvailableCard() {
+        armDiscovery()
+        manager.requestBackgroundCheck()
+
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertEqual(manager.phase, .available(version: "9.9.9"))
+    }
+
+    func testSilentCheckOnAPreparedUpdateStillWaitsForInstallNow() {
+        armDiscovery()
+        manager.requestBackgroundCheck()
+
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .downloaded)
+
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
     }
 
     // MARK: - Up to date

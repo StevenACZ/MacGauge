@@ -112,6 +112,7 @@ final class MetricStatusItemController: NSObject {
             popover.performClose(nil)
         } else {
             button.bounce()
+            UpdateManager.shared.requestBackgroundCheck()
             configuration.onPopoverOpen?()
             let detailController = NSHostingController(rootView: detailRoot())
             detailController.sizingOptions = [.preferredContentSize]

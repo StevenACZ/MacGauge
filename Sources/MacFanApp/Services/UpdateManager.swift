@@ -34,6 +34,8 @@ final class UpdateManager: ObservableObject {
     /// `defaults write com.stevenacz.MacFan updateFeedURLOverride <url>`.
     static let feedURLOverrideDefaultsKey = "updateFeedURLOverride"
     static let resumeCheckAttemptLimit = 40
+    static let backgroundCheckInterval: TimeInterval = 30 * 60
+    static let backgroundCheckThrottle: TimeInterval = 5 * 60
     private static let resumeCheckRetryDelay = 0.25
 
     @Published private(set) var phase: Phase = .idle
@@ -57,12 +59,23 @@ final class UpdateManager: ObservableObject {
     private(set) var resumeCheckPending = false
     var resumeCheckStarter: @MainActor (UpdateManager) -> Void = { $0.runResumeCheck(attempt: 0) }
     var hasLiveUpdater: @MainActor (UpdateManager) -> Bool = { $0.updater != nil }
+    var backgroundCheckStarter: @MainActor (UpdateManager) -> Void = {
+        $0.updater?.checkForUpdatesInBackground()
+    }
+    var userCheckStarter: @MainActor (UpdateManager) -> Void = { $0.updater?.checkForUpdates() }
+    var isSessionInProgress: @MainActor (UpdateManager) -> Bool = { $0.updater?.sessionInProgress == true }
+    var monotonicClock: @MainActor () -> TimeInterval = {
+        TimeInterval(clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)) / 1_000_000_000
+    }
     private var pendingInstallReply: ((SPUUserUpdateChoice) -> Void)?
     private var pendingIsInformationOnly = false
     private var expectedDownloadBytes: UInt64 = 0
     private var receivedDownloadBytes: UInt64 = 0
     private var manualCheckPending = false
     private var manualCheckResetTask: Task<Void, Never>?
+    private var backgroundCheckTimer: Timer?
+    private var wakeObserver: NSObjectProtocol?
+    private var lastBackgroundCheck: TimeInterval?
 
     init() {
         // Defaults to enabled until the Settings toggle writes the key.
@@ -100,12 +113,65 @@ final class UpdateManager: ObservableObject {
         self.driver = driver
         self.updaterDelegate = updaterDelegate
         self.updater = updater
+        if autoCheckEnabled { startBackgroundDiscovery() }
     }
 
     func setAutoCheckEnabled(_ enabled: Bool) {
         autoCheckEnabled = enabled
         UserDefaults.standard.set(enabled, forKey: Self.autoCheckDefaultsKey)
         updater?.automaticallyChecksForUpdates = enabled
+        if enabled {
+            startBackgroundDiscovery()
+        } else {
+            stopBackgroundDiscovery()
+        }
+    }
+
+    // MARK: - Silent discovery
+
+    var backgroundDiscoveryArmed: Bool { backgroundCheckTimer != nil }
+
+    func startBackgroundDiscovery() {
+        guard backgroundCheckTimer == nil else { return }
+        let timer = Timer(timeInterval: Self.backgroundCheckInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.requestBackgroundCheck()
+            }
+        }
+        timer.tolerance = Self.backgroundCheckInterval / 10
+        RunLoop.main.add(timer, forMode: .common)
+        backgroundCheckTimer = timer
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.requestBackgroundCheck()
+            }
+        }
+    }
+
+    func stopBackgroundDiscovery() {
+        backgroundCheckTimer?.invalidate()
+        backgroundCheckTimer = nil
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+            self.wakeObserver = nil
+        }
+    }
+
+    /// Popover open, wake, and the repeating timer all land here: a silent
+    /// check at most every `backgroundCheckThrottle`, and only while nothing
+    /// is already on screen or in flight.
+    func requestBackgroundCheck() {
+        guard autoCheckEnabled, phase == .idle, !isSessionInProgress(self) else { return }
+        let now = monotonicClock()
+        if let lastBackgroundCheck, now - lastBackgroundCheck < Self.backgroundCheckThrottle {
+            return
+        }
+        lastBackgroundCheck = now
+        backgroundCheckStarter(self)
     }
 
     // MARK: - User actions
@@ -185,12 +251,13 @@ final class UpdateManager: ObservableObject {
     }
 
     /// Settings pane: explicit re-check with visible "up to date" feedback.
+    /// Never subject to the silent-discovery throttle.
     func checkForUpdatesManually() {
-        guard let updater, updater.sessionInProgress == false else { return }
+        guard hasLiveUpdater(self), !isSessionInProgress(self) else { return }
         manualCheckResetTask?.cancel()
         manualCheckPending = true
         manualCheckStatus = .checking
-        updater.checkForUpdates()
+        userCheckStarter(self)
     }
 
     func openReleasePage() {
