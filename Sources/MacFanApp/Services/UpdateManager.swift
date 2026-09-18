@@ -32,7 +32,7 @@ final class UpdateManager: ObservableObject {
     static let autoCheckDefaultsKey = "autoUpdateCheckEnabled"
     /// Local appcast testing only:
     /// `defaults write com.stevenacz.MacFan updateFeedURLOverride <url>`.
-    static let feedURLOverrideDefaultsKey = "updateFeedURLOverride"
+    nonisolated static let feedURLOverrideDefaultsKey = "updateFeedURLOverride"
     static let resumeCheckAttemptLimit = 40
     static let backgroundCheckInterval: TimeInterval = 30 * 60
     static let backgroundCheckThrottle: TimeInterval = 5 * 60
