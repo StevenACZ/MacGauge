@@ -10,15 +10,23 @@ import XCTest
 final class UpdateManagerTests: XCTestCase {
 
     private var manager: UpdateManager!
+    private var savedAutoCheckDefault: Any?
 
     override func setUp() {
         super.setUp()
+        savedAutoCheckDefault = UserDefaults.standard.object(forKey: UpdateManager.autoCheckDefaultsKey)
         manager = UpdateManager()
     }
 
     override func tearDown() {
         manager.stopBackgroundDiscovery()
         manager = nil
+        if let savedAutoCheckDefault {
+            UserDefaults.standard.set(savedAutoCheckDefault, forKey: UpdateManager.autoCheckDefaultsKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: UpdateManager.autoCheckDefaultsKey)
+        }
+        savedAutoCheckDefault = nil
         super.tearDown()
     }
 
@@ -620,10 +628,10 @@ final class UpdateManagerTests: XCTestCase {
     private var discoveryNow: TimeInterval = 0
     private var backgroundChecks = 0
 
-    private func armDiscovery(enabled: Bool = true) {
+    private func armDiscovery() {
         discoveryNow = 0
         backgroundChecks = 0
-        manager.setAutoCheckEnabled(enabled)
+        manager.setAutoCheckEnabled(true)
         manager.stopBackgroundDiscovery()
         manager.monotonicClock = { [unowned self] in self.discoveryNow }
         manager.backgroundCheckStarter = { [unowned self] _ in self.backgroundChecks += 1 }
@@ -634,11 +642,43 @@ final class UpdateManagerTests: XCTestCase {
     func testPopoverOpenAsksForASilentCheck() {
         armDiscovery()
 
-        manager.requestBackgroundCheck()
+        manager.popoverDidOpen()
 
         XCTAssertEqual(backgroundChecks, 1)
         XCTAssertEqual(manager.phase, .idle)
         XCTAssertEqual(manager.manualCheckStatus, .idle)
+    }
+
+    func testEveryPopoverControllerCallsThePopoverHook() throws {
+        let sources = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources/MacFanApp/App")
+
+        for controller in ["StatusItemController", "MetricStatusItemController", "FusedModulesStatusItemController"] {
+            let source = try String(
+                contentsOf: sources.appendingPathComponent("\(controller).swift"), encoding: .utf8)
+            XCTAssertTrue(source.contains("UpdateManager.shared.popoverDidOpen()"), controller)
+        }
+    }
+
+    func testTheDiscoveryTimerRunsOnTheRunLoopAndAsksForACheck() {
+        armDiscovery()
+        let fired = expectation(description: "the discovery timer asked for a silent check")
+        fired.assertForOverFulfill = false
+        manager.backgroundCheckStarter = { [unowned self] _ in
+            self.backgroundChecks += 1
+            fired.fulfill()
+        }
+        manager.backgroundCheckIntervalProvider = { 0.05 }
+
+        manager.startBackgroundDiscovery()
+
+        XCTAssertTrue(manager.backgroundDiscoveryArmed)
+        waitForExpectations(timeout: 5)
+        manager.stopBackgroundDiscovery()
+        XCTAssertEqual(backgroundChecks, 1)
     }
 
     func testWakeAndTimerShareTheFiveMinuteThrottle() {
@@ -689,9 +729,150 @@ final class UpdateManagerTests: XCTestCase {
         XCTAssertEqual(manager.manualCheckStatus, .checking)
     }
 
-    func testDisabledAutoChecksFireNoTrigger() {
-        armDiscovery(enabled: false)
+    func testManualCheckDuringASilentSessionRunsWhenTheSessionEnds() {
+        armDiscovery()
+        var sessionInProgress = true
+        var userChecks = 0
+        manager.isSessionInProgress = { _ in sessionInProgress }
+        manager.userCheckStarter = { _ in userChecks += 1 }
+        manager.manualCheckStarter = { _ in }
 
+        manager.checkForUpdatesManually()
+
+        XCTAssertEqual(manager.manualCheckStatus, .checking)
+        XCTAssertEqual(userChecks, 0)
+
+        sessionInProgress = false
+        manager.runManualCheck(attempt: 1)
+
+        XCTAssertEqual(userChecks, 1)
+        XCTAssertEqual(manager.manualCheckStatus, .checking)
+
+        manager.handleNotFound()
+
+        XCTAssertEqual(manager.manualCheckStatus, .upToDate)
+    }
+
+    func testManualCheckGivesUpQuietlyWhenTheSessionNeverEnds() {
+        armDiscovery()
+        var userChecks = 0
+        manager.isSessionInProgress = { _ in true }
+        manager.userCheckStarter = { _ in userChecks += 1 }
+        manager.manualCheckStarter = { _ in }
+
+        manager.checkForUpdatesManually()
+        XCTAssertEqual(manager.manualCheckStatus, .checking)
+
+        manager.runManualCheck(attempt: UpdateManager.resumeCheckAttemptLimit)
+
+        XCTAssertEqual(userChecks, 0)
+        XCTAssertEqual(manager.manualCheckStatus, .idle)
+        XCTAssertEqual(manager.phase, .idle)
+    }
+
+    func testUpdateClickDuringTheSilentSessionTeardownStillDownloads() {
+        armDiscovery()
+        var sessionInProgress = true
+        var userChecks = 0
+        manager.isSessionInProgress = { _ in sessionInProgress }
+        manager.userCheckStarter = { _ in userChecks += 1 }
+        manager.resumeCheckStarter = { _ in }
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+
+        manager.installPendingUpdate()
+
+        XCTAssertEqual(manager.phase, .downloading(fraction: nil))
+        XCTAssertEqual(userChecks, 0)
+
+        sessionInProgress = false
+        manager.runResumeCheck(attempt: 1)
+
+        XCTAssertEqual(userChecks, 1)
+        XCTAssertFalse(manager.resumeCheckPending)
+        XCTAssertFalse(manager.installNowRequested)
+
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .downloaded)
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertTrue(choices.isEmpty)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testUpdateClickDuringARunningDownloadIsIgnored() {
+        armDiscovery()
+        var userChecks = 0
+        var resumeStarts = 0
+        manager.isSessionInProgress = { _ in true }
+        manager.userCheckStarter = { _ in userChecks += 1 }
+        manager.resumeCheckStarter = { _ in resumeStarts += 1 }
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.installPendingUpdate()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleDownloadInitiated()
+        manager.handleDownloadExpectedLength(1_000)
+        manager.handleDownloadReceived(bytes: 400)
+        XCTAssertEqual(manager.phase, .downloading(fraction: 0.4))
+        XCTAssertEqual(resumeStarts, 1)
+
+        manager.installPendingUpdate()
+
+        XCTAssertEqual(manager.phase, .downloading(fraction: 0.4))
+        XCTAssertFalse(manager.resumeCheckPending)
+        XCTAssertEqual(resumeStarts, 1)
+        XCTAssertEqual(userChecks, 0)
+    }
+
+    func testUpdateClickWhileInstallingIsIgnored() {
+        armDiscovery()
+        var resumeStarts = 0
+        manager.isSessionInProgress = { _ in true }
+        manager.resumeCheckStarter = { _ in resumeStarts += 1 }
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.installPendingUpdate()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleExtractionStarted()
+
+        manager.installPendingUpdate()
+
+        XCTAssertEqual(manager.phase, .installing)
+        XCTAssertFalse(manager.resumeCheckPending)
+        XCTAssertEqual(resumeStarts, 1)
+    }
+
+    func testRetryAfterAFailedDownloadStillStartsTheResumePath() {
+        armDiscovery()
+        var resumeStarts = 0
+        manager.isSessionInProgress = { _ in true }
+        manager.resumeCheckStarter = { _ in resumeStarts += 1 }
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.installPendingUpdate()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleError("download died")
+        XCTAssertEqual(manager.phase, .failed(version: "9.9.9"))
+
+        manager.retryPendingUpdate()
+
+        XCTAssertEqual(manager.phase, .downloading(fraction: nil))
+        XCTAssertTrue(manager.resumeCheckPending)
+        XCTAssertEqual(resumeStarts, 2)
+    }
+
+    func testDisabledAutoChecksFireNoTrigger() {
+        armDiscovery()
+        manager.startBackgroundDiscovery()
+        XCTAssertTrue(manager.backgroundDiscoveryArmed)
+
+        manager.setAutoCheckEnabled(false)
         manager.requestBackgroundCheck()
 
         XCTAssertEqual(backgroundChecks, 0)
