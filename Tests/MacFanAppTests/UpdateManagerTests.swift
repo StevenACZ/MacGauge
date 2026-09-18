@@ -549,6 +549,29 @@ final class UpdateManagerTests: XCTestCase {
         XCTAssertFalse(manager.installNowRequested)
     }
 
+    func testTheResumePollOutlastsASlowAppcastFetch() {
+        let window = Double(UpdateManager.resumeCheckAttemptLimit) * UpdateManager.resumeCheckRetryDelay
+
+        XCTAssertGreaterThanOrEqual(window, 70)
+    }
+
+    func testAResumeCheckWithoutALiveUpdaterDisarmsTheInstall() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
+        XCTAssertTrue(manager.resumeCheckPending)
+
+        manager.hasLiveUpdater = { _ in false }
+        manager.runResumeCheck(attempt: 0)
+
+        XCTAssertFalse(manager.resumeCheckPending)
+        XCTAssertFalse(manager.installRequested)
+        XCTAssertFalse(manager.installNowRequested)
+        XCTAssertEqual(manager.phase, .failed(version: "9.9.9"))
+    }
+
     func testTheNewSessionEndsTheResumeLoop() {
         _ = manager.handleUpdateFound(
             version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
@@ -948,8 +971,15 @@ final class UpdateManagerTests: XCTestCase {
     // MARK: - Quiet checks from a resting card
 
     private func armLaterState() {
+        manager.hasLiveUpdater = { _ in true }
         _ = manager.handleUpdateFound(
             version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.installPendingUpdate()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleDownloadInitiated()
+        manager.handleDownloadExpectedLength(1000)
+        manager.handleDownloadReceived(bytes: 1000)
         manager.handleReadyToInstall { _ in }
         manager.installLater()
     }
@@ -1144,28 +1174,18 @@ final class UpdateManagerTests: XCTestCase {
         XCTAssertFalse(manager.installRequested)
     }
 
-    func testAnUnattendedNotFoundKeepsTheCard() {
+    func testLaterDropsTheInstallConsent() {
         armDiscovery()
-        _ = manager.handleUpdateFound(
+        armLaterState()
+
+        XCTAssertFalse(manager.installRequested)
+        XCTAssertFalse(manager.installNowRequested)
+
+        let choice = manager.handleUpdateFound(
             version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
-        manager.requestBackgroundCheck()
 
-        manager.handleNotFound()
-
-        XCTAssertEqual(manager.phase, .available(version: "9.9.9"))
-        XCTAssertEqual(manager.pendingVersion, "9.9.9")
-        XCTAssertEqual(manager.manualCheckStatus, .idle)
-    }
-
-    func testAnUnattendedErrorKeepsTheFailedCard() {
-        armDiscovery()
-        armFailedCard()
-        manager.requestBackgroundCheck()
-
-        manager.handleError("offline")
-
-        XCTAssertEqual(manager.phase, .failed(version: "9.9.9"))
-        XCTAssertEqual(manager.manualCheckStatus, .idle)
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
     }
 
     func testAQuietCheckWithoutAnyCallbackStillAnswersALaterManualCheck() {
@@ -1247,9 +1267,9 @@ final class UpdateManagerTests: XCTestCase {
 
     func testInstallNowStillInstallsFromTheAfterLaterState() {
         armDiscovery()
+        armLaterState()
         var resumeStarts = 0
         manager.resumeCheckStarter = { _ in resumeStarts += 1 }
-        armLaterState()
 
         manager.installNow()
         let choice = manager.handleUpdateFound(
@@ -1262,16 +1282,9 @@ final class UpdateManagerTests: XCTestCase {
 
     // MARK: - Up to date
 
-    func testNotFoundAfterAManualCheckClearsPendingState() {
-        armDiscovery()
-        manager.userCheckStarter = { _ in }
+    func testNotFoundClearsPendingState() {
         _ = manager.handleUpdateFound(
-            version: "9.9.9",
-            releasePage: URL(string: "https://example.com/release"),
-            informationOnly: false,
-            stage: .notDownloaded
-        )
-        manager.checkForUpdatesManually()
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
 
         manager.handleNotFound()
 

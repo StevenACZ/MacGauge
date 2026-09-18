@@ -33,10 +33,10 @@ final class UpdateManager: ObservableObject {
     /// Local appcast testing only:
     /// `defaults write com.stevenacz.MacFan updateFeedURLOverride <url>`.
     nonisolated static let feedURLOverrideDefaultsKey = "updateFeedURLOverride"
-    static let resumeCheckAttemptLimit = 40
+    static let resumeCheckAttemptLimit = 300
     static let backgroundCheckInterval: TimeInterval = 30 * 60
     static let backgroundCheckThrottle: TimeInterval = 5 * 60
-    private static let resumeCheckRetryDelay = 0.25
+    static let resumeCheckRetryDelay = 0.25
 
     @Published private(set) var phase: Phase = .idle
     /// GitHub release page of the pending update (the appcast item's <link>).
@@ -260,13 +260,13 @@ final class UpdateManager: ObservableObject {
     func runResumeCheck(attempt: Int) {
         guard resumeCheckPending else { return }
         guard attempt < Self.resumeCheckAttemptLimit else {
-            installRequested = false
-            installNowRequested = false
-            resumeCheckPending = false
-            phase = .failed(version: pendingVersion ?? "")
+            handleResumeCheckExhausted()
             return
         }
-        guard hasLiveUpdater(self) else { return }
+        guard hasLiveUpdater(self) else {
+            handleResumeCheckExhausted()
+            return
+        }
         guard isSessionInProgress(self) else {
             resumeCheckPending = false
             userCheckStarter(self)
@@ -275,6 +275,13 @@ final class UpdateManager: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.resumeCheckRetryDelay) { [weak self] in
             self?.runResumeCheck(attempt: attempt + 1)
         }
+    }
+
+    private func handleResumeCheckExhausted() {
+        installRequested = false
+        installNowRequested = false
+        resumeCheckPending = false
+        phase = .failed(version: pendingVersion ?? "")
     }
 
     func installLater() {
@@ -425,7 +432,6 @@ final class UpdateManager: ObservableObject {
             pendingInstallReply = nil
             return
         }
-        guard sessionIsUserDriven || phase == .idle else { return }
         installRequested = false
         installNowRequested = false
         pendingInstallReply = nil
@@ -443,7 +449,6 @@ final class UpdateManager: ObservableObject {
             pendingInstallReply = nil
             return
         }
-        guard sessionIsUserDriven || phase == .idle else { return }
         finishManualCheck(status: .idle)
         installNowRequested = false
         pendingInstallReply = nil
