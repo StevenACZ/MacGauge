@@ -230,18 +230,13 @@
 "formatter.temperature_unavailable" = "No disponible";
 
 /* In-app updates (Sparkle) */
-"popover.update_available" = "Actualización disponible";
-"popover.update_install_hint" = "v%@ — clic para instalar";
-"popover.update_downloading" = "Descargando actualización…";
-"popover.update_installing" = "Instalando actualización…";
-"popover.update_relaunch" = "MacGauge se relanzará solo";
-"popover.update_failed" = "La actualización falló";
-"popover.update_retry_hint" = "Clic para reintentar";
 "settings.general.auto_updates" = "Buscar actualizaciones automáticamente";
 "settings.general.auto_updates.caption" = "Consulta GitHub Releases una vez al día. No se envía nada.";
 "settings.general.updates" = "Actualizaciones";
 "settings.general.updates.current" = "MacGauge v%@";
-"settings.general.updates.available" = "La versión %@ está lista para instalar";
+"settings.general.updates.available" = "La versión %@ está disponible";
+"settings.general.updates.ready" = "Versión %@ lista para instalar";
+"settings.general.updates.ready.unknown" = "Actualización lista para instalar";
 "settings.general.updates.downloading" = "Descargando actualización…";
 "settings.general.updates.installing" = "Instalando — MacGauge se relanzará solo";
 "settings.general.updates.failed" = "La actualización no se pudo instalar";
@@ -250,3 +245,53 @@
 "settings.general.updates.install" = "Instalar";
 "settings.general.updates.retry" = "Reintentar";
 "settings.general.updates.release_notes" = "Ver notas de la versión";
+
+"welcome.title" = "Bienvenido a MacGauge";
+"welcome.subtitle" = "Tu Mac, de un vistazo.";
+"welcome.monitoring.title" = "El monitoreo está listo";
+"welcome.monitoring.body" = "Consulta CPU, memoria, red y las lecturas disponibles de los ventiladores en la barra de menús. No necesitas autorizar el control de ventiladores.";
+"welcome.optional.title" = "Control de ventiladores · Opcional";
+"welcome.optional.body" = "¿Quieres ajustar los ventiladores? Revisa el estado del servicio y los pasos en Seguridad. La autorización de macOS solo es necesaria para controlarlos.";
+"welcome.optional.action" = "Revisar configuración…";
+"welcome.start" = "Empezar a monitorear";
+"welcome.reopen" = "Mostrar bienvenida…";
+
+/* Update card */
+"update.card.available" = "Nueva versión v%@ disponible";
+"update.card.available.hint" = "Descarga en segundo plano, instala cuando quieras";
+"update.card.downloading" = "Descargando v%@…";
+"update.card.downloading.unknown" = "Descargando actualización…";
+"update.card.percent" = "%d %%";
+"update.card.ready" = "v%@ lista para instalar";
+"update.card.ready.unknown" = "Actualización lista para instalar";
+"update.card.ready.hint" = "La app se cerrará y volverá a abrir sola";
+"update.card.installing" = "Instalando v%@…";
+"update.card.installing.unknown" = "Instalando actualización…";
+"update.card.installing.hint" = "Se reiniciará en un momento";
+"update.card.failed" = "No se pudo actualizar";
+"update.card.failed.hint" = "Revisa tu conexión e inténtalo de nuevo";
+"update.card.action.update" = "Actualizar";
+"update.card.action.install_now" = "Instalar ahora";
+"update.card.action.later" = "Más tarde";
+"update.card.action.retry" = "Reintentar";
+
+/* About */
+"popover.about" = "Acerca de MacGauge";
+"about.title" = "Acerca de MacGauge";
+"about.version" = "v%@ · %@";
+"about.tagline" = "Ventiladores, temperatura y estadísticas del sistema en la barra de menús.";
+"about.chip.fans" = "Control de ventiladores";
+"about.chip.temperature" = "Temperatura";
+"about.chip.modules" = "Módulos";
+"about.link.report_issue" = "Reportar problema";
+"about.footer.credit" = "Creado con cuidado para macOS";
+"about.update_install" = "Instalar v%@";
+"about.update_install_now" = "Instalar v%@ ahora";
+"about.update_install_now.unknown" = "Instalar actualización ahora";
+"about.update_later" = "Más tarde";
+"about.update_release_notes" = "Ver notas de la versión";
+"about.update_downloading" = "Descargando…";
+"about.update_installing" = "Instalando…";
+"about.update_retry" = "Reintentar";
+"about.update_check" = "Buscar actualizaciones";
+"about.update_up_to_date" = "Estás al día";

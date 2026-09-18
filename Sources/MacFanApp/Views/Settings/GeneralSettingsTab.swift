@@ -7,6 +7,7 @@ struct GeneralSettingsTab: View {
     @ObservedObject private var updateManager = UpdateManager.shared
 
     let setLaunchAtLogin: (Bool) -> Void
+    var onShowWelcome: () -> Void = {}
 
     var body: some View {
         SettingsPane {
@@ -30,6 +31,7 @@ struct GeneralSettingsTab: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
+                    .fixedSize()
                 }
 
                 SettingsDivider()
@@ -72,6 +74,12 @@ struct GeneralSettingsTab: View {
                 SettingsDivider()
 
                 updatesRow
+
+                SettingsDivider()
+
+                SettingsRow(title: "welcome.title".localized, icon: "hand.wave") {
+                    Button("welcome.reopen".localized, action: onShowWelcome)
+                }
             }
         }
     }
@@ -96,6 +104,10 @@ struct GeneralSettingsTab: View {
             return "settings.general.updates.current".localized(version)
         case .available(let version):
             return "settings.general.updates.available".localized(version)
+        case .readyToInstall(let version):
+            return version.isEmpty
+                ? "settings.general.updates.ready.unknown".localized
+                : "settings.general.updates.ready".localized(version)
         case .downloading:
             return "settings.general.updates.downloading".localized
         case .installing:
@@ -147,12 +159,18 @@ struct GeneralSettingsTab: View {
                     .buttonStyle(.plain)
                 }
             }
+        case .readyToInstall:
+            Button("settings.general.updates.install".localized) {
+                updateManager.installNow()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
         case .downloading, .installing:
             ProgressView()
                 .controlSize(.small)
         case .failed:
             Button("settings.general.updates.retry".localized) {
-                updateManager.installPendingUpdate()
+                updateManager.installNow()
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

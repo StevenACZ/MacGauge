@@ -88,7 +88,7 @@ tab past the window paddings. Keep these rules:
   frame or replace it with `maxWidth: .infinity`.
 - Audit any settings HStack whose fixed widths sum near the pane width;
   prefer flexible text columns over fixed frames.
-- The window pins `contentMinSize == contentMaxSize` plus a snap-back in
+- The integrated window pins frame `minSize == maxSize` plus a snap-back in
   `windowDidResize`: macOS can resize even non-resizable windows
   programmatically (edge tiling, toolbar reshapes) and programmatic
   `setFrame` bypasses min/max.
