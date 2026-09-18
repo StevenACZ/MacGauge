@@ -230,18 +230,13 @@
 "formatter.temperature_unavailable" = "Unavailable";
 
 /* In-app updates (Sparkle) */
-"popover.update_available" = "Update available";
-"popover.update_install_hint" = "v%@ — click to install";
-"popover.update_downloading" = "Downloading update…";
-"popover.update_installing" = "Installing update…";
-"popover.update_relaunch" = "MacGauge will relaunch by itself";
-"popover.update_failed" = "Update failed";
-"popover.update_retry_hint" = "Click to try again";
 "settings.general.auto_updates" = "Check for updates automatically";
 "settings.general.auto_updates.caption" = "Checks GitHub Releases once a day. Nothing is sent.";
 "settings.general.updates" = "Updates";
 "settings.general.updates.current" = "MacGauge v%@";
-"settings.general.updates.available" = "Version %@ is ready to install";
+"settings.general.updates.available" = "Version %@ is available";
+"settings.general.updates.ready" = "Version %@ ready to install";
+"settings.general.updates.ready.unknown" = "Update ready to install";
 "settings.general.updates.downloading" = "Downloading update…";
 "settings.general.updates.installing" = "Installing — MacGauge will relaunch by itself";
 "settings.general.updates.failed" = "The update failed to install";
@@ -250,3 +245,53 @@
 "settings.general.updates.install" = "Install";
 "settings.general.updates.retry" = "Try Again";
 "settings.general.updates.release_notes" = "View release notes";
+
+"welcome.title" = "Welcome to MacGauge";
+"welcome.subtitle" = "Your Mac, at a glance.";
+"welcome.monitoring.title" = "Monitoring is ready";
+"welcome.monitoring.body" = "See CPU, memory, network and available fan readings in your menu bar. No fan-control authorization is needed.";
+"welcome.optional.title" = "Fan control · Optional";
+"welcome.optional.body" = "Want to adjust your fans? Review the helper status and setup steps in Safety settings. macOS authorization is required only for fan control.";
+"welcome.optional.action" = "Review fan-control setup…";
+"welcome.start" = "Start monitoring";
+"welcome.reopen" = "Show Welcome…";
+
+/* Update card */
+"update.card.available" = "Version %@ is available";
+"update.card.available.hint" = "Downloads in the background, install when you want";
+"update.card.downloading" = "Downloading v%@…";
+"update.card.downloading.unknown" = "Downloading update…";
+"update.card.percent" = "%d %%";
+"update.card.ready" = "v%@ ready to install";
+"update.card.ready.unknown" = "Update ready to install";
+"update.card.ready.hint" = "The app will quit and reopen by itself";
+"update.card.installing" = "Installing v%@…";
+"update.card.installing.unknown" = "Installing update…";
+"update.card.installing.hint" = "Restarting in a moment";
+"update.card.failed" = "Update failed";
+"update.card.failed.hint" = "Check your connection and try again";
+"update.card.action.update" = "Update";
+"update.card.action.install_now" = "Install now";
+"update.card.action.later" = "Later";
+"update.card.action.retry" = "Retry";
+
+/* About */
+"popover.about" = "About MacGauge";
+"about.title" = "About MacGauge";
+"about.version" = "v%@ · %@";
+"about.tagline" = "Fans, temperature, and live system stats in your menu bar.";
+"about.chip.fans" = "Fan control";
+"about.chip.temperature" = "Temperature";
+"about.chip.modules" = "Menu bar modules";
+"about.link.report_issue" = "Report an issue";
+"about.footer.credit" = "Made with care for macOS";
+"about.update_install" = "Install v%@";
+"about.update_install_now" = "Install v%@ now";
+"about.update_install_now.unknown" = "Install update now";
+"about.update_later" = "Later";
+"about.update_release_notes" = "View release notes";
+"about.update_downloading" = "Downloading…";
+"about.update_installing" = "Installing…";
+"about.update_retry" = "Try again";
+"about.update_check" = "Check for updates";
+"about.update_up_to_date" = "You're up to date";

@@ -1,127 +1,175 @@
 import SwiftUI
 
-/// Update lifecycle row for the popover footer: pending update → one-click
-/// install with inline download/install progress; a failed install offers a
-/// retry. Hidden entirely while no update is pending.
-struct UpdateMenuRow: View {
+/// Update lifecycle card shown under the popover header: a pending update
+/// downloads in one click, a downloaded update offers install now or later,
+/// and a failed install offers a retry. Hidden while no update is pending.
+struct UpdateCard: View {
     @ObservedObject var manager: UpdateManager
 
     var body: some View {
+        content
+            .animation(Theme.Anim.mode, value: manager.phase)
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch manager.phase {
         case .idle:
             EmptyView()
 
         case .available(let version):
-            UpdateActionRow(
-                icon: "arrow.down.circle",
-                title: "popover.update_available".localized,
-                subtitle: "popover.update_install_hint".localized(version)
+            card(
+                icon: "arrow.down.circle.fill",
+                title: "update.card.available".localized(version),
+                subtitle: "update.card.available.hint".localized
             ) {
-                manager.installPendingUpdate()
+                UpdateCardButton(title: "update.card.action.update".localized) {
+                    manager.installPendingUpdate()
+                }
             }
 
         case .downloading(let fraction):
-            UpdateProgressRow(
-                title: "popover.update_downloading".localized,
-                subtitle: fraction.map { "\(Int($0 * 100))%" },
-                fraction: fraction
-            )
+            card(
+                icon: "arrow.down.circle",
+                title: versioned("update.card.downloading", fallback: "update.card.downloading.unknown"),
+                subtitle: nil
+            ) {
+                HStack(spacing: 8) {
+                    Group {
+                        if let fraction {
+                            ProgressView(value: fraction)
+                        } else {
+                            ProgressView()
+                        }
+                    }
+                    .progressViewStyle(.linear)
+                    .tint(Theme.accent)
+
+                    if let fraction {
+                        Text("update.card.percent".localized(Int(fraction * 100)))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+        case .readyToInstall(let version):
+            card(
+                icon: "checkmark.circle.fill",
+                title: versioned("update.card.ready", version: version, fallback: "update.card.ready.unknown"),
+                subtitle: "update.card.ready.hint".localized
+            ) {
+                HStack(spacing: 8) {
+                    UpdateCardButton(title: "update.card.action.install_now".localized) {
+                        manager.installNow()
+                    }
+                    UpdateCardSecondaryButton(title: "update.card.action.later".localized) {
+                        manager.installLater()
+                    }
+                }
+            }
 
         case .installing:
-            UpdateProgressRow(
-                title: "popover.update_installing".localized,
-                subtitle: "popover.update_relaunch".localized,
-                fraction: nil
-            )
+            card(
+                icon: "arrow.triangle.2.circlepath",
+                title: versioned("update.card.installing", fallback: "update.card.installing.unknown"),
+                subtitle: "update.card.installing.hint".localized
+            ) {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(Theme.accent)
+            }
 
         case .failed:
-            UpdateActionRow(
+            card(
                 icon: "exclamationmark.arrow.circlepath",
-                title: "popover.update_failed".localized,
-                subtitle: "popover.update_retry_hint".localized
+                title: "update.card.failed".localized,
+                subtitle: "update.card.failed.hint".localized
             ) {
-                manager.installPendingUpdate()
+                UpdateCardButton(title: "update.card.action.retry".localized) {
+                    manager.installNow()
+                }
             }
         }
     }
+
+    private func card<Controls: View>(
+        icon: String,
+        title: String,
+        subtitle: String?,
+        @ViewBuilder controls: () -> Controls
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                    .foregroundStyle(Theme.accent)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            controls()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardChrome(
+            radius: Theme.Layout.cardRadius,
+            fill: Theme.accent.opacity(0.12),
+            stroke: Theme.accent.opacity(0.22)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius, style: .continuous))
+    }
+
+    private func versioned(_ key: String, fallback: String) -> String {
+        manager.pendingVersion.map { key.localized($0) } ?? fallback.localized
+    }
+
+    private func versioned(_ key: String, version: String, fallback: String) -> String {
+        version.isEmpty ? fallback.localized : key.localized(version)
+    }
 }
 
-/// ActionRow variant with a caption subtitle, used only by the update row.
-private struct UpdateActionRow: View {
-    let icon: String
+private struct UpdateCardButton: View {
     let title: String
-    let subtitle: String
     let action: () -> Void
-
-    @State private var isHovered = false
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .frame(width: 20)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .font(.callout)
-            .foregroundStyle(Color.primary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Layout.rowRadius, style: .continuous)
-                    .fill(Color.primary.opacity(isHovered ? 0.07 : 0))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Layout.rowRadius, style: .continuous))
+            Text(title)
+                .font(.callout.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(Theme.Anim.easeOut) {
-                isHovered = hovering
-            }
-        }
+        .buttonStyle(.borderedProminent)
+        .tint(Theme.accent)
     }
 }
 
-/// Non-interactive progress row shown while an update downloads or installs.
-private struct UpdateProgressRow: View {
+private struct UpdateCardSecondaryButton: View {
     let title: String
-    let subtitle: String?
-    let fraction: Double?
+    let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Group {
-                if let fraction {
-                    ProgressView(value: fraction)
-                        .progressViewStyle(.circular)
-                } else {
-                    ProgressView()
-                }
-            }
-            .controlSize(.small)
-            .frame(width: 20)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer(minLength: 0)
+        Button(action: action) {
+            Text(title)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
         }
-        .font(.callout)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .buttonStyle(.plain)
     }
 }

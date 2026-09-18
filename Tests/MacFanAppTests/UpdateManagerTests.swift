@@ -1,3 +1,4 @@
+import Sparkle
 import XCTest
 
 @testable import MacFanApp
@@ -20,7 +21,8 @@ final class UpdateManagerTests: XCTestCase {
         let choice = manager.handleUpdateFound(
             version: "9.9.9",
             releasePage: URL(string: "https://example.com/release"),
-            informationOnly: false
+            informationOnly: false,
+            stage: .notDownloaded
         )
 
         XCTAssertEqual(choice, .dismiss)
@@ -29,13 +31,17 @@ final class UpdateManagerTests: XCTestCase {
     }
 
     func testInformationOnlyUpdateNeverInstalls() {
-        manager.installPendingUpdate()  // no updater started: must be a no-op
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
 
         let choice = manager.handleUpdateFound(
-            version: "9.9.9", releasePage: nil, informationOnly: true)
+            version: "9.9.9", releasePage: nil, informationOnly: true, stage: .downloaded)
 
         XCTAssertEqual(choice, .dismiss)
         XCTAssertEqual(manager.phase, .available(version: "9.9.9"))
+        XCTAssertFalse(manager.installRequested)
+        XCTAssertFalse(manager.installNowRequested)
     }
 
     // MARK: - Download progress
@@ -69,19 +75,113 @@ final class UpdateManagerTests: XCTestCase {
 
     // MARK: - Install stages
 
-    func testExtractionAndReadyToInstallShowInstalling() {
+    func testExtractionShowsInstalling() {
         manager.handleExtractionStarted()
-        XCTAssertEqual(manager.phase, .installing)
 
-        XCTAssertEqual(manager.handleReadyToInstall(), .install)
         XCTAssertEqual(manager.phase, .installing)
+    }
+
+    func testReadyToInstallHoldsTheReplyAndSurfacesTheChoice() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+        XCTAssertTrue(choices.isEmpty)
+    }
+
+    func testInstallNowRepliesInstall() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        manager.installNow()
+
+        XCTAssertEqual(choices, [.install])
+        XCTAssertEqual(manager.phase, .installing)
+    }
+
+    func testInstallLaterRepliesDismissAndKeepsTheCard() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        manager.installLater()
+
+        XCTAssertEqual(choices, [.dismiss])
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testDismissAfterLaterKeepsTheNextReadyToInstallWaiting() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleReadyToInstall { _ in }
+        manager.installLater()
+        manager.handleDismissInstallation()
+
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        XCTAssertTrue(choices.isEmpty)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testScheduledCheckOnPreparedUpdateSurfacesReadyToInstall() {
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testInstallNowRepliesExactlyOnceWhenPressedTwice() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        manager.installNow()
+        manager.handleReadyToInstall { choices.append($0) }
+        manager.handleInstalling()
+        manager.installNow()
+
+        XCTAssertEqual(choices, [.install])
+        XCTAssertEqual(manager.phase, .installing)
+    }
+
+    func testInstallNowSurfacesALaterFailure() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.handleReadyToInstall { _ in }
+        manager.installNow()
+
+        manager.handleError("installer died")
+
+        XCTAssertEqual(manager.phase, .failed(version: "9.9.9"))
+    }
+
+    func testLaterThenScheduledCheckKeepsReadyToInstall() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleReadyToInstall { _ in }
+        manager.installLater()
+
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
     }
 
     // MARK: - Errors
 
     func testScheduledCheckErrorStaysSilent() {
         let choice = manager.handleUpdateFound(
-            version: "9.9.9", releasePage: nil, informationOnly: false)
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
         XCTAssertEqual(choice, .dismiss)
 
         manager.handleError("network down")
@@ -99,7 +199,7 @@ final class UpdateManagerTests: XCTestCase {
 
     func testDismissDuringDownloadRollsBackToAvailable() {
         _ = manager.handleUpdateFound(
-            version: "9.9.9", releasePage: nil, informationOnly: false)
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
         manager.handleDownloadInitiated()
 
         manager.handleDismissInstallation()
@@ -109,18 +209,258 @@ final class UpdateManagerTests: XCTestCase {
 
     func testDismissKeepsPendingRowAlive() {
         _ = manager.handleUpdateFound(
-            version: "9.9.9", releasePage: nil, informationOnly: false)
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
 
         manager.handleDismissInstallation()
 
         XCTAssertEqual(manager.phase, .available(version: "9.9.9"))
     }
 
+    func testInstallNowWithoutHeldReplyStartsTheResumeCheck() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        var resumeChecks = 0
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in resumeChecks += 1 }
+
+        manager.installNow()
+
+        XCTAssertEqual(resumeChecks, 1)
+        XCTAssertEqual(manager.phase, .installing)
+        XCTAssertTrue(manager.installRequested)
+        XCTAssertTrue(manager.installNowRequested)
+    }
+
+    func testResumedDownloadedStageInstallsAndKeepsTheInstallNowIntent() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
+
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .downloaded)
+
+        XCTAssertEqual(choice, .install)
+        XCTAssertTrue(manager.installNowRequested)
+        XCTAssertEqual(manager.phase, .installing)
+    }
+
+    func testResumedReadyToInstallInstallsImmediatelyAndClearsTheIntent() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .downloaded)
+
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        XCTAssertEqual(choices, [.install])
+        XCTAssertFalse(manager.installNowRequested)
+        XCTAssertEqual(manager.phase, .installing)
+    }
+
+    func testInstallLaterRepliesExactlyOnceWhenPressedTwice() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        manager.installLater()
+        manager.installLater()
+
+        XCTAssertEqual(choices, [.dismiss])
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testDismissWhileInstallingKeepsThePreparedUpdate() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleReadyToInstall { _ in }
+        manager.installNow()
+
+        manager.handleDismissInstallation()
+
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+        XCTAssertFalse(manager.installRequested)
+    }
+
+    func testInstallNowWhileInstallingDoesNotStartASecondResumeCheck() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        var resumeChecks = 0
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in resumeChecks += 1 }
+        manager.installNow()
+
+        manager.installNow()
+
+        XCTAssertEqual(resumeChecks, 1)
+    }
+
+    func testLaterAfterAnAbortedInstallKeepsReadyToInstall() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleReadyToInstall { _ in }
+        manager.installNow()
+        manager.handleDismissInstallation()
+
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+        XCTAssertTrue(choices.isEmpty)
+        manager.installLater()
+
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+
+        XCTAssertEqual(choices, [.dismiss])
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testDismissDuringThePendingResumeKeepsTheInstallArmed() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
+
+        manager.handleDismissInstallation()
+
+        XCTAssertEqual(manager.phase, .installing)
+        XCTAssertTrue(manager.installRequested)
+        XCTAssertTrue(manager.installNowRequested)
+
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+
+        XCTAssertEqual(choice, .install)
+        XCTAssertEqual(manager.phase, .installing)
+    }
+
+    func testNotFoundDuringThePendingResumeKeepsTheInstallArmed() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
+
+        manager.handleNotFound()
+
+        XCTAssertEqual(manager.phase, .installing)
+        XCTAssertTrue(manager.installRequested)
+        XCTAssertTrue(manager.installNowRequested)
+    }
+
+    func testErrorDuringThePendingResumeKeepsTheInstallArmed() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
+
+        manager.handleError("old session aborted")
+
+        XCTAssertEqual(manager.phase, .installing)
+        XCTAssertTrue(manager.installRequested)
+        XCTAssertTrue(manager.installNowRequested)
+    }
+
+    func testExhaustedResumeCheckFailsAndDisarmsTheInstall() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { $0.runResumeCheck(attempt: UpdateManager.resumeCheckAttemptLimit) }
+
+        manager.installNow()
+
+        XCTAssertEqual(manager.phase, .failed(version: "9.9.9"))
+        XCTAssertFalse(manager.installRequested)
+        XCTAssertFalse(manager.installNowRequested)
+    }
+
+    func testTheNewSessionEndsTheResumeLoop() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
+
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .downloaded)
+        XCTAssertEqual(choice, .install)
+        XCTAssertFalse(manager.resumeCheckPending)
+
+        manager.runResumeCheck(attempt: 3)
+
+        XCTAssertEqual(manager.phase, .installing)
+        XCTAssertTrue(manager.installRequested)
+        XCTAssertTrue(manager.installNowRequested)
+    }
+
+    func testExhaustionAfterTheNewSessionStartedNeverFails() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        manager.hasLiveUpdater = { _ in true }
+        manager.resumeCheckStarter = { _ in }
+        manager.installNow()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .downloaded)
+
+        manager.runResumeCheck(attempt: UpdateManager.resumeCheckAttemptLimit)
+
+        XCTAssertEqual(manager.phase, .installing)
+        XCTAssertTrue(manager.installRequested)
+        XCTAssertTrue(manager.installNowRequested)
+    }
+
+    func testInstallNowWithoutAnUpdaterLeavesThePhaseUnchanged() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+        var resumeChecks = 0
+        manager.resumeCheckStarter = { _ in resumeChecks += 1 }
+
+        manager.installNow()
+
+        XCTAssertEqual(resumeChecks, 0)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+        XCTAssertFalse(manager.installNowRequested)
+    }
+
+    func testDismissFromReadyToInstallKeepsTheCard() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+
+        manager.handleDismissInstallation()
+
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testUnrequestedErrorKeepsAPreparedUpdate() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+
+        manager.handleError("network down")
+
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testReadyToInstallWithoutAKnownVersionStillHoldsTheReply() {
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        XCTAssertTrue(choices.isEmpty)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: ""))
+    }
+
     // MARK: - Up to date
 
     func testNotFoundClearsPendingState() {
         _ = manager.handleUpdateFound(
-            version: "9.9.9", releasePage: nil, informationOnly: false)
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
 
         manager.handleNotFound()
 

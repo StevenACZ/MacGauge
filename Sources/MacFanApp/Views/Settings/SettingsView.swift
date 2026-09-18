@@ -9,10 +9,12 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: SettingsTab
 
+    private let onShowWelcome: () -> Void
     private let onClose: (() -> Void)?
 
-    init(model: AppModel, initialTab: SettingsTab = .general, onClose: (() -> Void)? = nil) {
+    init(model: AppModel, initialTab: SettingsTab = .general, onShowWelcome: @escaping () -> Void = {}, onClose: (() -> Void)? = nil) {
         self.model = model
+        self.onShowWelcome = onShowWelcome
         self.onClose = onClose
         _settings = ObservedObject(initialValue: model.settings)
         _loginManager = ObservedObject(initialValue: model.loginManager)
@@ -21,70 +23,72 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            tabContent(
-                GeneralSettingsTab(
-                    settings: settings,
-                    loginManager: loginManager,
-                    setLaunchAtLogin: model.setLaunchAtLogin
-                ),
-                tab: .general
-            )
-            tabContent(
-                ControlSettingsTab(
-                    model: model,
-                    settings: settings,
-                    monitor: model.monitor,
-                    helperService: helperService,
-                    isActive: selectedTab == .control
-                ),
-                tab: .control
-            )
-            tabContent(
-                DisplaySettingsTab(
-                    settings: settings,
-                    monitor: model.monitor,
-                    isActive: selectedTab == .display
-                ),
-                tab: .display
-            )
-            tabContent(
-                SafetySettingsTab(
-                    model: model,
-                    settings: settings,
-                    helperService: helperService,
-                    isActive: selectedTab == .safety
-                ),
-                tab: .safety
-            )
+        VStack(spacing: 16) {
+            header
+            ZStack(alignment: .top) {
+                tabContent(
+                    GeneralSettingsTab(
+                        settings: settings,
+                        loginManager: loginManager,
+                        setLaunchAtLogin: model.setLaunchAtLogin,
+                        onShowWelcome: onShowWelcome
+                    ),
+                    tab: .general
+                )
+                tabContent(
+                    ControlSettingsTab(
+                        model: model,
+                        settings: settings,
+                        monitor: model.monitor,
+                        helperService: helperService,
+                        isActive: selectedTab == .control
+                    ),
+                    tab: .control
+                )
+                tabContent(
+                    DisplaySettingsTab(
+                        settings: settings,
+                        monitor: model.monitor,
+                        isActive: selectedTab == .display
+                    ),
+                    tab: .display
+                )
+                tabContent(
+                    SafetySettingsTab(
+                        model: model,
+                        settings: settings,
+                        helperService: helperService,
+                        isActive: selectedTab == .safety
+                    ),
+                    tab: .safety
+                )
+            }
         }
         .padding(.leading, 20)
         .padding(.trailing, 12)
-        .padding(.vertical, 20)
+        .padding(.top, 36)
+        .padding(.bottom, 20)
         .frame(width: 680, height: 520)
         .background(Color(nsColor: .windowBackgroundColor))
-        .toolbarBackground(Color(nsColor: .windowBackgroundColor), for: .windowToolbar)
-        .toolbarBackground(.visible, for: .windowToolbar)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("", selection: $selectedTab) {
-                    ForEach(SettingsTab.allCases) { tab in
-                        Text(tab.label).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
-                .accessibilityLabel("popover.settings".localized)
-            }
-
-            ToolbarItem(placement: .confirmationAction) {
-                Button("settings.close".localized) {
-                    closeSettingsWindow()
-                }
-            }
-        }
+        .ignoresSafeArea()
         .tint(Theme.accent)
         .id(localization.language)
+    }
+
+    private var header: some View {
+        HStack {
+            Picker("popover.settings".localized, selection: $selectedTab) {
+                ForEach(SettingsTab.allCases) { tab in
+                    Text(tab.label).tag(tab)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .fixedSize()
+            Spacer(minLength: 12)
+            Button("settings.close".localized, action: closeSettingsWindow)
+        }
+        .padding(.trailing, 8)
     }
 
     // Tabs stay alive behind an opacity toggle so per-tab state (scroll

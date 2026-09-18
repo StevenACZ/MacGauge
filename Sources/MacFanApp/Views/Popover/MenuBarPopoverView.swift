@@ -18,6 +18,7 @@ struct MenuBarPopoverView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             identityHeader
+            UpdateCard(manager: updateManager)
             metrics
             Divider()
             if monitor.snapshot.isFanless {
@@ -46,6 +47,7 @@ struct MenuBarPopoverView: View {
         .padding(.vertical, 14)
         .frame(width: Theme.Layout.panelWidth)
         .fixedSize(horizontal: false, vertical: true)
+        .background(Color(nsColor: .windowBackgroundColor))
         .animation(Theme.Anim.mode, value: settings.controlMode)
         .animation(Theme.Anim.mode, value: model.controlContested)
         .animation(Theme.Anim.mode, value: model.curveSuspended)
@@ -223,9 +225,11 @@ struct MenuBarPopoverView: View {
 
     private var footer: some View {
         VStack(spacing: 2) {
-            UpdateMenuRow(manager: updateManager)
             ActionRow(icon: "gearshape", title: "popover.settings".localized) {
                 model.openSettings()
+            }
+            ActionRow(icon: "info.circle", title: "popover.about".localized) {
+                AboutWindowController.shared.showAbout()
             }
             ActionRow(icon: "power", title: "popover.quit".localized, isDestructive: true) {
                 model.quit()
