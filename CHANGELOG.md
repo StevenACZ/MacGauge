@@ -6,6 +6,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Retry and Update never install on their own: a prepared update always stops at "Ready to install" and waits for "Install now".
+
 ## [1.6.1] - 2026-09-18
 
 ### Fixed
