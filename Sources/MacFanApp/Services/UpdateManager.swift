@@ -33,10 +33,10 @@ final class UpdateManager: ObservableObject {
     /// Local appcast testing only:
     /// `defaults write com.stevenacz.MacFan updateFeedURLOverride <url>`.
     nonisolated static let feedURLOverrideDefaultsKey = "updateFeedURLOverride"
-    static let resumeCheckAttemptLimit = 40
+    static let resumeCheckAttemptLimit = 300
     static let backgroundCheckInterval: TimeInterval = 30 * 60
     static let backgroundCheckThrottle: TimeInterval = 5 * 60
-    private static let resumeCheckRetryDelay = 0.25
+    static let resumeCheckRetryDelay = 0.25
 
     @Published private(set) var phase: Phase = .idle
     /// GitHub release page of the pending update (the appcast item's <link>).
@@ -134,6 +134,23 @@ final class UpdateManager: ObservableObject {
 
     var backgroundDiscoveryArmed: Bool { backgroundCheckTimer != nil }
 
+    var phaseAllowsQuietCheck: Bool {
+        guard !installRequested, !installNowRequested, !resumeCheckPending,
+            !manualCheckPending, pendingInstallReply == nil
+        else { return false }
+        switch phase {
+        case .idle, .available, .failed:
+            return true
+        case .downloading, .readyToInstall, .installing:
+            return false
+        }
+    }
+
+    private var sessionIsUserDriven: Bool {
+        installRequested || installNowRequested || resumeCheckPending
+            || (manualCheckPending && !manualCheckWaiting)
+    }
+
     func startBackgroundDiscovery() {
         guard backgroundCheckTimer == nil else { return }
         let interval = backgroundCheckIntervalProvider()
@@ -166,7 +183,9 @@ final class UpdateManager: ObservableObject {
     }
 
     func requestBackgroundCheck() {
-        guard autoCheckEnabled, phase == .idle, !isSessionInProgress(self) else { return }
+        guard autoCheckEnabled, phaseAllowsQuietCheck, hasLiveUpdater(self),
+            !isSessionInProgress(self)
+        else { return }
         let now = monotonicClock()
         if let lastBackgroundCheck, now - lastBackgroundCheck < Self.backgroundCheckThrottle {
             return
@@ -241,13 +260,13 @@ final class UpdateManager: ObservableObject {
     func runResumeCheck(attempt: Int) {
         guard resumeCheckPending else { return }
         guard attempt < Self.resumeCheckAttemptLimit else {
-            installRequested = false
-            installNowRequested = false
-            resumeCheckPending = false
-            phase = .failed(version: pendingVersion ?? "")
+            handleResumeCheckExhausted()
             return
         }
-        guard hasLiveUpdater(self) else { return }
+        guard hasLiveUpdater(self) else {
+            handleResumeCheckExhausted()
+            return
+        }
         guard isSessionInProgress(self) else {
             resumeCheckPending = false
             userCheckStarter(self)
@@ -256,6 +275,13 @@ final class UpdateManager: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.resumeCheckRetryDelay) { [weak self] in
             self?.runResumeCheck(attempt: attempt + 1)
         }
+    }
+
+    private func handleResumeCheckExhausted() {
+        installRequested = false
+        installNowRequested = false
+        resumeCheckPending = false
+        phase = .failed(version: pendingVersion ?? "")
     }
 
     func installLater() {
@@ -313,6 +339,11 @@ final class UpdateManager: ObservableObject {
         informationOnly: Bool,
         stage: SPUUserUpdateStage
     ) -> SPUUserUpdateChoice {
+        if !sessionIsUserDriven, phase != .idle, let pendingVersion,
+            !Self.isNewerVersion(version, than: pendingVersion)
+        {
+            return .dismiss
+        }
         resumeCheckPending = false
         pendingVersion = version
         pendingIsInformationOnly = informationOnly
@@ -456,8 +487,12 @@ final class UpdateManager: ObservableObject {
         }
     }
 
+    private static func isNewerVersion(_ version: String, than current: String) -> Bool {
+        SUStandardVersionComparator.default.compareVersion(version, toVersion: current) == .orderedDescending
+    }
+
     private func finishManualCheck(status: ManualCheckStatus) {
-        guard manualCheckPending else { return }
+        guard manualCheckPending, !manualCheckWaiting else { return }
         manualCheckPending = false
         manualCheckStatus = status
         guard status != .idle else { return }
