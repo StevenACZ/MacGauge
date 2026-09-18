@@ -177,6 +177,82 @@ final class UpdateManagerTests: XCTestCase {
         XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
     }
 
+    // MARK: - Retry after a failure
+
+    func testRetryStopsAtReadyToInstallInsteadOfInstalling() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.hasLiveUpdater = { _ in true }
+        manager.installPendingUpdate()
+        manager.handleError("download died")
+        XCTAssertEqual(manager.phase, .failed(version: "9.9.9"))
+
+        manager.retryPendingUpdate()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.handleDownloadInitiated()
+
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        XCTAssertTrue(choices.isEmpty)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+        XCTAssertFalse(manager.installNowRequested)
+    }
+
+    func testRetryOnADownloadedStageStopsAtTheReadyCard() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.hasLiveUpdater = { _ in true }
+        manager.installPendingUpdate()
+        manager.handleError("installer died")
+        XCTAssertEqual(manager.phase, .failed(version: "9.9.9"))
+
+        manager.retryPendingUpdate()
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .downloaded)
+
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+        XCTAssertFalse(manager.installNowRequested)
+        XCTAssertFalse(manager.retryRequested)
+    }
+
+    func testRetryOnAPreparedStageStopsAtTheReadyCard() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.hasLiveUpdater = { _ in true }
+        manager.installPendingUpdate()
+        manager.handleError("installer died")
+
+        manager.retryPendingUpdate()
+        let choice = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .installing)
+
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        XCTAssertEqual(choice, .dismiss)
+        XCTAssertTrue(choices.isEmpty)
+        XCTAssertEqual(manager.phase, .readyToInstall(version: "9.9.9"))
+    }
+
+    func testRetryThenInstallNowStillInstalls() {
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        manager.hasLiveUpdater = { _ in true }
+        manager.retryPendingUpdate()
+        _ = manager.handleUpdateFound(
+            version: "9.9.9", releasePage: nil, informationOnly: false, stage: .notDownloaded)
+        var choices: [SPUUserUpdateChoice] = []
+        manager.handleReadyToInstall { choices.append($0) }
+
+        manager.installNow()
+
+        XCTAssertEqual(choices, [.install])
+        XCTAssertEqual(manager.phase, .installing)
+    }
+
     // MARK: - Errors
 
     func testScheduledCheckErrorStaysSilent() {

@@ -10,7 +10,7 @@ struct NetworkModuleDetailView: View {
     /// Same resolution as the menu bar label, so the popover always matches
     /// the arrow colors the user configured for the module.
     private var tints: (up: Color, down: Color) {
-        ModuleColorResolver.networkArrowTints(settings: settings)
+        ModuleColorResolver.networkArrowTints(settings: settings, adaptsToWindowBackground: true)
     }
 
     var body: some View {
@@ -37,7 +37,8 @@ struct NetworkModuleDetailView: View {
                     peak: chartPeak,
                     color: tints.down,
                     tickSeconds: tickSeconds,
-                    animated: animated
+                    animated: animated,
+                    adaptsToWindowBackground: true
                 )
                 SparklineChart(
                     values: stats.uploadHistory,
@@ -46,7 +47,8 @@ struct NetworkModuleDetailView: View {
                     color: tints.up,
                     fillOpacity: 0.22,
                     tickSeconds: tickSeconds,
-                    animated: animated
+                    animated: animated,
+                    adaptsToWindowBackground: true
                 )
             }
             .frame(height: 56)

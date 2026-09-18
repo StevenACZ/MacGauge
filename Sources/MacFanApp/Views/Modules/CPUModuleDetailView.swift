@@ -13,7 +13,11 @@ struct CPUModuleDetailView: View {
     /// Same resolution as the menu bar label, so the popover chart always
     /// matches the colors the user configured for the module.
     private var tint: Color {
-        ModuleColorResolver.cpuChartColor(percent: stats.snapshot.cpuPercent, settings: settings)
+        ModuleColorResolver.cpuChartColor(
+            percent: stats.snapshot.cpuPercent,
+            settings: settings,
+            adaptsToWindowBackground: true
+        )
     }
 
     var body: some View {
@@ -28,7 +32,8 @@ struct CPUModuleDetailView: View {
                 peak: 100,
                 color: tint,
                 tickSeconds: tickSeconds,
-                animated: animated
+                animated: animated,
+                adaptsToWindowBackground: true
             )
             .frame(height: 56)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))

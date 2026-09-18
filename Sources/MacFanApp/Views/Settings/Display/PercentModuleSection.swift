@@ -76,6 +76,8 @@ struct PercentModuleSection: View {
             scale: 0...100,
             unitSuffix: "%"
         )
+        .menuBarMockCapsule(verticalPadding: 4)
+        .environment(\.colorScheme, .dark)
         .padding(.vertical, 4)
 
         VisualThresholdRow(

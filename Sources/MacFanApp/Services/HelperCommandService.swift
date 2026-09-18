@@ -87,6 +87,10 @@ final class HelperCommandService: ObservableObject {
         Task { await evaluateHealth(userInitiated: false) }
     }
 
+    func openLoginItemsSettings() {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+
     /// User-facing repair: authorize, approve, or reload as needed. Never
     /// unregisters a daemon that answers pings with the current protocol.
     func userRepair() async throws {

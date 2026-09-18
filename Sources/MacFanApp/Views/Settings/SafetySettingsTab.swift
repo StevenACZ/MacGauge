@@ -41,7 +41,9 @@ struct SafetySettingsTab: View {
                 actionTitle: actionTitle,
                 actionIcon: actionIcon,
                 actionDisabled: model.isWriting,
-                action: { model.authorizeHelper() }
+                action: {
+                    showsApprovalNotice ? model.openLoginItemsSettings() : model.authorizeHelper()
+                }
             )
 
             if let currentStep = setupStepIndex {
@@ -50,6 +52,13 @@ struct SafetySettingsTab: View {
             }
         }
         .animation(Theme.Anim.mode, value: helperService.state)
+    }
+
+    private var showsApprovalNotice: Bool {
+        HelperApprovalNotice.isVisible(
+            state: helperService.state,
+            fanControlAvailable: !model.monitor.snapshot.isFanless
+        )
     }
 
     private var helperDetail: String {
@@ -76,7 +85,7 @@ struct SafetySettingsTab: View {
         case .ready, .reloading, .unknown:
             return nil
         case .needsApproval:
-            return "settings.safety.open_settings".localized
+            return "banner.action.open_login_items".localized
         case .stale, .unavailable, .failed:
             return "settings.safety.fix_helper".localized
         case .needsAuthorization:

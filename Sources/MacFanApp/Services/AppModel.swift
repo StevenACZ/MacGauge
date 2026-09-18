@@ -139,6 +139,10 @@ final class AppModel: ObservableObject {
         helperService.requestImmediateRefresh()
     }
 
+    func openLoginItemsSettings() {
+        helperService.openLoginItemsSettings()
+    }
+
     func applyManualPercentNow() {
         guard helperReady else {
             lastActionMessage = helperStatusSummary

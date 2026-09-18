@@ -219,7 +219,7 @@ struct UsageBar: View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 Capsule(style: .continuous)
-                    .fill(Color.primary.opacity(0.07))
+                    .fill(AppearancePalette.processBarTrack)
                 Capsule(style: .continuous)
                     .fill(tint.opacity(0.75))
                     .frame(width: max(3, proxy.size.width * min(1, max(0, fraction))))

@@ -6,10 +6,15 @@ import SwiftUI
 /// matches the one in the menu bar.
 @MainActor
 enum ModuleColorResolver {
-    static func cpuChartColor(percent: Double?, settings: AppSettingsStore) -> Color {
+    static func cpuChartColor(
+        percent: Double?,
+        settings: AppSettingsStore,
+        adaptsToWindowBackground: Bool = false
+    ) -> Color {
         percentChartColor(
+            adaptsToWindowBackground: adaptsToWindowBackground,
             mode: settings.cpuColorMode,
-            multicolor: Theme.accent,
+            multicolor: adaptsToWindowBackground ? Theme.accent : Theme.rawAccent,
             band: SystemLoadRules.loadBand(
                 forPercent: percent,
                 normalUpperPercent: settings.cpuNormalUpperPercent,
@@ -21,10 +26,15 @@ enum ModuleColorResolver {
         )
     }
 
-    static func memoryChartColor(percent: Double?, settings: AppSettingsStore) -> Color {
+    static func memoryChartColor(
+        percent: Double?,
+        settings: AppSettingsStore,
+        adaptsToWindowBackground: Bool = false
+    ) -> Color {
         percentChartColor(
+            adaptsToWindowBackground: adaptsToWindowBackground,
             mode: settings.memoryColorMode,
-            multicolor: .indigo,
+            multicolor: adaptsToWindowBackground ? adaptedIndigo : .indigo,
             band: SystemLoadRules.loadBand(
                 forPercent: percent,
                 normalUpperPercent: settings.memoryNormalUpperPercent,
@@ -38,12 +48,15 @@ enum ModuleColorResolver {
 
     /// Rates have no load semantics, so anything but multicolor/gray goes
     /// neutral; multicolor uses the user's own up/down tints.
-    static func networkArrowTints(settings: AppSettingsStore) -> (up: Color, down: Color) {
+    static func networkArrowTints(
+        settings: AppSettingsStore,
+        adaptsToWindowBackground: Bool = false
+    ) -> (up: Color, down: Color) {
         switch settings.networkColorMode {
         case .multicolor:
             return (
-                Color(hexString: settings.networkUpColorHex),
-                Color(hexString: settings.networkDownColorHex)
+                tint(hexString: settings.networkUpColorHex, adaptsToWindowBackground: adaptsToWindowBackground),
+                tint(hexString: settings.networkDownColorHex, adaptsToWindowBackground: adaptsToWindowBackground)
             )
         case .mono, .load:
             return (.primary, .primary)
@@ -53,6 +66,7 @@ enum ModuleColorResolver {
     }
 
     private static func percentChartColor(
+        adaptsToWindowBackground: Bool,
         mode: ModuleColorMode,
         multicolor: Color,
         band: LoadBand,
@@ -70,12 +84,26 @@ enum ModuleColorResolver {
         case .load:
             switch band {
             case .normal:
-                return Color(hexString: normalHex)
+                return tint(hexString: normalHex, adaptsToWindowBackground: adaptsToWindowBackground)
             case .elevated:
-                return Color(hexString: mediumHex)
+                return tint(hexString: mediumHex, adaptsToWindowBackground: adaptsToWindowBackground)
             case .high:
-                return Color(hexString: hotHex)
+                return tint(hexString: hotHex, adaptsToWindowBackground: adaptsToWindowBackground)
             }
         }
+    }
+
+    private static let adaptedIndigo = AppearancePalette.lightAdapted(.indigo)
+    private static var adaptedTints: [String: Color] = [:]
+
+    /// A fresh dynamic color per tick would re-arm the tint animations.
+    private static func tint(hexString: String, adaptsToWindowBackground: Bool) -> Color {
+        guard adaptsToWindowBackground else { return Color(hexString: hexString) }
+        if let cached = adaptedTints[hexString] {
+            return cached
+        }
+        let adapted = AppearancePalette.lightAdapted(Color(hexString: hexString))
+        adaptedTints[hexString] = adapted
+        return adapted
     }
 }

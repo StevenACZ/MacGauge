@@ -52,6 +52,7 @@ final class UpdateManager: ObservableObject {
 
     private(set) var installRequested = false
     private(set) var installNowRequested = false
+    private(set) var retryRequested = false
     /// True from "Install now" until the resume check reaches Sparkle: the
     /// aborting session's callbacks in that window belong to the old session.
     private(set) var resumeCheckPending = false
@@ -113,15 +114,16 @@ final class UpdateManager: ObservableObject {
     /// Popover row / Settings click: download + install + relaunch, or retry
     /// after a failure. Information-only updates open the release page.
     func installPendingUpdate() {
-        guard let updater else { return }
+        guard hasLiveUpdater(self) else { return }
         if pendingIsInformationOnly {
             openReleasePage()
             return
         }
-        guard updater.sessionInProgress == false else { return }
+        guard updater?.sessionInProgress != true else { return }
+        retryRequested = false
         installRequested = true
         phase = .downloading(fraction: nil)
-        updater.checkForUpdates()
+        updater?.checkForUpdates()
     }
 
     /// Update card: install the downloaded update and relaunch. Without a
@@ -137,11 +139,27 @@ final class UpdateManager: ObservableObject {
             return
         }
         guard hasLiveUpdater(self) else { return }
+        retryRequested = false
         installRequested = true
         installNowRequested = true
         resumeCheckPending = true
         phase = .installing
         beginResumeCheck()
+    }
+
+    /// Must never arm the unattended install: a retry stops at the ready card.
+    func retryPendingUpdate() {
+        guard hasLiveUpdater(self) else { return }
+        if pendingIsInformationOnly {
+            openReleasePage()
+            return
+        }
+        guard updater?.sessionInProgress != true else { return }
+        installNowRequested = false
+        retryRequested = true
+        installRequested = true
+        phase = .downloading(fraction: nil)
+        updater?.checkForUpdates()
     }
 
     private func beginResumeCheck() {
@@ -155,6 +173,7 @@ final class UpdateManager: ObservableObject {
         guard attempt < Self.resumeCheckAttemptLimit else {
             installRequested = false
             installNowRequested = false
+            retryRequested = false
             resumeCheckPending = false
             phase = .failed(version: pendingVersion ?? "")
             return
@@ -214,9 +233,10 @@ final class UpdateManager: ObservableObject {
 
         switch stage {
         case .downloaded, .installing:
-            guard installRequested || installNowRequested else {
+            guard installRequested || installNowRequested, !retryRequested else {
                 installRequested = false
                 installNowRequested = false
+                retryRequested = false
                 phase = .readyToInstall(version: version)
                 return .dismiss
             }
@@ -265,6 +285,7 @@ final class UpdateManager: ObservableObject {
             reply(.install)
             return
         }
+        retryRequested = false
         pendingInstallReply = reply
         phase = .readyToInstall(version: pendingVersion ?? "")
     }
@@ -280,6 +301,7 @@ final class UpdateManager: ObservableObject {
         }
         installRequested = false
         installNowRequested = false
+        retryRequested = false
         pendingInstallReply = nil
         pendingVersion = nil
         pendingIsInformationOnly = false
@@ -297,6 +319,7 @@ final class UpdateManager: ObservableObject {
         }
         finishManualCheck(status: .idle)
         installNowRequested = false
+        retryRequested = false
         pendingInstallReply = nil
         if installRequested, let pendingVersion {
             log.error("Update install failed: \(message, privacy: .public)")
@@ -322,6 +345,7 @@ final class UpdateManager: ObservableObject {
         }
         installRequested = false
         installNowRequested = false
+        retryRequested = false
         pendingInstallReply = nil
         switch phase {
         case .installing, .readyToInstall:

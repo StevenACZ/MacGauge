@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+## [1.6.1] - 2026-09-18
+
+### Fixed
+
+- Popovers and windows now follow the system appearance. In light mode the
+  charts, header icons, process bars and band previews were painted with the
+  near-white tints meant for the dark popover, so history charts looked like an
+  empty gap and the header icon was invisible. Dark mode is unchanged.
+- The helper notice now appears only while macOS is holding MacGauge's
+  background helper pending approval. It names the exact place to turn it on,
+  System Settings > General > Login Items & Extensions, and its button opens
+  that pane directly. The notice disappears as soon as the helper is approved,
+  because the helper state is re-read when the popover opens, when the app
+  becomes active and when Settings opens.
+- Retrying a failed update download now downloads the update again and stops at
+  "Ready to install", asking before it installs, instead of installing on its
+  own.
+
 ## [1.6.0] - 2026-09-18
 
 ### Added

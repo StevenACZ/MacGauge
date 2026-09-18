@@ -134,7 +134,7 @@ struct CurvePreview: View {
                         .frame(width: 7, height: 7)
                         .overlay(
                             Circle()
-                                .stroke(Color.white.opacity(0.72), lineWidth: 1)
+                                .stroke(AppearancePalette.curveMarkerStroke, lineWidth: 1)
                         )
                         .position(marker)
 
@@ -177,7 +177,7 @@ struct CurvePreview: View {
             .frame(width: 14, height: 14)
             .overlay(
                 Circle()
-                    .stroke(Color.white.opacity(0.85), lineWidth: 1.4)
+                    .stroke(AppearancePalette.curveHandleStroke, lineWidth: 1.4)
             )
             .scaleEffect(isActive && isEditingEnabled ? 1.35 : 1)
             .shadow(color: .black.opacity(isEditingEnabled ? (isActive ? 0.3 : 0.2) : 0), radius: isActive ? 4 : 2, y: 1)

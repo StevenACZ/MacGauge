@@ -33,7 +33,7 @@ struct ManualPercentSlider: View {
 
                 Circle()
                     .fill(Color.white)
-                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 0.5))
+                    .overlay(Circle().stroke(AppearancePalette.sliderKnobStroke, lineWidth: 0.5))
                     .shadow(
                         color: .black.opacity(isDragging ? 0.28 : 0.18),
                         radius: isDragging ? 4 : 2,
