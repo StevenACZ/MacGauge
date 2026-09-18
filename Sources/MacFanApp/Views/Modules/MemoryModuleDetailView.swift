@@ -13,7 +13,11 @@ struct MemoryModuleDetailView: View {
     /// Same resolution as the menu bar label, so the popover chart always
     /// matches the colors the user configured for the module.
     private var tint: Color {
-        ModuleColorResolver.memoryChartColor(percent: stats.snapshot.memoryPercent, settings: settings)
+        ModuleColorResolver.memoryChartColor(
+            percent: stats.snapshot.memoryPercent,
+            settings: settings,
+            adaptsToWindowBackground: true
+        )
     }
 
     var body: some View {
@@ -39,7 +43,8 @@ struct MemoryModuleDetailView: View {
                 peak: 100,
                 color: tint,
                 tickSeconds: tickSeconds,
-                animated: animated
+                animated: animated,
+                adaptsToWindowBackground: true
             )
             .frame(height: 56)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))

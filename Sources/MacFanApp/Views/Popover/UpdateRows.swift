@@ -87,7 +87,7 @@ struct UpdateCard: View {
                 subtitle: "update.card.failed.hint".localized
             ) {
                 UpdateCardButton(title: "update.card.action.retry".localized) {
-                    manager.installNow()
+                    manager.retryPendingUpdate()
                 }
             }
         }

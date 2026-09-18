@@ -24,6 +24,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if needsWelcome { showWelcome() }
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        model.refreshHelperState()
+    }
+
     // applicationWillTerminate cannot host the restore: the process exits
     // before any queued async work (or an XPC round-trip) gets to run, so the
     // quit-time restore must gate termination itself.
@@ -50,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showSettings(tab: SettingsTab) {
+        model.refreshHelperState()
         let content = makeSettingsContent(tab: tab)
 
         if let window = settingsWindowController?.window {

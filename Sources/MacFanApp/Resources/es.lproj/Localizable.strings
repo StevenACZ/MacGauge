@@ -16,7 +16,7 @@
 /* Banners */
 "banner.contested" = "Las RPM del ventilador no coinciden con el objetivo solicitado";
 "banner.fanless" = "Esta Mac tiene enfriamiento pasivo y no cuenta con ventiladores controlables.";
-"banner.action.approve" = "Aprobar";
+"banner.action.open_login_items" = "Abrir Ítems de inicio";
 "banner.action.authorize" = "Autorizar";
 "banner.action.fix" = "Reparar";
 "banner.curve_suspended" = "Curva en pausa: macOS vuelve a controlar los ventiladores.";
@@ -132,7 +132,6 @@
 "settings.safety.restore.title" = "Devolver el control a macOS";
 "settings.safety.restore.caption" = "Devuelve los ventiladores al control automático del sistema de inmediato, como si MacGauge no estuviera corriendo.";
 "settings.safety.restore_automatic" = "Restaurar automático ahora";
-"settings.safety.open_settings" = "Abrir Configuración";
 "settings.safety.fix_helper" = "Reparar asistente";
 "settings.safety.authorize" = "Autorizar";
 
@@ -158,7 +157,7 @@
 "helper.status.checking" = "Comprobando el asistente…";
 "helper.status.ready" = "Asistente listo";
 "helper.status.needs_authorization" = "Autoriza el asistente para habilitar el control de ventiladores";
-"helper.status.needs_approval" = "Aprueba MacGauge en Configuración del Sistema > Elementos de inicio";
+"helper.status.needs_approval" = "El control de ventiladores necesita el asistente en segundo plano de MacGauge.\nActívalo en Configuración del Sistema → General → Ítems de inicio y extensiones → Actividad de apps en segundo plano → MacGauge.";
 "helper.status.unavailable" = "El asistente no responde; se está recuperando automáticamente";
 "helper.status.stale" = "El asistente está desactualizado; se está recargando automáticamente";
 "helper.status.reloading" = "Recargando el asistente…";

@@ -16,6 +16,7 @@ struct SparklineChart: View {
     /// always animating — menu bar charts pass false in Efficient mode and
     /// step once per tick instead.
     var animated: Bool = true
+    var adaptsToWindowBackground = false
 
     var body: some View {
         let newestFirst = [Double](values.reversed())
@@ -29,7 +30,7 @@ struct SparklineChart: View {
             )
             .fill(
                 LinearGradient(
-                    colors: [color.opacity(fillOpacity), color.opacity(0.03)],
+                    colors: [fillTop, fillBottom],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -44,6 +45,16 @@ struct SparklineChart: View {
         }
         .animation(animated ? .linear(duration: min(1, max(0.3, tickSeconds * 0.85))) : nil, value: values)
         .allowsHitTesting(false)
+    }
+
+    private var fillTop: Color {
+        guard adaptsToWindowBackground else { return color.opacity(fillOpacity) }
+        return AppearancePalette.dynamic(light: color.opacity(0.55), dark: color.opacity(fillOpacity))
+    }
+
+    private var fillBottom: Color {
+        guard adaptsToWindowBackground else { return color.opacity(0.03) }
+        return AppearancePalette.dynamic(light: color.opacity(0.18), dark: color.opacity(0.03))
     }
 }
 

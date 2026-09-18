@@ -170,7 +170,7 @@ struct GeneralSettingsTab: View {
                 .controlSize(.small)
         case .failed:
             Button("settings.general.updates.retry".localized) {
-                updateManager.installNow()
+                updateManager.retryPendingUpdate()
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

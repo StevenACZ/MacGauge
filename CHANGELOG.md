@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- The popovers and windows now follow the system appearance. In light mode the
+  charts, header icons, process bars and badges used to be drawn with the same
+  near-white tints the dark popover uses, so the RAM history looked like an
+  empty gap and the header icon was invisible. Dark mode is unchanged.
+- The helper notice now says that fan control needs MacGauge's background
+  helper and where to turn it on, with one button that opens Login Items &
+  Extensions. It disappears as soon as the switch is flipped, because the
+  helper state is re-read when the popover opens, when the app becomes active
+  and when Settings opens.
+- Retrying a failed update download now stops at "Ready to install" instead of
+  installing on its own.
+
 ## [1.6.0] - 2026-09-18
 
 ### Added

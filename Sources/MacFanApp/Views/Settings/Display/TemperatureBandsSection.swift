@@ -19,6 +19,8 @@ struct TemperatureBandsSection: View {
                 mediumColor: Color(hexString: settings.mediumColorHex),
                 hotColor: Color(hexString: settings.hotColorHex)
             )
+            .menuBarMockCapsule(verticalPadding: 4)
+            .environment(\.colorScheme, .dark)
             .padding(.vertical, 4)
 
             SettingsDivider()

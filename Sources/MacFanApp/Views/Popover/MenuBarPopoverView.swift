@@ -274,7 +274,10 @@ struct MenuBarPopoverView: View {
     }
 
     private var showsHelperBanner: Bool {
-        !helperService.isReady
+        HelperApprovalNotice.showsBanner(
+            state: helperService.state,
+            fanControlAvailable: !monitor.snapshot.isFanless
+        )
     }
 
     private var helperBanner: some View {
@@ -285,8 +288,19 @@ struct MenuBarPopoverView: View {
             showsProgress: helperService.isRecovering || helperService.state == .unknown,
             actionTitle: helperBannerActionTitle,
             actionDisabled: model.isWriting,
-            action: helperBannerActionTitle == nil ? nil : { model.authorizeHelper() }
+            action: helperBannerAction
         )
+    }
+
+    private var helperBannerAction: (() -> Void)? {
+        switch helperService.state {
+        case .unknown, .ready, .reloading:
+            return nil
+        case .needsApproval:
+            return { model.openLoginItemsSettings() }
+        case .needsAuthorization, .stale, .unavailable, .failed:
+            return { model.authorizeHelper() }
+        }
     }
 
     private var helperBannerSeverity: StatusBanner.Severity {
@@ -316,7 +330,7 @@ struct MenuBarPopoverView: View {
         case .unknown, .ready, .reloading:
             return nil
         case .needsApproval:
-            return "banner.action.approve".localized
+            return "banner.action.open_login_items".localized
         case .needsAuthorization:
             return "banner.action.authorize".localized
         case .stale, .unavailable, .failed:
@@ -358,7 +372,7 @@ struct StatusBanner: View {
             }
             Text(message)
                 .font(.callout)
-                .lineLimit(3)
+                .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if let actionTitle, let action {

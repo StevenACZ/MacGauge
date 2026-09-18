@@ -16,7 +16,7 @@
 /* Banners */
 "banner.contested" = "Fan RPM is not matching the requested target";
 "banner.fanless" = "This Mac is passively cooled and has no controllable fans.";
-"banner.action.approve" = "Approve";
+"banner.action.open_login_items" = "Open Login Items";
 "banner.action.authorize" = "Authorize";
 "banner.action.fix" = "Fix";
 "banner.curve_suspended" = "Curve paused: macOS is controlling the fans again.";
@@ -132,7 +132,6 @@
 "settings.safety.restore.title" = "Return Control to macOS";
 "settings.safety.restore.caption" = "Hands the fans back to automatic system control immediately, as if MacGauge were not running.";
 "settings.safety.restore_automatic" = "Restore Automatic Now";
-"settings.safety.open_settings" = "Open Settings";
 "settings.safety.fix_helper" = "Fix Helper";
 "settings.safety.authorize" = "Authorize";
 
@@ -158,7 +157,7 @@
 "helper.status.checking" = "Checking helper...";
 "helper.status.ready" = "Helper ready";
 "helper.status.needs_authorization" = "Authorize the helper to enable fan control";
-"helper.status.needs_approval" = "Approve MacGauge in System Settings > Login Items";
+"helper.status.needs_approval" = "Fan control needs MacGauge's background helper.\nTurn it on in System Settings → General → Login Items & Extensions → App Background Activity → MacGauge.";
 "helper.status.unavailable" = "Helper not responding; recovering automatically";
 "helper.status.stale" = "Helper is outdated; reloading it automatically";
 "helper.status.reloading" = "Reloading helper...";
