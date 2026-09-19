@@ -18,7 +18,7 @@ struct FanMenuBarItemSection: View {
 
             Text("settings.display.preview.caption".localized)
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .center)
 
             SettingsDivider()

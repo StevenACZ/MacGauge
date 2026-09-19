@@ -20,14 +20,20 @@ struct ColorPresetPicker: View {
                 Button {
                     selection = preset.hex
                 } label: {
-                    Circle()
-                        .fill(Color(hexString: preset.hex))
-                        .frame(width: 20, height: 20)
-                        .overlay(
+                    ZStack {
+                        Circle()
+                            .fill(Color(hexString: preset.hex))
+                            .overlay(Circle().strokeBorder(fillBorderColor(for: preset), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.16), radius: 1, y: 1)
+                            .padding(selectionMatches(preset) ? Theme.Layout.swatchRingInset : 0)
+
+                        if selectionMatches(preset) {
                             Circle()
-                                .strokeBorder(borderColor(for: preset), lineWidth: selectionMatches(preset) ? 3 : 1)
-                        )
-                        .shadow(color: .black.opacity(0.16), radius: 1, y: 1)
+                                .strokeBorder(Theme.accent, lineWidth: Theme.Layout.swatchRingWidth)
+                        }
+                    }
+                    .frame(width: Theme.Layout.swatchDiameter, height: Theme.Layout.swatchDiameter)
+                    .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(preset.name)
@@ -40,11 +46,8 @@ struct ColorPresetPicker: View {
         selection.uppercased() == preset.hex
     }
 
-    private func borderColor(for preset: ColorPreset) -> Color {
-        if selectionMatches(preset) {
-            return Theme.accent
-        }
-        return preset.hex == "#FFFFFF" ? .secondary : .clear
+    private func fillBorderColor(for preset: ColorPreset) -> Color {
+        preset.hex == "#FFFFFF" ? .secondary : .clear
     }
 }
 

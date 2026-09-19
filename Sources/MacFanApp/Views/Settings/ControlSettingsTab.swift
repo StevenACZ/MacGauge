@@ -113,7 +113,7 @@ private struct CurveControlSection: View {
 
                     Text("settings.control.curve_hint".localized)
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.trailing)
                 }
             }

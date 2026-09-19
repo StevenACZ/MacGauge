@@ -6,6 +6,17 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.5] - 2026-09-18
+
+### Fixed
+
+- The popover no longer opens with the keyboard on the fan target, so arrow keys cannot change the fan right after opening it; tabbing to the slider now draws a rounded focus ring instead of a square one.
+- Estimated fan speeds read the same everywhere: the popover targets now show "~ 3240 RPM" like Settings, including the header when no measured speed is available, while measured speeds keep the plain form.
+- Settings › Safety: the numbered circles of the helper setup steps line up even when a step label wraps to two lines.
+- About: the feature chips stay on a single line and share the same height in English and Spanish.
+- Settings: helper captions and scale labels use a stronger gray so they stay readable in light appearance, and the selected color swatch is ringed with a gap so the selection is visible on every color.
+- Settings › Display: the color style captions no longer point at controls that are only shown for one style.
+
 ## [1.6.4] - 2026-09-18
 
 ### Fixed
