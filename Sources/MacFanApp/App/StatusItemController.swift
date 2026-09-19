@@ -132,7 +132,12 @@ final class StatusItemController: NSObject {
             popover.contentViewController = controller
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
+            releasePopoverKeyboardFocus()
         }
+    }
+
+    private func releasePopoverKeyboardFocus() {
+        popover.contentViewController?.view.window?.makeFirstResponder(nil)
     }
 
     private func updateStatusItem(snapshot: FanSnapshot) {
@@ -278,6 +283,10 @@ final class StatusItemController: NSObject {
 }
 
 extension StatusItemController: NSPopoverDelegate {
+    func popoverDidShow(_ notification: Notification) {
+        releasePopoverKeyboardFocus()
+    }
+
     func popoverDidClose(_ notification: Notification) {
         // Drop the SwiftUI graph so a closed popover costs nothing.
         popover.contentViewController = nil

@@ -242,16 +242,19 @@ private struct HelperSetupSteps: View {
         ]
     }
 
+    private let circleDiameter = Theme.Layout.stepCircleDiameter
+    private let connectorThickness = Theme.Layout.stepConnectorThickness
+
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .top, spacing: 0) {
             ForEach(Array(steps.enumerated()), id: \.offset) { index, title in
                 if index > 0 {
                     Rectangle()
                         .fill(index <= currentStep ? Theme.accent.opacity(0.5) : Color.primary.opacity(0.12))
-                        .frame(height: 2)
+                        .frame(height: connectorThickness)
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal, 6)
-                        .padding(.bottom, 16)
+                        .padding(.top, (circleDiameter - connectorThickness) / 2)
                 }
                 step(index: index, title: title)
             }
@@ -280,7 +283,7 @@ private struct HelperSetupSteps: View {
                         .foregroundStyle(isCurrent ? Theme.accent : .secondary)
                 }
             }
-            .frame(width: 24, height: 24)
+            .frame(width: circleDiameter, height: circleDiameter)
 
             Text(title)
                 .font(.caption2)

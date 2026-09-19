@@ -88,7 +88,7 @@ struct MenuBarPopoverView: View {
                 Spacer()
                 if !monitor.snapshot.isFanless {
                     VStack(alignment: .trailing, spacing: 0) {
-                        Text(AppFormatters.rpm(headerRPM))
+                        Text(headerRPMText)
                             .font(.system(.title3, design: .rounded, weight: .medium))
                             .monospacedDigit()
                             .contentTransition(.numericText())
@@ -162,7 +162,7 @@ struct MenuBarPopoverView: View {
             HStack {
                 Text("popover.target".localized)
                 Spacer()
-                Text("\(AppFormatters.percent(model.manualDisplayPercent)) / \(AppFormatters.rpm(model.manualTargetRPM))")
+                Text("\(AppFormatters.percent(model.manualDisplayPercent)) / \(AppFormatters.approximateRPM(model.manualTargetRPM))")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .contentTransition(.numericText())
@@ -199,7 +199,7 @@ struct MenuBarPopoverView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text(
-                    "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.rpm(model.curveTargetRPM))"
+                    "\(model.effectiveCurveTargetPercent.map(AppFormatters.percent) ?? "--") / \(AppFormatters.approximateRPM(model.curveTargetRPM))"
                 )
                 .monospacedDigit()
                 .contentTransition(.numericText())
@@ -267,6 +267,14 @@ struct MenuBarPopoverView: View {
         case .manual:
             return monitor.snapshot.fan?.currentRPM
         }
+    }
+
+    private var headerRPMText: String {
+        let fan = monitor.snapshot.fan
+        if settings.controlMode == .curve, fan?.currentRPM == nil, fan?.targetRPM == nil {
+            return AppFormatters.approximateRPM(model.curveTargetRPM)
+        }
+        return AppFormatters.rpm(headerRPM)
     }
 
     private var headerRPMLabel: String {

@@ -54,7 +54,7 @@ struct BandsStripEditor: View {
                 Text("\(Int(scale.upperBound))\(unitSuffix)")
             }
             .font(.caption2)
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(.secondary)
             .monospacedDigit()
         }
     }

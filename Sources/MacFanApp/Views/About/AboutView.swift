@@ -250,6 +250,8 @@ struct AboutView: View {
 
             Text(label)
                 .font(.caption2.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)

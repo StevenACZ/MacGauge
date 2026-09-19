@@ -95,8 +95,8 @@
 "settings.display.modules.graph" = "Graph length";
 "settings.display.modules.graph.caption" = "Length of this module's chart.";
 "settings.display.modules.color" = "Color style";
-"settings.display.modules.color.caption" = "Multicolor keeps the module's own tint; By load paints the chart with the colors and thresholds you set below.";
-"settings.display.modules.color.caption.network" = "The up and down arrows follow the selected style; Multicolor uses your own colors below.";
+"settings.display.modules.color.caption" = "Multicolor keeps the module's own tint; By load paints the chart with your own usage colors.";
+"settings.display.modules.color.caption.network" = "The up and down arrows follow the selected style; Multicolor lets you pick a color for each direction.";
 "settings.display.load_bands.caption" = "The chart takes these colors as usage climbs. Drag the handles to adjust the thresholds.";
 "settings.display.load.low" = "Low";
 "settings.display.load.medium" = "Medium";
@@ -281,7 +281,7 @@
 "about.tagline" = "Fans, temperature, and live system stats in your menu bar.";
 "about.chip.fans" = "Fan control";
 "about.chip.temperature" = "Temperature";
-"about.chip.modules" = "Menu bar modules";
+"about.chip.modules" = "Modules";
 "about.link.report_issue" = "Report an issue";
 "about.footer.credit" = "Made with care for macOS";
 "about.update_install" = "Install v%@";

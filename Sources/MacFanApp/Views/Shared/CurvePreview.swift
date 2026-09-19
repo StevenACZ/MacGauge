@@ -313,7 +313,7 @@ struct CurvePreview: View {
             return AppFormatters.rpm(currentRPM)
         }
         guard let targetPercent, let rpm = estimatedRPM?(targetPercent) else { return nil }
-        return AppFormatters.rpm(rpm)
+        return AppFormatters.approximateRPM(rpm)
     }
 
     private func liveRPMLabelPosition(for marker: CGPoint, in plotRect: CGRect) -> CGPoint {

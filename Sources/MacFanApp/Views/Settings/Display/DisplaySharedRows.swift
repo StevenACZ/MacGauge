@@ -124,7 +124,7 @@ struct SimulatedPreviewCapsule<Content: View>: View {
 
             Text("settings.display.preview.simulated".localized)
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
     }

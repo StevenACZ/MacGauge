@@ -95,8 +95,8 @@
 "settings.display.modules.graph" = "Largo de gráfica";
 "settings.display.modules.graph.caption" = "Largo de la gráfica de este módulo.";
 "settings.display.modules.color" = "Estilo de color";
-"settings.display.modules.color.caption" = "Multicolor mantiene el tinte propio del módulo; Por carga pinta la gráfica con los colores y umbrales que configures abajo.";
-"settings.display.modules.color.caption.network" = "Las flechas de subida y bajada siguen el estilo elegido; Multicolor usa tus propios colores de abajo.";
+"settings.display.modules.color.caption" = "Multicolor mantiene el tinte propio del módulo; Por carga pinta la gráfica con tus propios colores de uso.";
+"settings.display.modules.color.caption.network" = "Las flechas de subida y bajada siguen el estilo elegido; Multicolor te deja elegir un color para cada sentido.";
 "settings.display.load_bands.caption" = "La gráfica toma estos colores según sube el uso. Arrastra los tiradores para ajustar los umbrales.";
 "settings.display.load.low" = "Bajo";
 "settings.display.load.medium" = "Medio";
@@ -279,7 +279,7 @@
 "about.title" = "Acerca de MacGauge";
 "about.version" = "v%@ · %@";
 "about.tagline" = "Ventiladores, temperatura y estadísticas del sistema en la barra de menús.";
-"about.chip.fans" = "Control de ventiladores";
+"about.chip.fans" = "Ventiladores";
 "about.chip.temperature" = "Temperatura";
 "about.chip.modules" = "Módulos";
 "about.link.report_issue" = "Reportar problema";

@@ -65,6 +65,7 @@ struct ManualPercentSlider: View {
             isHovered = hovering
         }
         .focusable()
+        .contentShape(.focusEffect, Capsule())
         .onMoveCommand { direction in
             guard !isDisabled else { return }
             switch direction {

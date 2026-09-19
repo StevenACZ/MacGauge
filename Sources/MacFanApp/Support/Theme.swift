@@ -15,6 +15,11 @@ enum Theme {
         static let badgeRadius: CGFloat = 6
         static let cardFill = Color.primary.opacity(0.04)
         static let cardStroke = Color.primary.opacity(0.08)
+        static let stepCircleDiameter: CGFloat = 24
+        static let stepConnectorThickness: CGFloat = 2
+        static let swatchDiameter: CGFloat = 20
+        static let swatchRingWidth: CGFloat = 2
+        static let swatchRingInset: CGFloat = 3.5
     }
 
     enum Anim {
