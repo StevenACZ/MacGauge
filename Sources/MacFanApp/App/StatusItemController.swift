@@ -244,41 +244,28 @@ final class StatusItemController: NSObject {
     }
 
     private func statusColor(for temperature: Double?) -> NSColor {
+        // Resolved per tick against the bar itself: the wallpaper decides
+        // between white and black glyphs, not the system appearance.
+        let isDarkBar = statusItem.button.map { AppearancePalette.isDark($0.effectiveAppearance) } ?? true
+        let glyph: NSColor = isDarkBar ? .white : .black
         switch model.settings.fanColorStyle {
         case .mono:
-            return .labelColor
+            return glyph
         case .gray:
-            return .secondaryLabelColor
+            return glyph.withAlphaComponent(0.55)
         case .temperature:
             break
         }
+        let bandColor: NSColor
         switch model.settings.visualRules.band(for: temperature) {
         case .normal:
-            return readableMenuBarColor(NSColor(hexString: model.settings.normalColorHex), fallback: .white)
+            bandColor = NSColor(hexString: model.settings.normalColorHex) ?? .white
         case .medium:
-            return readableMenuBarColor(NSColor(hexString: model.settings.mediumColorHex), fallback: .systemOrange)
+            bandColor = NSColor(hexString: model.settings.mediumColorHex) ?? .systemOrange
         case .hot:
-            return readableMenuBarColor(NSColor(hexString: model.settings.hotColorHex), fallback: .systemRed)
+            bandColor = NSColor(hexString: model.settings.hotColorHex) ?? .systemRed
         }
-    }
-
-    private func readableMenuBarColor(_ color: NSColor?, fallback: NSColor) -> NSColor {
-        let source = (color ?? fallback).usingColorSpace(.sRGB) ?? fallback
-        var hue: CGFloat = 0
-        var saturation: CGFloat = 0
-        var brightness: CGFloat = 0
-        var alpha: CGFloat = 0
-
-        source.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
-
-        let liftedBrightness = max(brightness, 0.82)
-        let liftedSaturation = saturation > 0.05 ? max(saturation, 0.58) : saturation
-        return NSColor(
-            calibratedHue: hue,
-            saturation: liftedSaturation,
-            brightness: liftedBrightness,
-            alpha: alpha > 0 ? alpha : 1
-        ).usingColorSpace(.sRGB) ?? fallback
+        return AppearancePalette.menuBarVariant(of: bandColor, isDark: isDarkBar)
     }
 }
 

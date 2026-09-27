@@ -37,6 +37,19 @@ struct DisplaySettingsTab: View {
             }
         }
 
+        var tint: Color {
+            switch self {
+            case .fan, .cpu: return Theme.accent
+            case .modules: return Self.blue
+            case .memory: return Self.indigo
+            case .network: return Self.orange
+            }
+        }
+
+        private static let blue = AppearancePalette.lightAdapted(.blue)
+        private static let indigo = AppearancePalette.lightAdapted(.indigo)
+        private static let orange = AppearancePalette.lightAdapted(.orange)
+
         var localizedName: String {
             switch self {
             case .fan: return "settings.display.section.fan_temp".localized
@@ -49,7 +62,7 @@ struct DisplaySettingsTab: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 16) {
             sectionSidebar
 
             SettingsPane {
@@ -83,40 +96,45 @@ struct DisplaySettingsTab: View {
     // MARK: - Section sidebar
 
     private var sectionSidebar: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 3) {
             ForEach(DisplaySection.allCases) { item in
                 sidebarRow(item)
             }
             Spacer(minLength: 0)
         }
-        .frame(width: 156)
+        .frame(width: 176)
     }
 
     private func sidebarRow(_ item: DisplaySection) -> some View {
         let isSelected = section == item
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         return Button {
             section = item
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: item.icon)
-                    .font(.system(size: 13, weight: .medium))
-                    .frame(width: 20, alignment: .center)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isSelected ? Color.white : item.tint)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(isSelected ? item.tint : item.tint.opacity(0.14))
+                    )
                 Text(item.localizedName)
                     .font(.callout.weight(isSelected ? .semibold : .regular))
+                    .foregroundStyle(Color.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 7)
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Layout.rowRadius, style: .continuous))
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Layout.rowRadius, style: .continuous)
-                    .fill(isSelected ? Theme.accent.opacity(0.16) : Color.clear)
-            )
-            .foregroundStyle(isSelected ? Theme.accent : Color.primary)
+            .padding(6)
+            .contentShape(shape)
+            .background(shape.fill(isSelected ? Color.primary.opacity(0.07) : Color.clear))
+            .overlay(shape.strokeBorder(isSelected ? Color.primary.opacity(0.08) : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .animation(Theme.Anim.hover, value: isSelected)
+        .accessibilityLabel(item.localizedName)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }

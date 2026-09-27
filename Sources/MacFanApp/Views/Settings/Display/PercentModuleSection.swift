@@ -27,13 +27,22 @@ struct PercentModuleSection: View {
     /// threshold drags read live), graph length last.
     @ViewBuilder
     private var metricRows: some View {
-        StylePickerRow(
+        SettingsGroupHeader(
             title: "settings.display.modules.color".localized,
-            caption: "settings.display.modules.color.caption".localized,
-            options: ModuleColorMode.allCases,
-            label: \.localizedName,
-            selection: colorModeBinding
+            caption: "settings.display.modules.color.caption".localized
         )
+
+        OptionTilePicker(
+            options: ModuleColorMode.allCases,
+            selection: colorModeBinding,
+            label: \.localizedName
+        ) { mode in
+            SamplePercentModule(
+                title: shortTitle,
+                style: ModuleColorResolver.previewStyle(for: mode, metric: metric, settings: settings),
+                graphWidth: 26
+            )
+        }
 
         if colorMode == .load {
             SettingsDivider()
@@ -43,13 +52,22 @@ struct PercentModuleSection: View {
 
         SettingsDivider()
 
-        StylePickerRow(
+        SettingsGroupHeader(
             title: "settings.display.modules.graph".localized,
-            caption: "settings.display.modules.graph.caption".localized,
-            options: ModuleGraphWidth.allCases,
-            label: \.localizedName,
-            selection: graphWidthBinding
+            caption: "settings.display.modules.graph.caption".localized
         )
+
+        OptionTilePicker(
+            options: ModuleGraphWidth.allCases,
+            selection: graphWidthBinding,
+            label: \.localizedName
+        ) { width in
+            SamplePercentModule(
+                title: shortTitle,
+                style: ModuleColorResolver.previewStyle(for: colorMode, metric: metric, settings: settings),
+                graphWidth: width.width
+            )
+        }
     }
 
     /// The customizable "By load" bands for the module: a 0-100% strip with
@@ -117,6 +135,10 @@ struct PercentModuleSection: View {
         metric == .cpu
             ? "settings.display.module_cpu".localized
             : "settings.display.module_memory".localized
+    }
+
+    private var shortTitle: String {
+        metric == .cpu ? "system.cpu".localized : "system.memory".localized
     }
 
     private var showsModule: Bool {

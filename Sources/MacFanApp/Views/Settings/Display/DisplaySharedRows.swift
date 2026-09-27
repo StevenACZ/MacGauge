@@ -2,37 +2,7 @@ import SwiftUI
 
 /// Rows and helpers shared by the Display-tab section cards.
 
-struct StylePickerRow<Value: Hashable & Identifiable>: View {
-    let title: String
-    let caption: String
-    let options: [Value]
-    let label: KeyPath<Value, String>
-    @Binding var selection: Value
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.callout.weight(.semibold))
-                Text(caption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Picker(title, selection: $selection) {
-                ForEach(options) { option in
-                    Text(option[keyPath: label]).tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-        }
-        .padding(.vertical, 2)
-    }
-}
-
-// These rows sit next to the 156pt sidebar, so their rigid widths must
+// These rows sit next to the 176pt sidebar, so their rigid widths must
 // stay under SettingsLayout.contentWidth − sidebar − card padding or the
 // whole settings window loses its margins (the tab ZStack adopts the
 // widest tab's minimum width).

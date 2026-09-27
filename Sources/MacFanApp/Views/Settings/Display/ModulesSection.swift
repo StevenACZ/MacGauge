@@ -1,24 +1,22 @@
 import SwiftUI
 
-/// The menu-bar modules card: simulated bar preview, spacing picker, and one
-/// visibility toggle per module.
 struct ModulesSection: View {
     @ObservedObject var settings: AppSettingsStore
     let simulator: ModulePreviewSimulator
 
     private struct ModuleToggle: Identifiable {
-        let icon: String
+        let module: SystemModuleKind
         let titleKey: String
         let isOn: Binding<Bool>
 
-        var id: String { titleKey }
+        var id: SystemModuleKind { module }
     }
 
     private var moduleToggles: [ModuleToggle] {
         [
-            ModuleToggle(icon: "cpu", titleKey: "settings.display.module_cpu", isOn: $settings.showsCPUModule),
-            ModuleToggle(icon: "memorychip", titleKey: "settings.display.module_memory", isOn: $settings.showsMemoryModule),
-            ModuleToggle(icon: "network", titleKey: "settings.display.module_network", isOn: $settings.showsNetworkModule),
+            ModuleToggle(module: .cpu, titleKey: "settings.display.module_cpu", isOn: $settings.showsCPUModule),
+            ModuleToggle(module: .memory, titleKey: "settings.display.module_memory", isOn: $settings.showsMemoryModule),
+            ModuleToggle(module: .network, titleKey: "settings.display.module_network", isOn: $settings.showsNetworkModule),
         ]
     }
 
@@ -30,27 +28,99 @@ struct ModulesSection: View {
 
             SettingsDivider()
 
-            StylePickerRow(
-                title: "settings.display.modules.spacing".localized,
-                caption: "settings.display.modules.spacing.caption".localized,
-                options: ModuleSpacingLevel.allCases,
-                label: \.localizedName,
-                selection: $settings.moduleSpacing
+            SettingsGroupHeader(
+                title: "settings.display.modules.visible".localized,
+                caption: "settings.display.modules.visible.caption".localized
             )
 
-            ForEach(moduleToggles) { toggle in
-                SettingsDivider()
+            HStack(alignment: .top, spacing: 10) {
+                ForEach(moduleToggles) { toggle in
+                    OptionTile(
+                        title: toggle.titleKey.localized,
+                        isSelected: toggle.isOn.wrappedValue,
+                        action: { toggle.isOn.wrappedValue.toggle() }
+                    ) {
+                        ModuleSample(module: toggle.module, settings: settings)
+                            .opacity(toggle.isOn.wrappedValue ? 1 : 0.35)
+                    }
+                }
+            }
 
-                SettingsToggleRow(
-                    title: toggle.titleKey.localized,
-                    subtitle: "\(toggle.titleKey).caption".localized,
-                    icon: toggle.icon,
-                    trailingWidth: 60,
-                    isOn: toggle.isOn
-                )
+            SettingsDivider()
+
+            SettingsGroupHeader(
+                title: "settings.display.modules.spacing".localized,
+                caption: "settings.display.modules.spacing.caption".localized
+            )
+
+            OptionTilePicker(
+                options: ModuleSpacingLevel.allCases,
+                selection: $settings.moduleSpacing,
+                label: \.localizedName
+            ) { level in
+                SpacingSample(level: level)
             }
         }
         .animation(Theme.Anim.smooth, value: settings.enabledModules)
+    }
+}
+
+private struct ModuleSample: View {
+    let module: SystemModuleKind
+    @ObservedObject var settings: AppSettingsStore
+
+    var body: some View {
+        switch module {
+        case .cpu:
+            SamplePercentModule(
+                title: "system.cpu".localized,
+                style: ModuleColorResolver.previewStyle(for: settings.cpuColorMode, metric: .cpu, settings: settings),
+                graphWidth: settings.cpuGraphWidth.width
+            )
+        case .memory:
+            SamplePercentModule(
+                title: "system.memory".localized,
+                style: ModuleColorResolver.previewStyle(for: settings.memoryColorMode, metric: .memory, settings: settings),
+                graphWidth: settings.memoryGraphWidth.width
+            )
+        case .network:
+            let tints = ModuleColorResolver.networkArrowTints(settings: settings)
+            NetworkModuleSegment(
+                upload: 1_250_000,
+                download: 86_000,
+                upTint: tints.up,
+                downTint: tints.down,
+                animated: false
+            )
+        }
+    }
+}
+
+private struct SpacingSample: View {
+    let level: ModuleSpacingLevel
+
+    var body: some View {
+        HStack(spacing: gap) {
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                    .fill(Color.primary.opacity(0.75))
+                    .frame(width: 15, height: 9)
+            }
+        }
+        .padding(level == .together ? 3 : 0)
+        .background(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.primary.opacity(level == .together ? 0.16 : 0))
+        )
+    }
+
+    private var gap: CGFloat {
+        switch level {
+        case .together: return 1.5
+        case .tight: return 4
+        case .regular: return 7
+        case .roomy: return 11
+        }
     }
 }
 

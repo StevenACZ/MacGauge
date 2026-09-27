@@ -53,15 +53,16 @@
 /* Control tab */
 "settings.control.title" = "Control";
 "settings.control.mode" = "Mode";
-"settings.control.default_mode" = "Default mode";
 "settings.control.manual_target" = "Manual Target";
-"settings.control.target" = "Target";
 "settings.control.add_point" = "Add Point";
 "settings.control.reset" = "Reset";
 "settings.control.fan_curve" = "Fan Curve";
 "settings.control.curve_hint" = "Drag points · double-click to add · right-click to delete";
 "settings.control.temperature" = "Temperature";
 "settings.control.fan_speed" = "Fan speed";
+"settings.control.mode.caption" = "Manual holds the speed you pick; Curve adjusts it as the temperature changes.";
+"settings.control.mode.manual.caption" = "A fixed speed you choose";
+"settings.control.mode.curve.caption" = "Speed follows the temperature";
 "settings.control.estimated_rpm" = "Est. speed";
 "curve.delete_point" = "Delete point";
 
@@ -80,16 +81,15 @@
 "settings.display.from" = "From";
 "settings.display.menubar_modules" = "Menu Bar Modules";
 "settings.display.module_cpu" = "CPU usage";
-"settings.display.module_cpu.caption" = "Live usage in the menu bar; click it for cores and top apps.";
 "settings.display.module_memory" = "Memory usage";
-"settings.display.module_memory.caption" = "Live used memory and pressure; click it for the apps using the most.";
 "settings.display.module_network" = "Network activity";
-"settings.display.module_network.caption" = "Live download and upload rates; click it for IPs and session totals.";
 "settings.display.section.fan_temp" = "Fan & temperature";
 "settings.display.section.modules" = "Modules";
 "settings.display.module.hidden_hint" = "Hidden right now — enable it in Modules.";
 "settings.display.modules.none_hint" = "No modules enabled — turn them on below.";
 "settings.display.preview.simulated" = "Simulated preview — watch how your styles react.";
+"settings.display.modules.visible" = "Show in the menu bar";
+"settings.display.modules.visible.caption" = "Click a module to show or hide it. Each one opens its own detail.";
 "settings.display.modules.spacing" = "Spacing";
 "settings.display.modules.spacing.caption" = "How much breathing room every module keeps in the menu bar. Together fuses them into one block, with clicks still per module.";
 "settings.display.modules.graph" = "Graph length";

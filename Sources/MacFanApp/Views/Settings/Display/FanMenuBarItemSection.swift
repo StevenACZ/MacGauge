@@ -23,6 +23,21 @@ struct FanMenuBarItemSection: View {
 
             SettingsDivider()
 
+            SettingsGroupHeader(
+                title: "settings.display.modules.color".localized,
+                caption: "fan.color.caption".localized
+            )
+
+            OptionTilePicker(
+                options: FanColorStyle.allCases,
+                selection: $settings.fanColorStyle,
+                label: \.localizedName
+            ) { style in
+                FanStyleSample(style: style, settings: settings)
+            }
+
+            SettingsDivider()
+
             SettingsToggleRow(
                 title: "settings.display.animate_icon".localized,
                 subtitle: "settings.display.animate_icon.caption".localized,
@@ -40,17 +55,40 @@ struct FanMenuBarItemSection: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
-
-            SettingsDivider()
-
-            StylePickerRow(
-                title: "settings.display.modules.color".localized,
-                caption: "fan.color.caption".localized,
-                options: FanColorStyle.allCases,
-                label: \.localizedName,
-                selection: $settings.fanColorStyle
-            )
         }
+    }
+}
+
+private struct FanStyleSample: View {
+    let style: FanColorStyle
+    @ObservedObject var settings: AppSettingsStore
+
+    var body: some View {
+        switch style {
+        case .temperature:
+            let hexes = [settings.normalColorHex, settings.mediumColorHex, settings.hotColorHex]
+            HStack(spacing: 7) {
+                ForEach(Array(hexes.enumerated()), id: \.offset) { _, hex in
+                    Image(systemName: "fanblades.fill")
+                        .foregroundStyle(ModuleColorResolver.menuBarTint(hexString: hex))
+                }
+            }
+            .font(.system(size: 13, weight: .medium))
+        case .mono:
+            glyph(Color.white)
+        case .gray:
+            glyph(Color.white.opacity(0.55))
+        }
+    }
+
+    private func glyph(_ color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "fanblades.fill")
+            Text(AppFormatters.temperature(56, unit: settings.temperatureUnit))
+                .monospacedDigit()
+        }
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(color)
     }
 }
 
@@ -75,15 +113,19 @@ private struct FanMenuBarItemLivePreview: View {
         )
     }
 
+    /// Static, already lifted for a dark bar: the renderer bakes the color
+    /// into a bitmap, so a dynamic color would resolve against the window.
     private var currentBandColor: Color {
+        let hex: String
         switch settings.visualRules.band(for: monitor.snapshot.temperatureCelsius) {
         case .normal:
-            return Color(hexString: settings.normalColorHex)
+            hex = settings.normalColorHex
         case .medium:
-            return Color(hexString: settings.mediumColorHex)
+            hex = settings.mediumColorHex
         case .hot:
-            return Color(hexString: settings.hotColorHex)
+            hex = settings.hotColorHex
         }
+        return Color(nsColor: AppearancePalette.menuBarVariant(of: NSColor(hexString: hex) ?? .white, isDark: true))
     }
 
     /// Mirrors StatusItemController.statusColor for the always-dark preview.
@@ -94,7 +136,7 @@ private struct FanMenuBarItemLivePreview: View {
         case .mono:
             return .white
         case .gray:
-            return Color(nsColor: .systemGray)
+            return Color(nsColor: NSColor.white.withAlphaComponent(0.55))
         }
     }
 

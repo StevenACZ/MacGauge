@@ -53,15 +53,16 @@
 /* Control tab */
 "settings.control.title" = "Control";
 "settings.control.mode" = "Modo";
-"settings.control.default_mode" = "Modo predeterminado";
 "settings.control.manual_target" = "Objetivo manual";
-"settings.control.target" = "Objetivo";
 "settings.control.add_point" = "Agregar punto";
 "settings.control.reset" = "Restablecer";
 "settings.control.fan_curve" = "Curva del ventilador";
 "settings.control.curve_hint" = "Arrastra los puntos · doble clic para agregar · clic derecho para eliminar";
 "settings.control.temperature" = "Temperatura";
 "settings.control.fan_speed" = "Velocidad";
+"settings.control.mode.caption" = "Manual mantiene la velocidad que elijas; Curva la ajusta según cambia la temperatura.";
+"settings.control.mode.manual.caption" = "Una velocidad fija que eliges";
+"settings.control.mode.curve.caption" = "La velocidad sigue la temperatura";
 "settings.control.estimated_rpm" = "Vel. estimada";
 "curve.delete_point" = "Eliminar punto";
 
@@ -80,16 +81,15 @@
 "settings.display.from" = "Desde";
 "settings.display.menubar_modules" = "Módulos de la barra de menús";
 "settings.display.module_cpu" = "Uso de CPU";
-"settings.display.module_cpu.caption" = "Uso en vivo en la barra de menús; clic para ver núcleos y apps.";
 "settings.display.module_memory" = "Uso de memoria";
-"settings.display.module_memory.caption" = "Memoria usada y presión en vivo; clic para ver las apps que más consumen.";
 "settings.display.module_network" = "Actividad de red";
-"settings.display.module_network.caption" = "Bajada y subida en vivo; clic para ver IPs y totales de la sesión.";
 "settings.display.section.fan_temp" = "Ventilador y temp.";
 "settings.display.section.modules" = "Módulos";
 "settings.display.module.hidden_hint" = "Oculto ahora mismo — actívalo en Módulos.";
 "settings.display.modules.none_hint" = "Sin módulos activos — enciéndelos abajo.";
 "settings.display.preview.simulated" = "Vista previa simulada — mira cómo reaccionan tus estilos.";
+"settings.display.modules.visible" = "Mostrar en la barra de menús";
+"settings.display.modules.visible.caption" = "Haz clic en un módulo para mostrarlo u ocultarlo. Cada uno abre su propio detalle.";
 "settings.display.modules.spacing" = "Separación";
 "settings.display.modules.spacing.caption" = "Cuánto aire deja cada módulo en la barra de menús. Juntos los fusiona en un solo bloque, con clic por módulo igual.";
 "settings.display.modules.graph" = "Largo de gráfica";

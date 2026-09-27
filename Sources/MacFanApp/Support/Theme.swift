@@ -3,10 +3,10 @@ import SwiftUI
 /// Central design tokens: colors, layout metrics, and the two spring
 /// families used across the app (fast feedback vs. content motion).
 enum Theme {
-    /// Menu bar labels draw over the menu bar instead of a window background,
-    /// so they keep the raw accent; everything on a window uses the adapted one.
-    static let rawAccent = Color(nsColor: .systemTeal)
-    static let accent = AppearancePalette.lightAdapted(rawAccent)
+    /// Menu bar labels draw on the wallpaper instead of a window background,
+    /// so they take the menu bar variant; everything on a window uses `accent`.
+    static let menuBarAccent = AppearancePalette.menuBarAdapted(.systemTeal)
+    static let accent = AppearancePalette.lightAdapted(Color(nsColor: .systemTeal))
 
     enum Layout {
         static let panelWidth: CGFloat = 360

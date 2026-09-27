@@ -23,72 +23,93 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            header
-            ZStack(alignment: .top) {
-                tabContent(
-                    GeneralSettingsTab(
-                        settings: settings,
-                        loginManager: loginManager,
-                        setLaunchAtLogin: model.setLaunchAtLogin,
-                        onShowWelcome: onShowWelcome
-                    ),
-                    tab: .general
-                )
-                tabContent(
-                    ControlSettingsTab(
-                        model: model,
-                        settings: settings,
-                        monitor: model.monitor,
-                        helperService: helperService,
-                        isActive: selectedTab == .control
-                    ),
-                    tab: .control
-                )
-                tabContent(
-                    DisplaySettingsTab(
-                        settings: settings,
-                        monitor: model.monitor,
-                        isActive: selectedTab == .display
-                    ),
-                    tab: .display
-                )
-                tabContent(
-                    SafetySettingsTab(
-                        model: model,
-                        settings: settings,
-                        helperService: helperService,
-                        isActive: selectedTab == .safety
-                    ),
-                    tab: .safety
-                )
+        VStack(spacing: 14) {
+            if !SettingsLayout.bridgesToolbar {
+                HStack {
+                    tabPicker
+                    Spacer(minLength: 12)
+                    closeButton
+                }
+            }
+            tabStack
+        }
+        .padding(.leading, SettingsLayout.leadingPadding)
+        .padding(.trailing, SettingsLayout.trailingPadding)
+        .padding(.top, 16)
+        .padding(.bottom, 18)
+        .frame(width: SettingsLayout.windowSize.width, height: SettingsLayout.windowSize.height)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .toolbar {
+            if SettingsLayout.bridgesToolbar {
+                ToolbarItem(placement: .principal) {
+                    tabPicker
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    closeButton
+                }
             }
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 12)
-        .padding(.top, 36)
-        .padding(.bottom, 20)
-        .frame(width: 680, height: 520)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .ignoresSafeArea()
+        .toolbarBackground(Color(nsColor: .windowBackgroundColor), for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
         .tint(Theme.accent)
         .id(localization.language)
     }
 
-    private var header: some View {
-        HStack {
-            Picker("popover.settings".localized, selection: $selectedTab) {
-                ForEach(SettingsTab.allCases) { tab in
-                    Text(tab.label).tag(tab)
-                }
+    private var tabPicker: some View {
+        Picker("popover.settings".localized, selection: $selectedTab) {
+            ForEach(SettingsTab.allCases) { tab in
+                Text(tab.label).tag(tab)
             }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .fixedSize()
-            Spacer(minLength: 12)
-            Button("settings.close".localized, action: closeSettingsWindow)
         }
-        .padding(.trailing, 8)
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .fixedSize()
+    }
+
+    private var closeButton: some View {
+        Button("settings.close".localized, action: closeSettingsWindow)
+    }
+
+    private var tabStack: some View {
+        ZStack(alignment: .top) {
+            tabContent(
+                GeneralSettingsTab(
+                    settings: settings,
+                    loginManager: loginManager,
+                    setLaunchAtLogin: model.setLaunchAtLogin,
+                    onShowWelcome: onShowWelcome
+                ),
+                tab: .general
+            )
+            tabContent(
+                ControlSettingsTab(
+                    model: model,
+                    settings: settings,
+                    monitor: model.monitor,
+                    helperService: helperService,
+                    isActive: selectedTab == .control
+                ),
+                tab: .control
+            )
+            tabContent(
+                DisplaySettingsTab(
+                    settings: settings,
+                    monitor: model.monitor,
+                    isActive: selectedTab == .display
+                ),
+                tab: .display
+            )
+            tabContent(
+                SafetySettingsTab(
+                    model: model,
+                    settings: settings,
+                    helperService: helperService,
+                    isActive: selectedTab == .safety
+                ),
+                tab: .safety
+            )
+        }
     }
 
     // Tabs stay alive behind an opacity toggle so per-tab state (scroll

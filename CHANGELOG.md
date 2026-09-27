@@ -6,6 +6,17 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Settings has a new look: a taller window with the tabs in the toolbar, and pictures instead of drop-down menus. You now pick color styles, graph length, spacing and fan mode by clicking a tile that previews the result.
+- Settings › Display: every sidebar section gets its own colored icon, and you show or hide menu bar modules by clicking their tiles.
+- Settings › Control: Manual and Curve are tiles that show your own target speed or curve, the manual speed has a bigger readout with a smoother slider, and the curve editor is taller.
+
+### Fixed
+
+- The menu bar stays readable over light and mid-tone wallpapers in both light and dark appearance. The CPU and RAM titles take the chart color instead of a faint gray, charts sit on a subtle plate, and dark tints are brightened just enough to stand out.
+- The fan temperature colors adapt to the menu bar the same way, and the Gray style is a readable neutral instead of disappearing into the wallpaper.
+
 ## [1.6.5] - 2026-09-18
 
 ### Fixed

@@ -151,8 +151,8 @@ struct PercentModuleSegment: View {
         HStack(spacing: 3) {
             VStack(spacing: -1) {
                 Text(title)
-                    .font(.system(size: 7, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(color)
                 ZStack {
                     Text(verbatim: "100%")
                         .hidden()
@@ -169,12 +169,13 @@ struct PercentModuleSegment: View {
                 capacity: SystemStatsMonitor.historyCapacity,
                 peak: 100,
                 color: color,
-                fillOpacity: 0.45,
-                lineWidth: 1,
+                fillOpacity: 0.5,
+                lineWidth: 1.25,
                 tickSeconds: tickSeconds,
                 animated: animated
             )
             .frame(width: graphWidth, height: 15)
+            .background(Color.primary.opacity(0.13))
             .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
             .animation(animated ? Theme.Anim.smooth : nil, value: color)
         }

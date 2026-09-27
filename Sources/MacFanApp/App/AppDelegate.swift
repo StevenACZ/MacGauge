@@ -59,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let window = settingsWindowController?.window {
             configureSettingsWindow(window)
-            window.contentView = content
+            window.contentViewController = content
             window.setContentSize(Self.settingsWindowSize)
             centerSettingsWindow(window)
             window.makeKeyAndOrderFront(nil)
@@ -69,12 +69,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: Self.settingsWindowSize),
-            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         configureSettingsWindow(window)
-        window.contentView = content
+        window.contentViewController = content
         window.setContentSize(Self.settingsWindowSize)
         centerSettingsWindow(window)
 
@@ -84,8 +84,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func makeSettingsContent(tab: SettingsTab) -> NSView {
-        let hosting = NSHostingView(
+    private func makeSettingsContent(tab: SettingsTab) -> NSViewController {
+        let hosting = NSHostingController(
             rootView: SettingsView(
                 model: model,
                 initialTab: tab,
@@ -95,27 +95,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             )
         )
+        // A hosting controller that sizes its own window crashes macOS 26 in
+        // _postWindowNeedsUpdateConstraints; the window size is pinned below.
         hosting.sizingOptions = []
-        if #available(macOS 14.0, *) { hosting.safeAreaRegions = [] }
-
-        let container = NSView(frame: NSRect(origin: .zero, size: Self.settingsWindowSize))
-        container.wantsLayer = true
-        hosting.frame = container.bounds
-        hosting.autoresizingMask = [.width, .height]
-        container.addSubview(hosting)
-        return container
+        if #available(macOS 14.0, *) {
+            hosting.sceneBridgingOptions = [.toolbars]
+        }
+        return hosting
     }
 
     private func configureSettingsWindow(_ window: NSWindow) {
         window.title = "MacGauge · " + "popover.settings".localized
-        window.styleMask.insert(.fullSizeContentView)
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
-        window.toolbar = nil
+        window.toolbarStyle = .unified
         window.backgroundColor = .windowBackgroundColor
         window.isReleasedWhenClosed = false
-        // The SwiftUI content is a fixed 680x520, but the OS can still resize
+        // The SwiftUI content is a fixed size, but the OS can still resize
         // the window programmatically (Sequoia edge tiling, toolbar reshapes),
         // leaving the content floating in dead space. Pinning min == max keeps
         // every resize path honest.
@@ -152,7 +149,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return min(max(value, lower), upper)
     }
 
-    private static let settingsWindowSize = NSSize(width: 680, height: 520)
+    private static let settingsWindowSize = NSSize(
+        width: SettingsLayout.windowSize.width,
+        height: SettingsLayout.windowSize.height
+    )
 }
 
 extension AppDelegate: NSWindowDelegate {
@@ -163,7 +163,8 @@ extension AppDelegate: NSWindowDelegate {
         guard !isSnappingSettingsWindow,
             let window = notification.object as? NSWindow,
             window === settingsWindowController?.window,
-            window.contentRect(forFrameRect: window.frame).size != Self.settingsWindowSize
+            let contentSize = window.contentView?.bounds.size,
+            contentSize != Self.settingsWindowSize
         else { return }
         isSnappingSettingsWindow = true
         window.setContentSize(Self.settingsWindowSize)
@@ -178,7 +179,7 @@ extension AppDelegate: NSWindowDelegate {
         // the 1 Hz monitor publishers while the app runs around the clock;
         // reopening always builds a fresh hosting controller.
         DispatchQueue.main.async {
-            window.contentView = nil
+            window.contentViewController = nil
         }
     }
 }
