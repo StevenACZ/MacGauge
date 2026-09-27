@@ -679,7 +679,7 @@ final class UpdateManagerTests: XCTestCase {
             .deletingLastPathComponent()
             .appendingPathComponent("Sources/MacFanApp/App")
 
-        for controller in ["StatusItemController", "MetricStatusItemController", "FusedModulesStatusItemController"] {
+        for controller in ["StatusItemController", "MetricStatusItemController", "FusedModulesStrip"] {
             let source = try String(
                 contentsOf: sources.appendingPathComponent("\(controller).swift"), encoding: .utf8)
             XCTAssertTrue(source.contains("UpdateManager.shared.popoverDidOpen()"), controller)

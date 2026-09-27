@@ -3,6 +3,17 @@ import Combine
 import MacFanCore
 import SwiftUI
 
+/// Content that shares the fan's status item, drawn to the left of the fan.
+@MainActor
+protocol FanItemLeadingContent: AnyObject {
+    var view: NSView { get }
+    var accessibilityTitle: String { get }
+    /// Opens or closes the popover of the clicked segment; false when the
+    /// click landed on the fan instead.
+    func handleClick(in button: NSStatusBarButton) -> Bool
+    func closePopovers()
+}
+
 @MainActor
 final class StatusItemController: NSObject {
     private let statusItem: NSStatusItem
@@ -10,6 +21,9 @@ final class StatusItemController: NSObject {
     private let model: AppModel
     private var cancellables = Set<AnyCancellable>()
     private var animationTimer: Timer?
+    private var leadingContent: FanItemLeadingContent?
+    private let fanSegment = FanSegmentView()
+    private var standaloneHighlight: NSCell.StyleMask = []
 
     var autosaveName: String { statusItem.autosaveName }
 
@@ -39,7 +53,7 @@ final class StatusItemController: NSObject {
 
         if let button = statusItem.button {
             button.target = self
-            button.action = #selector(togglePopover)
+            button.action = #selector(handleClick)
             button.imagePosition = .imageLeading
             button.imageScaling = .scaleProportionallyDown
         }
@@ -122,8 +136,88 @@ final class StatusItemController: NSObject {
         updateStatusItem(snapshot: model.monitor.snapshot)
     }
 
-    @objc private func togglePopover() {
+    // MARK: - Together block
+
+    /// Draws the modules to the left of the fan inside this one status item,
+    /// so ⌘-drag moves the whole block. The button then keeps no image or
+    /// title of its own; the fan is drawn by `fanSegment`.
+    func attachLeadingContent(_ content: FanItemLeadingContent) {
+        guard let button = statusItem.button, leadingContent !== content else { return }
+        detachLeadingContent()
+        leadingContent = content
+        button.image = nil
+        button.attributedTitle = NSAttributedString()
+        // No whole-block flash: each segment must keep reading as its own
+        // control while they share the item.
+        if let cell = button.cell as? NSButtonCell {
+            standaloneHighlight = cell.highlightsBy
+            cell.highlightsBy = []
+        }
+
+        let contentView = content.view
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        fanSegment.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(contentView)
+        button.addSubview(fanSegment)
+        NSLayoutConstraint.activate([
+            contentView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+            contentView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            fanSegment.leadingAnchor.constraint(
+                equalTo: contentView.trailingAnchor,
+                constant: ModuleSpacingLevel.fusedModuleGap
+            ),
+            fanSegment.topAnchor.constraint(equalTo: button.topAnchor),
+            fanSegment.bottomAnchor.constraint(equalTo: button.bottomAnchor),
+        ])
+        updateStatusItem(snapshot: model.monitor.snapshot)
+    }
+
+    func detachLeadingContent() {
+        guard let content = leadingContent else { return }
+        content.closePopovers()
+        content.view.removeFromSuperview()
+        fanSegment.removeFromSuperview()
+        leadingContent = nil
+        (statusItem.button?.cell as? NSButtonCell)?.highlightsBy = standaloneHighlight
+        statusItem.length = NSStatusItem.variableLength
+        statusItem.button?.setAccessibilityTitle(nil)
+        updateStatusItem(snapshot: model.monitor.snapshot)
+    }
+
+    func leadingContentDidResize() {
+        updateBlockLength()
+    }
+
+    private func updateBlockLength() {
+        guard let leadingContent else { return }
+        let width = ceil(
+            leadingContent.view.fittingSize.width
+                + ModuleSpacingLevel.fusedModuleGap
+                + fanSegment.intrinsicContentSize.width
+                + Self.blockTrailingInset
+        )
+        if abs(statusItem.length - width) > 0.5 {
+            statusItem.length = width
+        }
+    }
+
+    private static let blockTrailingInset: CGFloat = 4
+
+    // MARK: - Popover
+
+    @objc private func handleClick() {
         guard let button = statusItem.button else { return }
+        if let leadingContent {
+            if leadingContent.handleClick(in: button) {
+                if popover.isShown { popover.performClose(nil) }
+                return
+            }
+            leadingContent.closePopovers()
+        }
+        togglePopover(from: button)
+    }
+
+    private func togglePopover(from button: NSStatusBarButton) {
         if popover.isShown {
             popover.performClose(nil)
         } else {
@@ -133,10 +227,20 @@ final class StatusItemController: NSObject {
             let controller = NSHostingController(rootView: MenuBarPopoverView(model: model))
             controller.sizingOptions = [.preferredContentSize]
             popover.contentViewController = controller
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.show(relativeTo: popoverAnchor(in: button), of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
             releasePopoverKeyboardFocus()
         }
+    }
+
+    private func popoverAnchor(in button: NSStatusBarButton) -> NSRect {
+        guard leadingContent != nil else { return button.bounds }
+        return NSRect(
+            x: fanSegment.frame.minX,
+            y: button.bounds.minY,
+            width: fanSegment.frame.width,
+            height: button.bounds.height
+        )
     }
 
     private func releasePopoverKeyboardFocus() {
@@ -152,13 +256,21 @@ final class StatusItemController: NSObject {
             .baselineOffset: -0.5,
         ]
         let title = NSAttributedString(string: " \(temperature)", attributes: attributes)
-        if let button = statusItem.button {
+        let image = FanIconRenderer.image(color: color, rotation: rotation)
+        if let leadingContent {
+            fanSegment.title = title
+            fanSegment.image = image
+            updateBlockLength()
+            let accessibilityTitle = "\(leadingContent.accessibilityTitle), \(temperature)"
+            if statusItem.button?.accessibilityTitle() != accessibilityTitle {
+                statusItem.button?.setAccessibilityTitle(accessibilityTitle)
+            }
+        } else if let button = statusItem.button {
             // The monitor ticks every second; skip the title reassignment when
             // nothing visible changed.
             if !button.attributedTitle.isEqual(title) {
                 button.attributedTitle = title
             }
-            let image = FanIconRenderer.image(color: color, rotation: rotation)
             if button.image !== image {
                 button.contentTintColor = nil
                 button.image = image
@@ -237,6 +349,10 @@ final class StatusItemController: NSObject {
         guard let button = statusItem.button else { return }
         let color = statusColor(for: model.monitor.snapshot.temperatureCelsius)
         let image = FanIconRenderer.image(color: color, rotation: rotation)
+        if leadingContent != nil {
+            fanSegment.image = image
+            return
+        }
         // The renderer caches by rounded degree; skip no-op assignments so
         // slow spins do not redraw the button 30 times a second.
         if button.image !== image {

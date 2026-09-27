@@ -4,25 +4,25 @@ import SwiftUI
 
 /// Creates and tears down the optional CPU/RAM/network menu bar items as the
 /// Display settings toggles change. Owns the shared detail-data monitors.
-/// At Together spacing the modules fuse into one status item; every other
-/// level keeps one independent item per module. The remaining style settings
+/// At Together spacing the modules join the fan's own status item; every
+/// other level keeps one independent item per module. The remaining style settings
 /// (padding, graph length, colors) apply live through the label views.
 @MainActor
 final class MenuBarModulesCoordinator {
     private let model: AppModel
-    private let fanAutosaveName: String
+    private let fanItem: StatusItemController
     private let processMonitor = ProcessStatsMonitor()
     private let networkInfoMonitor = NetworkInfoMonitor()
 
     private var cpuController: MetricStatusItemController?
     private var memoryController: MetricStatusItemController?
     private var networkController: MetricStatusItemController?
-    private var fusedController: FusedModulesStatusItemController?
+    private var fusedStrip: FusedModulesStrip?
     private var cancellables = Set<AnyCancellable>()
 
-    init(model: AppModel, fanAutosaveName: String) {
+    init(model: AppModel, fanItem: StatusItemController) {
         self.model = model
-        self.fanAutosaveName = fanAutosaveName
+        self.fanItem = fanItem
 
         Publishers.CombineLatest4(
             model.settings.$showsCPUModule.removeDuplicates(),
@@ -58,7 +58,7 @@ final class MenuBarModulesCoordinator {
             syncFused(modules: modules)
             return
         }
-        fusedController = nil
+        dropFusedStrip()
 
         if modules.contains(.memory), memoryController == nil {
             placeNextToFan("MacFan.module.memory", rank: 1)
@@ -84,23 +84,31 @@ final class MenuBarModulesCoordinator {
 
     private func syncFused(modules: [SystemModuleKind]) {
         guard !modules.isEmpty else {
-            fusedController = nil
+            dropFusedStrip()
             return
         }
 
-        if let fusedController {
-            fusedController.setModules(modules)
+        if let fusedStrip {
+            fusedStrip.setModules(modules)
         } else {
-            placeNextToFan(FusedModulesStatusItemController.autosaveName, rank: 1)
-            fusedController = FusedModulesStatusItemController(
+            let strip = FusedModulesStrip(
                 model: model,
                 networkInfoMonitor: networkInfoMonitor,
                 modules: modules,
+                host: fanItem,
                 makeDetail: { [weak self] module in
                     self?.makeDetailContent(for: module) ?? AnyView(EmptyView())
                 }
             )
+            fanItem.attachLeadingContent(strip)
+            fusedStrip = strip
         }
+    }
+
+    private func dropFusedStrip() {
+        guard fusedStrip != nil else { return }
+        fanItem.detachLeadingContent()
+        fusedStrip = nil
     }
 
     /// macOS forgets a status item's position once the item is removed, so a
@@ -110,7 +118,7 @@ final class MenuBarModulesCoordinator {
     private func placeNextToFan(_ autosaveName: String, rank: Double) {
         let defaults = UserDefaults.standard
         let key = Self.positionKey(autosaveName)
-        let fanKey = Self.positionKey(fanAutosaveName)
+        let fanKey = Self.positionKey(fanItem.autosaveName)
         guard defaults.object(forKey: key) == nil, defaults.object(forKey: fanKey) != nil else { return }
         defaults.set(defaults.double(forKey: fanKey) + rank, forKey: key)
     }
@@ -123,7 +131,7 @@ final class MenuBarModulesCoordinator {
         cpuController?.rebuildViews()
         memoryController?.rebuildViews()
         networkController?.rebuildViews()
-        fusedController?.rebuildViews()
+        fusedStrip?.rebuildViews()
     }
 
     /// Single construction point for the module detail popovers, shared by

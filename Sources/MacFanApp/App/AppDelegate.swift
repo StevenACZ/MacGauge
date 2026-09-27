@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         UpdateManager.shared.start()
         let statusController = StatusItemController(model: model)
         self.statusController = statusController
-        modulesCoordinator = MenuBarModulesCoordinator(model: model, fanAutosaveName: statusController.autosaveName)
+        modulesCoordinator = MenuBarModulesCoordinator(model: model, fanItem: statusController)
         if needsWelcome { showWelcome() }
     }
 

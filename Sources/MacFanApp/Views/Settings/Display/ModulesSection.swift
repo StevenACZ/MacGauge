@@ -25,7 +25,10 @@ struct ModulesSection: View {
     var body: some View {
         SettingsSurface(icon: "menubar.rectangle", title: "settings.display.menubar_modules".localized) {
             SimulatedPreviewCapsule {
-                HStack(spacing: SimulatedModulesBarPreview.separateItemGap) {
+                HStack(
+                    spacing: settings.moduleSpacing == .together
+                        ? ModuleSpacingLevel.fusedModuleGap : SimulatedModulesBarPreview.separateItemGap
+                ) {
                     SimulatedModulesBarPreview(simulator: simulator, settings: settings)
                     FanMenuBarItemLivePreview(settings: settings, monitor: monitor, isActive: isActive)
                 }
@@ -107,24 +110,21 @@ private struct SpacingSample: View {
     let level: ModuleSpacingLevel
 
     var body: some View {
-        HStack(spacing: level == .together ? 7 : gap) {
-            HStack(spacing: gap) {
-                ForEach(0..<3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                        .fill(Color.primary.opacity(0.75))
-                        .frame(width: 15, height: 9)
-                }
+        HStack(spacing: gap) {
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                    .fill(Color.primary.opacity(0.75))
+                    .frame(width: 15, height: 9)
             }
-            .padding(level == .together ? 3 : 0)
-            .background(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color.primary.opacity(level == .together ? 0.16 : 0))
-            )
-
             Image(systemName: "fanblades.fill")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Color.primary.opacity(0.75))
         }
+        .padding(level == .together ? 3 : 0)
+        .background(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.primary.opacity(level == .together ? 0.16 : 0))
+        )
     }
 
     private var gap: CGFloat {

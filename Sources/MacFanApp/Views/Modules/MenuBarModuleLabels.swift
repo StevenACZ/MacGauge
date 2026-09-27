@@ -70,10 +70,10 @@ struct ModuleSegmentFramesKey: PreferenceKey {
     }
 }
 
-/// All enabled modules fused into one status item (Together spacing): the
-/// same per-module labels laid side by side with a small gap, so even the
+/// All enabled modules drawn inside the fan's status item (Together spacing):
+/// the same per-module labels laid side by side with a small gap, so even the
 /// system's own gap between separate items disappears. Each segment reports
-/// its frame so the controller routes clicks to the right detail popover.
+/// its frame so the strip routes clicks to the right detail popover.
 struct FusedModulesStatusLabel: View {
     @ObservedObject var stats: SystemStatsMonitor
     @ObservedObject var settings: AppSettingsStore
