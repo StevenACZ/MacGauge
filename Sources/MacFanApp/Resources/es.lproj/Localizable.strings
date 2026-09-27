@@ -52,7 +52,6 @@
 
 /* Control tab */
 "settings.control.title" = "Control";
-"settings.control.mode" = "Modo";
 "settings.control.manual_target" = "Objetivo manual";
 "settings.control.add_point" = "Agregar punto";
 "settings.control.reset" = "Restablecer";
@@ -60,7 +59,6 @@
 "settings.control.curve_hint" = "Arrastra los puntos · doble clic para agregar · clic derecho para eliminar";
 "settings.control.temperature" = "Temperatura";
 "settings.control.fan_speed" = "Velocidad";
-"settings.control.mode.caption" = "Manual mantiene la velocidad que elijas; Curva la ajusta según cambia la temperatura.";
 "settings.control.mode.manual.caption" = "Una velocidad fija que eliges";
 "settings.control.mode.curve.caption" = "La velocidad sigue la temperatura";
 "settings.control.estimated_rpm" = "Vel. estimada";

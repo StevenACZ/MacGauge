@@ -13,6 +13,7 @@ struct FanMenuBarItemSection: View {
             HStack {
                 Spacer(minLength: 0)
                 FanMenuBarItemLivePreview(settings: settings, monitor: monitor, isActive: isActive)
+                    .menuBarMockCapsule(verticalPadding: 5)
                 Spacer(minLength: 0)
             }
 
@@ -94,7 +95,7 @@ private struct FanStyleSample: View {
 
 /// The only view in the tab that observes the monitor, so its 1 Hz snapshot
 /// updates re-render just this preview instead of the whole Display tab.
-private struct FanMenuBarItemLivePreview: View {
+struct FanMenuBarItemLivePreview: View {
     @ObservedObject var settings: AppSettingsStore
     @ObservedObject var monitor: FanMonitor
     let isActive: Bool
@@ -181,7 +182,6 @@ private struct MenuBarItemPreview: View {
                     .foregroundStyle(color)
             }
         }
-        .menuBarMockCapsule(verticalPadding: 5)
         .animation(Theme.Anim.smooth, value: temperatureText)
         .accessibilityLabel("settings.display.menubar_item".localized)
     }

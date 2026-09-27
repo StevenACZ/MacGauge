@@ -71,7 +71,7 @@ struct DisplaySettingsTab: View {
                     FanMenuBarItemSection(settings: settings, monitor: monitor, isActive: isActive)
                     TemperatureBandsSection(settings: settings)
                 case .modules:
-                    ModulesSection(settings: settings, simulator: simulator)
+                    ModulesSection(settings: settings, simulator: simulator, monitor: monitor, isActive: isActive)
                 case .cpu:
                     PercentModuleSection(settings: settings, simulator: simulator, metric: .cpu)
                 case .memory:

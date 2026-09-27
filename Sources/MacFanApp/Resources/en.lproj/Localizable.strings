@@ -52,7 +52,6 @@
 
 /* Control tab */
 "settings.control.title" = "Control";
-"settings.control.mode" = "Mode";
 "settings.control.manual_target" = "Manual Target";
 "settings.control.add_point" = "Add Point";
 "settings.control.reset" = "Reset";
@@ -60,7 +59,6 @@
 "settings.control.curve_hint" = "Drag points · double-click to add · right-click to delete";
 "settings.control.temperature" = "Temperature";
 "settings.control.fan_speed" = "Fan speed";
-"settings.control.mode.caption" = "Manual holds the speed you pick; Curve adjusts it as the temperature changes.";
 "settings.control.mode.manual.caption" = "A fixed speed you choose";
 "settings.control.mode.curve.caption" = "Speed follows the temperature";
 "settings.control.estimated_rpm" = "Est. speed";

@@ -3,6 +3,8 @@ import SwiftUI
 struct ModulesSection: View {
     @ObservedObject var settings: AppSettingsStore
     let simulator: ModulePreviewSimulator
+    let monitor: FanMonitor
+    let isActive: Bool
 
     private struct ModuleToggle: Identifiable {
         let module: SystemModuleKind
@@ -23,7 +25,10 @@ struct ModulesSection: View {
     var body: some View {
         SettingsSurface(icon: "menubar.rectangle", title: "settings.display.menubar_modules".localized) {
             SimulatedPreviewCapsule {
-                SimulatedModulesBarPreview(simulator: simulator, settings: settings)
+                HStack(spacing: SimulatedModulesBarPreview.separateItemGap) {
+                    SimulatedModulesBarPreview(simulator: simulator, settings: settings)
+                    FanMenuBarItemLivePreview(settings: settings, monitor: monitor, isActive: isActive)
+                }
             }
 
             SettingsDivider()
@@ -102,18 +107,24 @@ private struct SpacingSample: View {
     let level: ModuleSpacingLevel
 
     var body: some View {
-        HStack(spacing: gap) {
-            ForEach(0..<3, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                    .fill(Color.primary.opacity(0.75))
-                    .frame(width: 15, height: 9)
+        HStack(spacing: level == .together ? 7 : gap) {
+            HStack(spacing: gap) {
+                ForEach(0..<3, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                        .fill(Color.primary.opacity(0.75))
+                        .frame(width: 15, height: 9)
+                }
             }
+            .padding(level == .together ? 3 : 0)
+            .background(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color.primary.opacity(level == .together ? 0.16 : 0))
+            )
+
+            Image(systemName: "fanblades.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.primary.opacity(0.75))
         }
-        .padding(level == .together ? 3 : 0)
-        .background(
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .fill(Color.primary.opacity(level == .together ? 0.16 : 0))
-        )
     }
 
     private var gap: CGFloat {
@@ -150,6 +161,8 @@ private struct ReorderTip: View {
 /// All enabled modules side by side with the chosen spacing, approximating
 /// how the menu bar lays them out (Together fuses them with small gaps).
 struct SimulatedModulesBarPreview: View {
+    static let separateItemGap = CGFloat(ModuleSpacingLevel.statusItemSpacing)
+
     @ObservedObject var simulator: ModulePreviewSimulator
     @ObservedObject var settings: AppSettingsStore
 
@@ -161,7 +174,7 @@ struct SimulatedModulesBarPreview: View {
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 2)
         } else {
-            HStack(spacing: settings.moduleSpacing == .together ? ModuleSpacingLevel.fusedModuleGap : 14) {
+            HStack(spacing: settings.moduleSpacing == .together ? ModuleSpacingLevel.fusedModuleGap : Self.separateItemGap) {
                 ForEach(modules) { module in
                     segment(for: module)
                         .padding(.horizontal, settings.moduleSpacing.padding)

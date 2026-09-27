@@ -11,6 +11,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: NSWindowController?
     private var isSnappingSettingsWindow = false
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // AppKit reads this per process when it lays out status items; a
+        // registered default keeps any spacing the user set system-wide.
+        UserDefaults.standard.register(defaults: ["NSStatusItemSpacing": ModuleSpacingLevel.statusItemSpacing])
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         if needsWelcome { UserDefaults.standard.set(true, forKey: "hasStartedWelcome") }

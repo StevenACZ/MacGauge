@@ -6,6 +6,7 @@ struct OptionTile<Preview: View>: View {
     let isSelected: Bool
     var previewHeight: CGFloat = 38
     var mocksMenuBar = true
+    var compactPreviewWidth: CGFloat?
     let action: () -> Void
     @ViewBuilder let preview: () -> Preview
 
@@ -14,30 +15,20 @@ struct OptionTile<Preview: View>: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                previewPlate
-
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(isSelected ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.tertiary))
-                        .padding(.top, 1.5)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(title)
-                            .font(.callout.weight(isSelected ? .semibold : .medium))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                        if let caption {
-                            Text(caption)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+            Group {
+                if let compactPreviewWidth {
+                    HStack(spacing: 10) {
+                        previewPlate
+                            .frame(width: compactPreviewWidth)
+                        label
                     }
-                    Spacer(minLength: 0)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        previewPlate
+                        label
+                            .padding(.horizontal, 2)
+                    }
                 }
-                .padding(.horizontal, 2)
             }
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -54,6 +45,29 @@ struct OptionTile<Preview: View>: View {
         .animation(Theme.Anim.spring, value: isSelected)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var label: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(isSelected ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.tertiary))
+                .padding(.top, 1.5)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout.weight(isSelected ? .semibold : .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                if let caption {
+                    Text(caption)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     @ViewBuilder

@@ -13,19 +13,15 @@ struct ControlSettingsTab: View {
     var body: some View {
         SettingsPane {
             SettingsSurface(icon: "fanblades", title: "settings.control.title".localized) {
-                SettingsGroupHeader(
-                    title: "settings.control.mode".localized,
-                    caption: "settings.control.mode.caption".localized
-                )
-
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(FanControlMode.allCases) { mode in
                         OptionTile(
                             title: mode.label,
                             caption: "settings.control.mode.\(mode.rawValue).caption".localized,
                             isSelected: settings.controlMode == mode,
-                            previewHeight: 64,
+                            previewHeight: 40,
                             mocksMenuBar: false,
+                            compactPreviewWidth: 124,
                             action: { settings.controlMode = mode }
                         ) {
                             ControlModeSample(mode: mode, settings: settings)
@@ -179,9 +175,9 @@ private struct ControlModeSample: View {
     var body: some View {
         switch mode {
         case .manual:
-            HStack(spacing: 10) {
+            HStack(spacing: 7) {
                 Image(systemName: "fanblades")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
                 Capsule()
                     .fill(Color.primary.opacity(0.12))
@@ -194,14 +190,14 @@ private struct ControlModeSample: View {
                         }
                     }
                 Text(AppFormatters.percent(settings.manualPercent))
-                    .font(.callout.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                     .monospacedDigit()
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 10)
         case .curve:
             CurveSample(points: settings.curvePoints)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
         }
     }
 }

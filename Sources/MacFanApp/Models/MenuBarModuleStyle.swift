@@ -33,6 +33,7 @@ enum ModuleSpacingLevel: String, CaseIterable, Identifiable {
     case roomy
 
     static let fusedModuleGap: CGFloat = 6
+    static let statusItemSpacing = 8
 
     var id: String { rawValue }
 
@@ -41,9 +42,9 @@ enum ModuleSpacingLevel: String, CaseIterable, Identifiable {
         case .together, .tight:
             return 0
         case .regular:
-            return 1
+            return 2
         case .roomy:
-            return 3
+            return 4
         }
     }
 
