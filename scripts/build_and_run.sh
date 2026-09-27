@@ -97,6 +97,15 @@ stage_bundle() {
       esac
     done
 
+  # SwiftPM stamps the deployment target as the SDK version, which makes macOS
+  # draw the app in the pre-Liquid Glass compatibility design.
+  local min_os sdk_version
+  min_os="$(vtool -show-build "$APP_BINARY" | awk '/minos/{print $2; exit}')"
+  sdk_version="$(xcrun --show-sdk-version)"
+  vtool -set-build-version macos "$min_os" "$sdk_version" -replace -output "$APP_BINARY.sdk" "$APP_BINARY"
+  mv "$APP_BINARY.sdk" "$APP_BINARY"
+  chmod +x "$APP_BINARY"
+
   cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
