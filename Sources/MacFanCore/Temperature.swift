@@ -13,6 +13,7 @@ public final class TemperatureReader {
     // The key list is immutable per boot; enumerating it costs hundreds of
     // kernel calls, so discover once and reuse across polls.
     private var discoveredTemperatureKeys: [String]?
+    private static let temperatureTypes: Set<String> = ["flt ", "sp78"]
 
     public init(smc: SMCClient) {
         self.smc = smc
@@ -49,7 +50,9 @@ public final class TemperatureReader {
         if let discoveredTemperatureKeys {
             keys = discoveredTemperatureKeys
         } else {
-            keys = try smc.enumerateKeys().filter { $0.hasPrefix("T") }
+            keys = try smc.enumerateKeys().filter { key in
+                key.hasPrefix("T") && (try? smc.keyInfo(key)).map { Self.temperatureTypes.contains($0.typeName) } == true
+            }
             discoveredTemperatureKeys = keys
         }
         return keys.compactMap { try? readTemperature(key: $0) }
@@ -69,7 +72,7 @@ public final class TemperatureReader {
 
     private func readTemperature(key: String) throws -> TemperatureReading? {
         let value = try smc.readKey(key)
-        guard ["flt ", "sp78"].contains(value.info.typeName),
+        guard Self.temperatureTypes.contains(value.info.typeName),
             let celsius = value.number,
             celsius.isFinite,
             celsius >= -20,

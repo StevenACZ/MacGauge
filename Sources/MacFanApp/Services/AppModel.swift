@@ -20,6 +20,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var curveSuspended = false
 
     var presentSettings: ((SettingsTab) -> Void)?
+    var presentFanControlGuide: (() -> Void)?
 
     private var fanApplyInFlight = false
     private let debounceWindow = DebounceWindow(delay: 0.55)
@@ -137,6 +138,10 @@ final class AppModel: ObservableObject {
 
     func refreshHelperState() {
         helperService.requestImmediateRefresh()
+    }
+
+    func showFanControlGuide() {
+        presentFanControlGuide?()
     }
 
     func openLoginItemsSettings() {

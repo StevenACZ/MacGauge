@@ -2,61 +2,51 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// The fused system-modules menu bar item used at Together spacing: every
-/// enabled module renders inside one status item so even the system's own
-/// gap between separate items disappears. Clicks stay per-module — the
-/// whole-item highlight is suppressed and each click routes to the clicked
-/// segment's detail popover, anchored to that segment, using the frames the
-/// label reports back from SwiftUI layout.
+/// The system modules at Together spacing: every enabled module renders to
+/// the left of the fan inside the fan's own status item, so the whole group
+/// is one menu bar item that ⌘-drag moves together. Clicks stay per module —
+/// each click on a module segment opens that module's detail popover,
+/// anchored to the segment, using the frames the label reports back from
+/// SwiftUI layout.
 @MainActor
-final class FusedModulesStatusItemController: NSObject {
+final class FusedModulesStrip: NSObject, FanItemLeadingContent {
     private let model: AppModel
     private let networkInfoMonitor: NetworkInfoMonitor
+    private weak var host: StatusItemController?
     /// Injected by the coordinator so the detail-view construction lives in
     /// exactly one place, shared with the split per-module items.
     private let makeDetail: (SystemModuleKind) -> AnyView
 
-    private let statusItem: NSStatusItem
-    private var labelHostingView: NSHostingView<AnyView>?
+    private let hostingView: NSHostingView<AnyView>
     private var popovers: [SystemModuleKind: NSPopover] = [:]
     private var segmentFrames: [SystemModuleKind: CGRect] = [:]
     private(set) var modules: [SystemModuleKind]
     private var cancellables = Set<AnyCancellable>()
 
+    var view: NSView { hostingView }
+
+    var accessibilityTitle: String {
+        modules.map(\.localizedName).joined(separator: ", ")
+    }
+
     init(
         model: AppModel,
         networkInfoMonitor: NetworkInfoMonitor,
         modules: [SystemModuleKind],
+        host: StatusItemController,
         makeDetail: @escaping (SystemModuleKind) -> AnyView
     ) {
         self.model = model
         self.networkInfoMonitor = networkInfoMonitor
         self.modules = modules
+        self.host = host
         self.makeDetail = makeDetail
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.autosaveName = "MacFan.modules"
+        hostingView = NSHostingView(rootView: AnyView(EmptyView()))
 
         super.init()
 
-        if let button = statusItem.button {
-            button.target = self
-            button.action = #selector(handleClick)
-            // No whole-item flash: the modules must keep reading as
-            // independent controls even while sharing the item.
-            (button.cell as? NSButtonCell)?.highlightsBy = []
-
-            let hostingView = NSHostingView(rootView: makeLabel())
-            hostingView.translatesAutoresizingMaskIntoConstraints = false
-            button.addSubview(hostingView)
-            NSLayoutConstraint.activate([
-                hostingView.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-                hostingView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
-            ])
-            labelHostingView = hostingView
-        }
-
+        hostingView.rootView = makeLabel()
         syncPopovers()
-        updateAccessibility()
 
         // Rebuild every view when the app language changes.
         LocalizationManager.shared.$bundle
@@ -65,15 +55,6 @@ final class FusedModulesStatusItemController: NSObject {
                 self?.rebuildViews()
             }
             .store(in: &cancellables)
-
-        updateLength()
-    }
-
-    deinit {
-        // NSStatusBar keeps items alive until they are explicitly removed.
-        MainActor.assumeIsolated {
-            NSStatusBar.system.removeStatusItem(statusItem)
-        }
     }
 
     func setModules(_ modules: [SystemModuleKind]) {
@@ -84,12 +65,11 @@ final class FusedModulesStatusItemController: NSObject {
     }
 
     func rebuildViews() {
-        labelHostingView?.rootView = makeLabel()
+        hostingView.rootView = makeLabel()
         for (module, popover) in popovers where popover.contentViewController != nil {
             (popover.contentViewController as? NSHostingController<AnyView>)?.rootView = detailRoot(module)
         }
-        updateAccessibility()
-        updateLength()
+        host?.leadingContentDidResize()
     }
 
     // MARK: - Views
@@ -109,7 +89,7 @@ final class FusedModulesStatusItemController: NSObject {
                 Task { @MainActor in
                     guard let self else { return }
                     self.segmentFrames = frames
-                    self.updateLength()
+                    self.host?.leadingContentDidResize()
                 }
             }
         )
@@ -121,7 +101,7 @@ final class FusedModulesStatusItemController: NSObject {
         for module in SystemModuleKind.allCases {
             if modules.contains(module) {
                 if popovers[module] == nil {
-                    popovers[module] = makePopover(for: module)
+                    popovers[module] = makePopover()
                 }
             } else if let popover = popovers[module] {
                 popover.performClose(nil)
@@ -130,7 +110,7 @@ final class FusedModulesStatusItemController: NSObject {
         }
     }
 
-    private func makePopover(for module: SystemModuleKind) -> NSPopover {
+    private func makePopover() -> NSPopover {
         let popover = NSPopover()
         popover.behavior = .transient
         popover.animates = true
@@ -141,15 +121,24 @@ final class FusedModulesStatusItemController: NSObject {
         return popover
     }
 
-    @objc private func handleClick() {
-        guard let button = statusItem.button else { return }
+    func closePopovers() {
+        for popover in popovers.values where popover.isShown {
+            popover.performClose(nil)
+        }
+    }
 
-        let clicked = clickedModule(in: button)
+    func handleClick(in button: NSStatusBarButton) -> Bool {
+        guard let event = NSApp.currentEvent else { return false }
+        let x = hostingView.convert(event.locationInWindow, from: nil).x
+        // The fan starts half a gap past the strip; anything beyond is its.
+        guard x <= hostingView.bounds.maxX + ModuleSpacingLevel.fusedModuleGap / 2 else { return false }
+
+        let clicked = clickedModule(atX: x)
         if let shown = popovers.first(where: { $0.value.isShown }) {
             shown.value.performClose(nil)
-            guard shown.key != clicked else { return }
+            guard shown.key != clicked else { return true }
         }
-        guard let clicked, let popover = popovers[clicked] else { return }
+        guard let clicked, let popover = popovers[clicked] else { return true }
 
         UpdateManager.shared.popoverDidOpen()
         if clicked == .network {
@@ -160,21 +149,13 @@ final class FusedModulesStatusItemController: NSObject {
         popover.contentViewController = controller
         popover.show(relativeTo: anchorRect(for: clicked, in: button), of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
+        return true
     }
 
     /// Segment whose horizontal range is nearest to the click; clicks in the
-    /// hairline gaps resolve to the closest neighbor.
-    private func clickedModule(in button: NSStatusBarButton) -> SystemModuleKind? {
-        guard let hostingView = labelHostingView,
-            let event = NSApp.currentEvent,
-            !segmentFrames.isEmpty
-        else {
-            return modules.first
-        }
-
-        let locationInButton = button.convert(event.locationInWindow, from: nil)
-        let x = hostingView.convert(locationInButton, from: button).x
-
+    /// gaps resolve to the closest neighbor.
+    private func clickedModule(atX x: CGFloat) -> SystemModuleKind? {
+        guard !segmentFrames.isEmpty else { return modules.first }
         let nearest = segmentFrames.min { lhs, rhs in
             distance(from: x, to: lhs.value) < distance(from: x, to: rhs.value)
         }
@@ -188,9 +169,7 @@ final class FusedModulesStatusItemController: NSObject {
     }
 
     private func anchorRect(for module: SystemModuleKind, in button: NSStatusBarButton) -> NSRect {
-        guard let hostingView = labelHostingView, let frame = segmentFrames[module] else {
-            return button.bounds
-        }
+        guard let frame = segmentFrames[module] else { return button.bounds }
         let rectInButton = hostingView.convert(frame, to: button)
         return NSRect(
             x: rectInButton.minX,
@@ -199,24 +178,9 @@ final class FusedModulesStatusItemController: NSObject {
             height: button.bounds.height
         )
     }
-
-    private func updateAccessibility() {
-        statusItem.button?.setAccessibilityTitle(
-            modules.map(\.localizedName).joined(separator: ", ")
-        )
-    }
-
-    private func updateLength() {
-        guard let labelHostingView else { return }
-        let width = ceil(labelHostingView.fittingSize.width)
-        guard width > 0 else { return }
-        if abs(statusItem.length - width) > 0.5 {
-            statusItem.length = width
-        }
-    }
 }
 
-extension FusedModulesStatusItemController: NSPopoverDelegate {
+extension FusedModulesStrip: NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         // Drop the SwiftUI graph so a closed popover costs nothing.
         guard let closed = notification.object as? NSPopover else { return }

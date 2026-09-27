@@ -23,13 +23,25 @@ struct NetworkModuleSection: View {
 
     @ViewBuilder
     private var metricRows: some View {
-        StylePickerRow(
+        SettingsGroupHeader(
             title: "settings.display.modules.color".localized,
-            caption: "settings.display.modules.color.caption.network".localized,
-            options: [.multicolor, .mono, .gray],
-            label: \.localizedName,
-            selection: $settings.networkColorMode
+            caption: "settings.display.modules.color.caption.network".localized
         )
+
+        OptionTilePicker(
+            options: [ModuleColorMode.multicolor, .mono, .gray],
+            selection: $settings.networkColorMode,
+            label: \.localizedName
+        ) { mode in
+            let tints = ModuleColorResolver.networkArrowTints(settings: settings, mode: mode)
+            NetworkModuleSegment(
+                upload: 1_250_000,
+                download: 86_000,
+                upTint: tints.up,
+                downTint: tints.down,
+                animated: false
+            )
+        }
 
         if settings.networkColorMode == .multicolor {
             SettingsDivider()

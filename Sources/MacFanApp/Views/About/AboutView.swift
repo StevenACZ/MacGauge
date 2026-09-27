@@ -266,25 +266,9 @@ struct AboutView: View {
                 NSWorkspace.shared.open(target)
             }
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.caption)
-
-                Text(label)
-                    .font(.caption.weight(.medium))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.secondary.opacity(0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(Color.secondary.opacity(0.16), lineWidth: 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            Label(label, systemImage: icon)
+                .font(.callout.weight(.medium))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
     }
 }

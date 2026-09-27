@@ -42,8 +42,9 @@ explicit approval: a one-time helper authorization in the app, or deliberate
   each with a compact live chart and a detail popover: usage history, chip and
   core layout, top apps by CPU/memory, memory pressure, interface and IP info,
   and session traffic totals.
-- Per-module customization with live simulated previews: spacing (down to a
-  fused single block), graph length, and color styles including custom
+- Per-module customization with live simulated previews: spacing (down to
+  Together, one block with the fan that ⌘-drag moves as a whole), graph
+  length, and color styles including custom
   By-load bands with your own thresholds and colors.
 - Performance modes: Efficient (default) keeps the app light all day by
   stepping values once per tick with a still fan icon; Full plays every

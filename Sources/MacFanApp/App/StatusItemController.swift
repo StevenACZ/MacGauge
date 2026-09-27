@@ -3,6 +3,17 @@ import Combine
 import MacFanCore
 import SwiftUI
 
+/// Content that shares the fan's status item, drawn to the left of the fan.
+@MainActor
+protocol FanItemLeadingContent: AnyObject {
+    var view: NSView { get }
+    var accessibilityTitle: String { get }
+    /// Opens or closes the popover of the clicked segment; false when the
+    /// click landed on the fan instead.
+    func handleClick(in button: NSStatusBarButton) -> Bool
+    func closePopovers()
+}
+
 @MainActor
 final class StatusItemController: NSObject {
     private let statusItem: NSStatusItem
@@ -10,6 +21,12 @@ final class StatusItemController: NSObject {
     private let model: AppModel
     private var cancellables = Set<AnyCancellable>()
     private var animationTimer: Timer?
+    private var leadingContent: FanItemLeadingContent?
+    private let fanSegment = FanSegmentView()
+    private var standaloneHighlight: NSCell.StyleMask = []
+
+    var autosaveName: String { statusItem.autosaveName }
+
     private var rotation: CGFloat = 0
     /// Current animated speed in degrees per second; eases toward
     /// `targetRotationSpeed` every frame so speed changes look fluid.
@@ -36,7 +53,7 @@ final class StatusItemController: NSObject {
 
         if let button = statusItem.button {
             button.target = self
-            button.action = #selector(togglePopover)
+            button.action = #selector(handleClick)
             button.imagePosition = .imageLeading
             button.imageScaling = .scaleProportionallyDown
         }
@@ -44,6 +61,15 @@ final class StatusItemController: NSObject {
         model.monitor.$snapshot
             .sink { [weak self] snapshot in
                 self?.updateStatusItem(snapshot: snapshot)
+            }
+            .store(in: &cancellables)
+
+        model.systemStats.$snapshot
+            .map(\.cpuPercent)
+            .removeDuplicates()
+            .sink { [weak self] cpuPercent in
+                guard let self else { return }
+                self.updateAnimation(snapshot: self.model.monitor.snapshot, cpuPercent: cpuPercent)
             }
             .store(in: &cancellables)
 
@@ -119,8 +145,88 @@ final class StatusItemController: NSObject {
         updateStatusItem(snapshot: model.monitor.snapshot)
     }
 
-    @objc private func togglePopover() {
+    // MARK: - Together block
+
+    /// Draws the modules to the left of the fan inside this one status item,
+    /// so ⌘-drag moves the whole block. The button then keeps no image or
+    /// title of its own; the fan is drawn by `fanSegment`.
+    func attachLeadingContent(_ content: FanItemLeadingContent) {
+        guard let button = statusItem.button, leadingContent !== content else { return }
+        detachLeadingContent()
+        leadingContent = content
+        button.image = nil
+        button.attributedTitle = NSAttributedString()
+        // No whole-block flash: each segment must keep reading as its own
+        // control while they share the item.
+        if let cell = button.cell as? NSButtonCell {
+            standaloneHighlight = cell.highlightsBy
+            cell.highlightsBy = []
+        }
+
+        let contentView = content.view
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        fanSegment.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(contentView)
+        button.addSubview(fanSegment)
+        NSLayoutConstraint.activate([
+            contentView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+            contentView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            fanSegment.leadingAnchor.constraint(
+                equalTo: contentView.trailingAnchor,
+                constant: ModuleSpacingLevel.fusedModuleGap
+            ),
+            fanSegment.topAnchor.constraint(equalTo: button.topAnchor),
+            fanSegment.bottomAnchor.constraint(equalTo: button.bottomAnchor),
+        ])
+        updateStatusItem(snapshot: model.monitor.snapshot)
+    }
+
+    func detachLeadingContent() {
+        guard let content = leadingContent else { return }
+        content.closePopovers()
+        content.view.removeFromSuperview()
+        fanSegment.removeFromSuperview()
+        leadingContent = nil
+        (statusItem.button?.cell as? NSButtonCell)?.highlightsBy = standaloneHighlight
+        statusItem.length = NSStatusItem.variableLength
+        statusItem.button?.setAccessibilityTitle(nil)
+        updateStatusItem(snapshot: model.monitor.snapshot)
+    }
+
+    func leadingContentDidResize() {
+        updateBlockLength()
+    }
+
+    private func updateBlockLength() {
+        guard let leadingContent else { return }
+        let width = ceil(
+            leadingContent.view.fittingSize.width
+                + ModuleSpacingLevel.fusedModuleGap
+                + fanSegment.intrinsicContentSize.width
+                + Self.blockTrailingInset
+        )
+        if abs(statusItem.length - width) > 0.5 {
+            statusItem.length = width
+        }
+    }
+
+    private static let blockTrailingInset: CGFloat = 4
+
+    // MARK: - Popover
+
+    @objc private func handleClick() {
         guard let button = statusItem.button else { return }
+        if let leadingContent {
+            if leadingContent.handleClick(in: button) {
+                if popover.isShown { popover.performClose(nil) }
+                return
+            }
+            leadingContent.closePopovers()
+        }
+        togglePopover(from: button)
+    }
+
+    private func togglePopover(from button: NSStatusBarButton) {
         if popover.isShown {
             popover.performClose(nil)
         } else {
@@ -130,10 +236,20 @@ final class StatusItemController: NSObject {
             let controller = NSHostingController(rootView: MenuBarPopoverView(model: model))
             controller.sizingOptions = [.preferredContentSize]
             popover.contentViewController = controller
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.show(relativeTo: popoverAnchor(in: button), of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
             releasePopoverKeyboardFocus()
         }
+    }
+
+    private func popoverAnchor(in button: NSStatusBarButton) -> NSRect {
+        guard leadingContent != nil else { return button.bounds }
+        return NSRect(
+            x: fanSegment.frame.minX,
+            y: button.bounds.minY,
+            width: fanSegment.frame.width,
+            height: button.bounds.height
+        )
     }
 
     private func releasePopoverKeyboardFocus() {
@@ -149,14 +265,21 @@ final class StatusItemController: NSObject {
             .baselineOffset: -0.5,
         ]
         let title = NSAttributedString(string: " \(temperature)", attributes: attributes)
-        if let button = statusItem.button {
-            // The monitor ticks every second; skip the title reassignment and
-            // the fitting-size pass when nothing visible changed.
+        let image = FanIconRenderer.image(color: color, rotation: rotation)
+        if let leadingContent {
+            fanSegment.title = title
+            fanSegment.image = image
+            updateBlockLength()
+            let accessibilityTitle = "\(leadingContent.accessibilityTitle), \(temperature)"
+            if statusItem.button?.accessibilityTitle() != accessibilityTitle {
+                statusItem.button?.setAccessibilityTitle(accessibilityTitle)
+            }
+        } else if let button = statusItem.button {
+            // The monitor ticks every second; skip the title reassignment when
+            // nothing visible changed.
             if !button.attributedTitle.isEqual(title) {
                 button.attributedTitle = title
-                statusItem.length = min(ceil(button.fittingSize.width), 84)
             }
-            let image = FanIconRenderer.image(color: color, rotation: rotation)
             if button.image !== image {
                 button.contentTintColor = nil
                 button.image = image
@@ -165,8 +288,11 @@ final class StatusItemController: NSObject {
         updateAnimation(snapshot: snapshot)
     }
 
-    private func updateAnimation(snapshot: FanSnapshot, mode: PerformanceMode? = nil) {
-        let fan = snapshot.fan
+    private func updateAnimation(
+        snapshot: FanSnapshot,
+        mode: PerformanceMode? = nil,
+        cpuPercent: Double?? = nil
+    ) {
         // Every frame that lands a new image makes AppKit re-snapshot the
         // status item (several ms each), so the continuous spin is a Full
         // luxury; Efficient keeps the icon still and lets color carry state.
@@ -178,11 +304,10 @@ final class StatusItemController: NSObject {
         targetRotationSpeed =
             spins
             ? animationRules.rotationDegreesPerSecond(
-                currentRPM: fan?.currentRPM,
-                targetRPM: fan?.targetRPM,
-                minRPM: fan?.minRPM,
-                maxRPM: fan?.maxRPM
-            ) ?? 0
+                fan: snapshot.fan,
+                cpuPercent: cpuPercent ?? model.systemStats.snapshot.cpuPercent,
+                temperatureCelsius: snapshot.temperatureCelsius
+            )
             : 0
 
         if targetRotationSpeed > 0 || rotationSpeed > 0 {
@@ -190,10 +315,27 @@ final class StatusItemController: NSObject {
         }
     }
 
+    /// Slow spins need fewer frames to stay smooth, and each frame costs a
+    /// status item redraw.
+    private static func frameInterval(forSpeed speed: Double) -> TimeInterval {
+        switch speed {
+        case ..<90: return 1.0 / 15.0
+        case ..<180: return 1.0 / 20.0
+        default: return 1.0 / 30.0
+        }
+    }
+
     private func startAnimationTimerIfNeeded() {
-        guard animationTimer == nil, !displayAsleep else { return }
-        lastFrameTime = nil
-        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+        guard !displayAsleep else { return }
+        let interval = Self.frameInterval(forSpeed: max(targetRotationSpeed, rotationSpeed))
+        if let animationTimer {
+            guard animationTimer.timeInterval != interval else { return }
+            animationTimer.invalidate()
+            self.animationTimer = nil
+        } else {
+            lastFrameTime = nil
+        }
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.stepAnimationFrame()
             }
@@ -216,7 +358,7 @@ final class StatusItemController: NSObject {
         let elapsed = min(max(now - (lastFrameTime ?? now), 0), 0.1)
         lastFrameTime = now
 
-        let blend = 1 - exp(-elapsed * 4)
+        let blend = 1 - exp(-elapsed * 1.5)
         rotationSpeed += (targetRotationSpeed - rotationSpeed) * blend
 
         if targetRotationSpeed <= 0, rotationSpeed < 4 {
@@ -235,6 +377,10 @@ final class StatusItemController: NSObject {
         guard let button = statusItem.button else { return }
         let color = statusColor(for: model.monitor.snapshot.temperatureCelsius)
         let image = FanIconRenderer.image(color: color, rotation: rotation)
+        if leadingContent != nil {
+            fanSegment.image = image
+            return
+        }
         // The renderer caches by rounded degree; skip no-op assignments so
         // slow spins do not redraw the button 30 times a second.
         if button.image !== image {
@@ -244,41 +390,28 @@ final class StatusItemController: NSObject {
     }
 
     private func statusColor(for temperature: Double?) -> NSColor {
+        // Resolved per tick against the bar itself: the wallpaper decides
+        // between white and black glyphs, not the system appearance.
+        let isDarkBar = statusItem.button.map { AppearancePalette.isDark($0.effectiveAppearance) } ?? true
+        let glyph: NSColor = isDarkBar ? .white : .black
         switch model.settings.fanColorStyle {
         case .mono:
-            return .labelColor
+            return glyph
         case .gray:
-            return .secondaryLabelColor
+            return glyph.withAlphaComponent(0.55)
         case .temperature:
             break
         }
+        let bandColor: NSColor
         switch model.settings.visualRules.band(for: temperature) {
         case .normal:
-            return readableMenuBarColor(NSColor(hexString: model.settings.normalColorHex), fallback: .white)
+            bandColor = NSColor(hexString: model.settings.normalColorHex) ?? .white
         case .medium:
-            return readableMenuBarColor(NSColor(hexString: model.settings.mediumColorHex), fallback: .systemOrange)
+            bandColor = NSColor(hexString: model.settings.mediumColorHex) ?? .systemOrange
         case .hot:
-            return readableMenuBarColor(NSColor(hexString: model.settings.hotColorHex), fallback: .systemRed)
+            bandColor = NSColor(hexString: model.settings.hotColorHex) ?? .systemRed
         }
-    }
-
-    private func readableMenuBarColor(_ color: NSColor?, fallback: NSColor) -> NSColor {
-        let source = (color ?? fallback).usingColorSpace(.sRGB) ?? fallback
-        var hue: CGFloat = 0
-        var saturation: CGFloat = 0
-        var brightness: CGFloat = 0
-        var alpha: CGFloat = 0
-
-        source.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
-
-        let liftedBrightness = max(brightness, 0.82)
-        let liftedSaturation = saturation > 0.05 ? max(saturation, 0.58) : saturation
-        return NSColor(
-            calibratedHue: hue,
-            saturation: liftedSaturation,
-            brightness: liftedBrightness,
-            alpha: alpha > 0 ? alpha : 1
-        ).usingColorSpace(.sRGB) ?? fallback
+        return AppearancePalette.menuBarVariant(of: bandColor, isDark: isDarkBar)
     }
 }
 

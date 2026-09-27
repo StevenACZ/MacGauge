@@ -13,6 +13,7 @@ struct FanMenuBarItemSection: View {
             HStack {
                 Spacer(minLength: 0)
                 FanMenuBarItemLivePreview(settings: settings, monitor: monitor, isActive: isActive)
+                    .menuBarMockCapsule(verticalPadding: 5)
                 Spacer(minLength: 0)
             }
 
@@ -20,6 +21,21 @@ struct FanMenuBarItemSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .center)
+
+            SettingsDivider()
+
+            SettingsGroupHeader(
+                title: "settings.display.modules.color".localized,
+                caption: "fan.color.caption".localized
+            )
+
+            OptionTilePicker(
+                options: FanColorStyle.allCases,
+                selection: $settings.fanColorStyle,
+                label: \.localizedName
+            ) { style in
+                FanStyleSample(style: style, settings: settings)
+            }
 
             SettingsDivider()
 
@@ -40,23 +56,46 @@ struct FanMenuBarItemSection: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
-
-            SettingsDivider()
-
-            StylePickerRow(
-                title: "settings.display.modules.color".localized,
-                caption: "fan.color.caption".localized,
-                options: FanColorStyle.allCases,
-                label: \.localizedName,
-                selection: $settings.fanColorStyle
-            )
         }
+    }
+}
+
+private struct FanStyleSample: View {
+    let style: FanColorStyle
+    @ObservedObject var settings: AppSettingsStore
+
+    var body: some View {
+        switch style {
+        case .temperature:
+            let hexes = [settings.normalColorHex, settings.mediumColorHex, settings.hotColorHex]
+            HStack(spacing: 7) {
+                ForEach(Array(hexes.enumerated()), id: \.offset) { _, hex in
+                    Image(systemName: "fanblades.fill")
+                        .foregroundStyle(ModuleColorResolver.menuBarTint(hexString: hex))
+                }
+            }
+            .font(.system(size: 13, weight: .medium))
+        case .mono:
+            glyph(Color.white)
+        case .gray:
+            glyph(Color.white.opacity(0.55))
+        }
+    }
+
+    private func glyph(_ color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "fanblades.fill")
+            Text(AppFormatters.temperature(56, unit: settings.temperatureUnit))
+                .monospacedDigit()
+        }
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(color)
     }
 }
 
 /// The only view in the tab that observes the monitor, so its 1 Hz snapshot
 /// updates re-render just this preview instead of the whole Display tab.
-private struct FanMenuBarItemLivePreview: View {
+struct FanMenuBarItemLivePreview: View {
     @ObservedObject var settings: AppSettingsStore
     @ObservedObject var monitor: FanMonitor
     let isActive: Bool
@@ -75,15 +114,19 @@ private struct FanMenuBarItemLivePreview: View {
         )
     }
 
+    /// Static, already lifted for a dark bar: the renderer bakes the color
+    /// into a bitmap, so a dynamic color would resolve against the window.
     private var currentBandColor: Color {
+        let hex: String
         switch settings.visualRules.band(for: monitor.snapshot.temperatureCelsius) {
         case .normal:
-            return Color(hexString: settings.normalColorHex)
+            hex = settings.normalColorHex
         case .medium:
-            return Color(hexString: settings.mediumColorHex)
+            hex = settings.mediumColorHex
         case .hot:
-            return Color(hexString: settings.hotColorHex)
+            hex = settings.hotColorHex
         }
+        return Color(nsColor: AppearancePalette.menuBarVariant(of: NSColor(hexString: hex) ?? .white, isDark: true))
     }
 
     /// Mirrors StatusItemController.statusColor for the always-dark preview.
@@ -94,20 +137,18 @@ private struct FanMenuBarItemLivePreview: View {
         case .mono:
             return .white
         case .gray:
-            return Color(nsColor: .systemGray)
+            return Color(nsColor: NSColor.white.withAlphaComponent(0.55))
         }
     }
 
     private var previewDegreesPerSecond: Double {
         // Mirrors the real status item: Efficient keeps the icon still.
         guard settings.animateFanIcon, settings.performanceMode == .full else { return 0 }
-        let fan = monitor.snapshot.fan
         return animationRules.rotationDegreesPerSecond(
-            currentRPM: fan?.currentRPM,
-            targetRPM: fan?.targetRPM,
-            minRPM: fan?.minRPM,
-            maxRPM: fan?.maxRPM
-        ) ?? 0
+            fan: monitor.snapshot.fan,
+            cpuPercent: nil,
+            temperatureCelsius: monitor.snapshot.temperatureCelsius
+        )
     }
 }
 
@@ -139,7 +180,6 @@ private struct MenuBarItemPreview: View {
                     .foregroundStyle(color)
             }
         }
-        .menuBarMockCapsule(verticalPadding: 5)
         .animation(Theme.Anim.smooth, value: temperatureText)
         .accessibilityLabel("settings.display.menubar_item".localized)
     }

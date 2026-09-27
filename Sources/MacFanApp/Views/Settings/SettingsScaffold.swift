@@ -1,11 +1,21 @@
 import SwiftUI
 
 enum SettingsLayout {
+    /// The window content size and the SwiftUI root frame share this one
+    /// constant; the toolbar with the tab bar sits above it.
+    static let windowSize = CGSize(width: 800, height: 620)
+    /// NSHostingController bridges SwiftUI toolbars from macOS 14; macOS 13
+    /// keeps the tab bar and Close button inside the content instead.
+    static var bridgesToolbar: Bool {
+        if #available(macOS 14.0, *) { return true }
+        return false
+    }
+    static let leadingPadding: CGFloat = 20
+    static let trailingPadding: CGFloat = 12
     static let trailingControlWidth: CGFloat = 220
-    /// Window width (680) minus the window's leading (20) and trailing (12)
-    /// paddings. Every tab is pinned to this width so one tab's rigid rows
-    /// can never widen the shared tab stack and eat the window margins.
-    static let contentWidth: CGFloat = 648
+    /// Every tab is pinned to this width so one tab's rigid rows can never
+    /// widen the shared tab stack and eat the window margins.
+    static let contentWidth: CGFloat = windowSize.width - leadingPadding - trailingPadding
 }
 
 struct SettingsTrailingControl<Content: View>: View {
@@ -30,6 +40,7 @@ struct SettingsPane<Content: View>: View {
                 content()
             }
             .frame(maxWidth: .infinity, alignment: .top)
+            .padding(.trailing, 8)
             .padding(.vertical, 2)
         }
     }
@@ -42,14 +53,18 @@ struct SettingsSurface<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
+            HStack(spacing: 9) {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Theme.accent)
-                    .frame(width: 20, alignment: .leading)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(Theme.accent.opacity(0.14))
+                    )
 
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
             }
 
             content()
@@ -57,11 +72,11 @@ struct SettingsSurface<Content: View>: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.primary.opacity(0.045))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         )
     }

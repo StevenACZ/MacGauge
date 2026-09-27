@@ -144,7 +144,7 @@ struct GeneralSettingsTab: View {
                 Button("settings.general.updates.install".localized) {
                     updateManager.installPendingUpdate()
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentActionStyle()
                 .controlSize(.small)
 
                 if updateManager.releasePageURL != nil {
@@ -163,7 +163,7 @@ struct GeneralSettingsTab: View {
             Button("settings.general.updates.install".localized) {
                 updateManager.installNow()
             }
-            .buttonStyle(.borderedProminent)
+            .prominentActionStyle()
             .controlSize(.small)
         case .downloading, .installing:
             ProgressView()

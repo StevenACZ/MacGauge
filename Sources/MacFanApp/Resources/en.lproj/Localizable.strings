@@ -16,8 +16,8 @@
 /* Banners */
 "banner.contested" = "Fan RPM is not matching the requested target";
 "banner.fanless" = "This Mac is passively cooled and has no controllable fans.";
-"banner.action.open_login_items" = "Open Login Items";
-"banner.action.authorize" = "Authorize";
+"banner.action.show_me_how" = "Show Me How";
+"banner.action.set_up" = "Set Up";
 "banner.action.fix" = "Fix";
 "banner.curve_suspended" = "Curve paused: macOS is controlling the fans again.";
 "banner.action.resume_curve" = "Resume curve";
@@ -52,16 +52,15 @@
 
 /* Control tab */
 "settings.control.title" = "Control";
-"settings.control.mode" = "Mode";
-"settings.control.default_mode" = "Default mode";
 "settings.control.manual_target" = "Manual Target";
-"settings.control.target" = "Target";
 "settings.control.add_point" = "Add Point";
 "settings.control.reset" = "Reset";
 "settings.control.fan_curve" = "Fan Curve";
 "settings.control.curve_hint" = "Drag points · double-click to add · right-click to delete";
 "settings.control.temperature" = "Temperature";
 "settings.control.fan_speed" = "Fan speed";
+"settings.control.mode.manual.caption" = "A fixed speed you choose";
+"settings.control.mode.curve.caption" = "Speed follows the temperature";
 "settings.control.estimated_rpm" = "Est. speed";
 "curve.delete_point" = "Delete point";
 
@@ -80,18 +79,18 @@
 "settings.display.from" = "From";
 "settings.display.menubar_modules" = "Menu Bar Modules";
 "settings.display.module_cpu" = "CPU usage";
-"settings.display.module_cpu.caption" = "Live usage in the menu bar; click it for cores and top apps.";
 "settings.display.module_memory" = "Memory usage";
-"settings.display.module_memory.caption" = "Live used memory and pressure; click it for the apps using the most.";
 "settings.display.module_network" = "Network activity";
-"settings.display.module_network.caption" = "Live download and upload rates; click it for IPs and session totals.";
 "settings.display.section.fan_temp" = "Fan & temperature";
 "settings.display.section.modules" = "Modules";
 "settings.display.module.hidden_hint" = "Hidden right now — enable it in Modules.";
 "settings.display.modules.none_hint" = "No modules enabled — turn them on below.";
 "settings.display.preview.simulated" = "Simulated preview — watch how your styles react.";
+"settings.display.modules.visible" = "Show in the menu bar";
+"settings.display.modules.visible.caption" = "Click a module to show or hide it. Each one opens its own detail.";
 "settings.display.modules.spacing" = "Spacing";
-"settings.display.modules.spacing.caption" = "How much breathing room every module keeps in the menu bar. Together fuses them into one block, with clicks still per module.";
+"settings.display.modules.spacing.caption" = "How much breathing room the modules keep in the menu bar. Together (recommended) joins them and the fan in one block, with clicks still per module.";
+"settings.display.modules.reorder_tip" = "Hold ⌘ and drag MacGauge in the menu bar to place it where you like. Together moves the modules and the fan as one block; the other spacings let you order each one.";
 "settings.display.modules.graph" = "Graph length";
 "settings.display.modules.graph.caption" = "Length of this module's chart.";
 "settings.display.modules.color" = "Color style";
@@ -133,7 +132,6 @@
 "settings.safety.restore.caption" = "Hands the fans back to automatic system control immediately, as if MacGauge were not running.";
 "settings.safety.restore_automatic" = "Restore Automatic Now";
 "settings.safety.fix_helper" = "Fix Helper";
-"settings.safety.authorize" = "Authorize";
 
 /* Color presets (accessibility) */
 "color.white" = "White";
@@ -157,7 +155,7 @@
 "helper.status.checking" = "Checking helper...";
 "helper.status.ready" = "Helper ready";
 "helper.status.needs_authorization" = "Authorize the helper to enable fan control";
-"helper.status.needs_approval" = "Fan control needs MacGauge's background helper.\nTurn it on in System Settings → General → Login Items & Extensions → App Background Activity → MacGauge.";
+"helper.status.needs_approval" = "Fan control is waiting for your OK in System Settings.";
 "helper.status.unavailable" = "Helper not responding; recovering automatically";
 "helper.status.stale" = "Helper is outdated; reloading it automatically";
 "helper.status.reloading" = "Reloading helper...";
@@ -246,13 +244,39 @@
 "settings.general.updates.release_notes" = "View release notes";
 
 "welcome.title" = "Welcome to MacGauge";
-"welcome.subtitle" = "Your Mac, at a glance.";
-"welcome.monitoring.title" = "Monitoring is ready";
-"welcome.monitoring.body" = "See CPU, memory, network and available fan readings in your menu bar. No fan-control authorization is needed.";
-"welcome.optional.title" = "Fan control · Optional";
-"welcome.optional.body" = "Want to adjust your fans? Review the helper status and setup steps in Safety settings. macOS authorization is required only for fan control.";
-"welcome.optional.action" = "Review fan-control setup…";
-"welcome.start" = "Start monitoring";
+"welcome.subtitle" = "A quick setup and you are ready.";
+"welcome.step_count" = "Step %d of %d";
+"welcome.continue" = "Continue";
+"welcome.skip" = "Skip";
+"welcome.not_now" = "Not Now";
+"welcome.close" = "Close";
+"welcome.done_button" = "Done";
+"welcome.fan.setup_title" = "Turn On Fan Control";
+"welcome.fan.setup_subtitle" = "One switch in System Settings, then MacGauge can steer your fans.";
+"welcome.fan.title" = "Fan control";
+"welcome.fan.body" = "MacGauge controls your fans through a small helper, and macOS asks you to allow it once. Monitoring already works without it.";
+"welcome.fan.what_happens" = "Click Allow Fan Control. System Settings opens: turn on MacGauge under “%@” and enter your password.";
+"welcome.fan.waiting" = "In System Settings, turn on MacGauge under “%@”. This window updates as soon as you do.";
+"welcome.fan.working" = "Checking the helper…";
+"welcome.fan.ready" = "Fan control is on.";
+"welcome.fan.allow" = "Allow Fan Control";
+"welcome.fan.open_settings" = "Open System Settings";
+"welcome.login.title" = "Open at login";
+"welcome.login.body" = "Keep MacGauge in your menu bar every time you start your Mac. You can change this later in Settings → General.";
+"welcome.login.enable" = "Open at Login";
+"welcome.login.enabled" = "MacGauge will open at login.";
+"welcome.done.title" = "All set";
+"welcome.done.body" = "MacGauge lives in your menu bar. A few things worth knowing:";
+"welcome.done.fan" = "Click the fan in the menu bar for modes, speed and temperature.";
+"welcome.done.modules" = "Choose which readings to show in Settings → Display.";
+"welcome.done.drag" = "Hold ⌘ and drag any item to move it in the menu bar.";
+"guide.login_items" = "Login Items & Extensions";
+"guide.background_activity" = "App Background Activity";
+"guide.open_at_login" = "Open at Login";
+"guide.login_accessibility" = "System Settings, Login Items. MacGauge appears under %@ once it opens at login.";
+"guide.password" = "Password";
+"guide.accessibility" = "System Settings, Login Items. Turn on MacGauge under %@, then enter your password.";
+"welcome.start" = "Start Using MacGauge";
 "welcome.reopen" = "Show Welcome…";
 
 /* Update card */

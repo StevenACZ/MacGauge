@@ -16,8 +16,8 @@ HELPER_NAME="MacFanHelper"
 BUNDLE_ID="com.stevenacz.MacFan"
 MIN_SYSTEM_VERSION="13.0"
 # Overridable for local update-flow testing (fake higher version builds).
-APP_VERSION="${APP_VERSION:-1.6.5}"
-APP_BUILD="${APP_BUILD:-19}"
+APP_VERSION="${APP_VERSION:-1.7.0}"
+APP_BUILD="${APP_BUILD:-20}"
 # Sparkle in-app updates: public feed + EdDSA public key (private key lives in
 # the login Keychain; never in the repo).
 SPARKLE_FEED_URL="https://github.com/StevenACZ/MacGauge/releases/latest/download/appcast.xml"
@@ -96,6 +96,15 @@ stage_bundle() {
         /*) install_name_tool -delete_rpath "$rpath" "$APP_BINARY" ;;
       esac
     done
+
+  # SwiftPM stamps the deployment target as the SDK version, which makes macOS
+  # draw the app in the pre-Liquid Glass compatibility design.
+  local min_os sdk_version
+  min_os="$(vtool -show-build "$APP_BINARY" | awk '/minos/{print $2; exit}')"
+  sdk_version="$(xcrun --show-sdk-version)"
+  vtool -set-build-version macos "$min_os" "$sdk_version" -replace -output "$APP_BINARY.sdk" "$APP_BINARY"
+  mv "$APP_BINARY.sdk" "$APP_BINARY"
+  chmod +x "$APP_BINARY"
 
   cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

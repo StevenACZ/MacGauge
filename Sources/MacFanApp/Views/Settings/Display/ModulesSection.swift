@@ -1,62 +1,168 @@
 import SwiftUI
 
-/// The menu-bar modules card: simulated bar preview, spacing picker, and one
-/// visibility toggle per module.
 struct ModulesSection: View {
     @ObservedObject var settings: AppSettingsStore
     let simulator: ModulePreviewSimulator
+    let monitor: FanMonitor
+    let isActive: Bool
 
     private struct ModuleToggle: Identifiable {
-        let icon: String
+        let module: SystemModuleKind
         let titleKey: String
         let isOn: Binding<Bool>
 
-        var id: String { titleKey }
+        var id: SystemModuleKind { module }
     }
 
     private var moduleToggles: [ModuleToggle] {
         [
-            ModuleToggle(icon: "cpu", titleKey: "settings.display.module_cpu", isOn: $settings.showsCPUModule),
-            ModuleToggle(icon: "memorychip", titleKey: "settings.display.module_memory", isOn: $settings.showsMemoryModule),
-            ModuleToggle(icon: "network", titleKey: "settings.display.module_network", isOn: $settings.showsNetworkModule),
+            ModuleToggle(module: .network, titleKey: "settings.display.module_network", isOn: $settings.showsNetworkModule),
+            ModuleToggle(module: .cpu, titleKey: "settings.display.module_cpu", isOn: $settings.showsCPUModule),
+            ModuleToggle(module: .memory, titleKey: "settings.display.module_memory", isOn: $settings.showsMemoryModule),
         ]
     }
 
     var body: some View {
         SettingsSurface(icon: "menubar.rectangle", title: "settings.display.menubar_modules".localized) {
             SimulatedPreviewCapsule {
-                SimulatedModulesBarPreview(simulator: simulator, settings: settings)
+                HStack(
+                    spacing: settings.moduleSpacing == .together
+                        ? ModuleSpacingLevel.fusedModuleGap : SimulatedModulesBarPreview.separateItemGap
+                ) {
+                    SimulatedModulesBarPreview(simulator: simulator, settings: settings)
+                    FanMenuBarItemLivePreview(settings: settings, monitor: monitor, isActive: isActive)
+                }
             }
 
             SettingsDivider()
 
-            StylePickerRow(
-                title: "settings.display.modules.spacing".localized,
-                caption: "settings.display.modules.spacing.caption".localized,
-                options: ModuleSpacingLevel.allCases,
-                label: \.localizedName,
-                selection: $settings.moduleSpacing
+            SettingsGroupHeader(
+                title: "settings.display.modules.visible".localized,
+                caption: "settings.display.modules.visible.caption".localized
             )
 
-            ForEach(moduleToggles) { toggle in
-                SettingsDivider()
-
-                SettingsToggleRow(
-                    title: toggle.titleKey.localized,
-                    subtitle: "\(toggle.titleKey).caption".localized,
-                    icon: toggle.icon,
-                    trailingWidth: 60,
-                    isOn: toggle.isOn
-                )
+            HStack(alignment: .top, spacing: 10) {
+                ForEach(moduleToggles) { toggle in
+                    OptionTile(
+                        title: toggle.titleKey.localized,
+                        isSelected: toggle.isOn.wrappedValue,
+                        action: { toggle.isOn.wrappedValue.toggle() }
+                    ) {
+                        ModuleSample(module: toggle.module, settings: settings)
+                            .opacity(toggle.isOn.wrappedValue ? 1 : 0.35)
+                    }
+                }
             }
+
+            SettingsDivider()
+
+            SettingsGroupHeader(
+                title: "settings.display.modules.spacing".localized,
+                caption: "settings.display.modules.spacing.caption".localized
+            )
+
+            OptionTilePicker(
+                options: ModuleSpacingLevel.allCases,
+                selection: $settings.moduleSpacing,
+                label: \.localizedName
+            ) { level in
+                SpacingSample(level: level)
+            }
+
+            ReorderTip()
         }
         .animation(Theme.Anim.smooth, value: settings.enabledModules)
     }
 }
 
+private struct ModuleSample: View {
+    let module: SystemModuleKind
+    @ObservedObject var settings: AppSettingsStore
+
+    var body: some View {
+        switch module {
+        case .cpu:
+            SamplePercentModule(
+                title: "system.cpu".localized,
+                style: ModuleColorResolver.previewStyle(for: settings.cpuColorMode, metric: .cpu, settings: settings),
+                graphWidth: settings.cpuGraphWidth.width
+            )
+        case .memory:
+            SamplePercentModule(
+                title: "system.memory".localized,
+                style: ModuleColorResolver.previewStyle(for: settings.memoryColorMode, metric: .memory, settings: settings),
+                graphWidth: settings.memoryGraphWidth.width
+            )
+        case .network:
+            let tints = ModuleColorResolver.networkArrowTints(settings: settings)
+            NetworkModuleSegment(
+                upload: 1_250_000,
+                download: 86_000,
+                upTint: tints.up,
+                downTint: tints.down,
+                animated: false
+            )
+        }
+    }
+}
+
+private struct SpacingSample: View {
+    let level: ModuleSpacingLevel
+
+    var body: some View {
+        HStack(spacing: gap) {
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                    .fill(Color.primary.opacity(0.75))
+                    .frame(width: 15, height: 9)
+            }
+            Image(systemName: "fanblades.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.primary.opacity(0.75))
+        }
+        .padding(level == .together ? 3 : 0)
+        .background(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.primary.opacity(level == .together ? 0.16 : 0))
+        )
+    }
+
+    private var gap: CGFloat {
+        switch level {
+        case .together: return 3
+        case .tight: return 6
+        case .regular: return 7.5
+        case .roomy: return 10
+        }
+    }
+}
+
+private struct ReorderTip: View {
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "command")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+            Text("settings.display.modules.reorder_tip".localized)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Theme.accent.opacity(0.08))
+        )
+    }
+}
+
 /// All enabled modules side by side with the chosen spacing, approximating
-/// how the menu bar lays them out (Together fuses them with hairline gaps).
+/// how the menu bar lays them out (Together fuses them with small gaps).
 struct SimulatedModulesBarPreview: View {
+    static let separateItemGap = CGFloat(ModuleSpacingLevel.statusItemSpacing)
+
     @ObservedObject var simulator: ModulePreviewSimulator
     @ObservedObject var settings: AppSettingsStore
 
@@ -68,7 +174,7 @@ struct SimulatedModulesBarPreview: View {
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 2)
         } else {
-            HStack(spacing: settings.moduleSpacing == .together ? 2 : 8) {
+            HStack(spacing: settings.moduleSpacing == .together ? ModuleSpacingLevel.fusedModuleGap : Self.separateItemGap) {
                 ForEach(modules) { module in
                     segment(for: module)
                         .padding(.horizontal, settings.moduleSpacing.padding)

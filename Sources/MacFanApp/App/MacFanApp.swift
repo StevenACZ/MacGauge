@@ -7,7 +7,7 @@ struct MacFanMenuApp: App {
 
     var body: some Scene {
         // The real settings window is AppDelegate.showSettings, which pins the
-        // fixed 680x520 content size and snaps back programmatic resizes. This
+        // fixed content size and snaps back programmatic resizes. This
         // scene only forwards, so the SwiftUI Settings route can never open an
         // unpinned duplicate window.
         Settings {

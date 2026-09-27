@@ -13,14 +13,20 @@ struct ControlSettingsTab: View {
     var body: some View {
         SettingsPane {
             SettingsSurface(icon: "fanblades", title: "settings.control.title".localized) {
-                SettingsRow(title: "settings.control.mode".localized) {
-                    Picker("settings.control.default_mode".localized, selection: $settings.controlMode) {
-                        ForEach(FanControlMode.allCases) { mode in
-                            Text(mode.label).tag(mode)
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(FanControlMode.allCases) { mode in
+                        OptionTile(
+                            title: mode.label,
+                            caption: "settings.control.mode.\(mode.rawValue).caption".localized,
+                            isSelected: settings.controlMode == mode,
+                            previewHeight: 40,
+                            mocksMenuBar: false,
+                            compactPreviewWidth: 124,
+                            action: { settings.controlMode = mode }
+                        ) {
+                            ControlModeSample(mode: mode, settings: settings)
                         }
                     }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
                 }
             }
 
@@ -51,18 +57,30 @@ private struct ManualControlSection: View {
 
     var body: some View {
         SettingsSurface(icon: "slider.horizontal.3", title: "settings.control.manual_target".localized) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("settings.control.target".localized)
-                        .font(.callout.weight(.semibold))
-                    Spacer()
-                    Text("\(AppFormatters.percent(model.manualDisplayPercent)) / \(AppFormatters.approximateRPM(model.manualTargetRPM))")
-                        .monospacedDigit()
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(AppFormatters.percent(model.manualDisplayPercent))
+                        .font(.system(size: 30, weight: .semibold, design: .rounded))
+                        .contentTransition(.numericText())
+                    Text(AppFormatters.approximateRPM(model.manualTargetRPM))
+                        .font(.title3)
                         .foregroundStyle(.secondary)
                 }
+                .monospacedDigit()
+                .animation(Theme.Anim.value, value: Int(model.manualDisplayPercent.rounded()))
 
-                Slider(value: $settings.manualPercent, in: model.manualPercentRange, step: 1)
-                    .disabled(!helperService.isReady || model.isWriting)
+                HStack(spacing: 12) {
+                    Text(AppFormatters.percent(model.manualPercentRange.lowerBound))
+                    ManualPercentSlider(
+                        value: $settings.manualPercent,
+                        range: model.manualPercentRange,
+                        step: 1,
+                        isDisabled: !helperService.isReady || model.isWriting
+                    )
+                    Text(AppFormatters.percent(model.manualPercentRange.upperBound))
+                }
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
             }
         }
     }
@@ -94,7 +112,7 @@ private struct CurveControlSection: View {
                     deletePoint: { settings.removeCurvePoint(id: $0) },
                     canDeletePoints: settings.curvePoints.count > 2
                 )
-                .frame(height: 220)
+                .frame(height: 280)
 
                 pointChips
 
@@ -147,6 +165,86 @@ private struct CurveControlSection: View {
                 settings.updateCurvePoint(updatedPoint)
             }
         )
+    }
+}
+
+private struct ControlModeSample: View {
+    let mode: FanControlMode
+    @ObservedObject var settings: AppSettingsStore
+
+    var body: some View {
+        switch mode {
+        case .manual:
+            HStack(spacing: 7) {
+                Image(systemName: "fanblades")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Capsule()
+                    .fill(Color.primary.opacity(0.12))
+                    .frame(height: 6)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { proxy in
+                            Capsule()
+                                .fill(Theme.accent)
+                                .frame(width: proxy.size.width * min(max(settings.manualPercent / 100, 0), 1))
+                        }
+                    }
+                Text(AppFormatters.percent(settings.manualPercent))
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 10)
+        case .curve:
+            CurveSample(points: settings.curvePoints)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+        }
+    }
+}
+
+private struct CurveSample: View {
+    let points: [CurvePoint]
+
+    var body: some View {
+        GeometryReader { proxy in
+            let line = path(in: proxy.size, closed: false)
+            ZStack {
+                path(in: proxy.size, closed: true)
+                    .fill(
+                        LinearGradient(
+                            colors: [Theme.accent.opacity(0.28), Theme.accent.opacity(0.02)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                line.stroke(Theme.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            }
+        }
+    }
+
+    private func path(in size: CGSize, closed: Bool) -> Path {
+        let sorted = points.sorted { $0.temperatureCelsius < $1.temperatureCelsius }
+        func point(_ curvePoint: CurvePoint) -> CGPoint {
+            let x = min(max(curvePoint.temperatureCelsius, 0), 100) / 100
+            return CGPoint(x: x * size.width, y: size.height - curvePoint.percent / 100 * size.height)
+        }
+        var path = Path()
+        guard let first = sorted.first, let last = sorted.last else { return path }
+        let start = CGPoint(x: 0, y: point(first).y)
+        let end = CGPoint(x: size.width, y: point(last).y)
+        if closed {
+            path.move(to: CGPoint(x: 0, y: size.height))
+            path.addLine(to: start)
+        } else {
+            path.move(to: start)
+        }
+        sorted.forEach { path.addLine(to: point($0)) }
+        path.addLine(to: end)
+        if closed {
+            path.addLine(to: CGPoint(x: size.width, y: size.height))
+            path.closeSubpath()
+        }
+        return path
     }
 }
 

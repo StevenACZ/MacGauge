@@ -51,6 +51,36 @@ final class AppearancePaletteTests: XCTestCase {
         XCTAssertEqual(AppearancePalette.relativeLuminance(of: resolve(pair, in: .darkAqua)), 1, accuracy: 0.01)
     }
 
+    func testDarkMenuBarLiftsDarkTintsToTheFloor() {
+        for hex in ["#5E5CE6", "#0A84FF", "#FF453A"] {
+            let lifted = AppearancePalette.menuBarVariant(of: NSColor(hexString: hex)!, isDark: true)
+            XCTAssertEqual(AppearancePalette.relativeLuminance(of: lifted), 0.42, accuracy: 0.01, hex)
+        }
+    }
+
+    func testDarkMenuBarKeepsBrightTints() {
+        for hex in ["#FFFFFF", "#FF9500", "#30D158"] {
+            let base = NSColor(hexString: hex)!
+            let kept = AppearancePalette.menuBarVariant(of: base, isDark: true)
+            XCTAssertEqual(kept.redComponent, base.redComponent, accuracy: 0.001, hex)
+            XCTAssertEqual(kept.greenComponent, base.greenComponent, accuracy: 0.001, hex)
+            XCTAssertEqual(kept.blueComponent, base.blueComponent, accuracy: 0.001, hex)
+        }
+    }
+
+    func testLightMenuBarTurnsWhiteIntoLabelBlack() {
+        let dark = AppearancePalette.menuBarVariant(of: .white, isDark: false)
+        XCTAssertLessThanOrEqual(AppearancePalette.relativeLuminance(of: dark), 0.05)
+    }
+
+    func testMenuBarAdaptedFollowsTheVibrantBarAppearance() {
+        let color = AppearancePalette.menuBarAdapted(NSColor(hexString: "#5E5CE6")!)
+        let onDarkBar = resolve(color, in: .vibrantDark)
+        let onLightBar = resolve(color, in: .vibrantLight)
+        XCTAssertGreaterThan(AppearancePalette.relativeLuminance(of: onDarkBar), 0.41)
+        XCTAssertLessThanOrEqual(AppearancePalette.relativeLuminance(of: onLightBar), 0.19)
+    }
+
     private func resolve(_ color: Color, in appearanceName: NSAppearance.Name) -> NSColor {
         let appearance = NSAppearance(named: appearanceName)!
         var resolved = NSColor.clear

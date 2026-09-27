@@ -4,11 +4,12 @@ import SwiftUI
 
 @MainActor
 final class WelcomeWindowController: NSWindowController, NSWindowDelegate {
+    static let contentSize = NSSize(width: 520, height: 540)
     private static let completedKey = "hasCompletedWelcome"
-    private let openSetup: () -> Void
+    private let model: AppModel
+    private var steps: [WelcomeStep] = []
     private var hostingView: NSHostingView<WelcomeView>?
     private var languageSubscription: AnyCancellable?
-    private var measuredSizes: [String: NSSize] = [:]
 
     static var needsFirstWelcome: Bool {
         let persisted = Bundle.main.bundleIdentifier.flatMap { UserDefaults.standard.persistentDomain(forName: $0) }
@@ -37,84 +38,87 @@ final class WelcomeWindowController: NSWindowController, NSWindowDelegate {
         return !existingKeys.contains { persisted[$0] != nil }
     }
 
-    init(openSetup: @escaping () -> Void) {
-        self.openSetup = openSetup
+    init(model: AppModel) {
+        self.model = model
         super.init(window: nil)
     }
 
     required init?(coder: NSCoder) { nil }
 
-    func showWelcome() {
-        let isNewWindow = window == nil
-        rebuildContent()
-        guard let window else { return }
-        if isNewWindow { window.center() }
+    func show(fanControlOnly: Bool) {
+        if let window, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        steps =
+            fanControlOnly
+            ? [.fanControl]
+            : (model.monitor.snapshot.isFanless ? [] : [.fanControl]) + [.openAtLogin, .done]
+        let window = makeWindow()
+        window.contentView = WelcomeWindowSurface(content: makeHostingView(), size: Self.contentSize)
+        window.title = windowTitle
+        window.center()
         showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
         languageSubscription = LocalizationManager.shared.$bundle.dropFirst().sink { [weak self] _ in
             DispatchQueue.main.async {
-                guard self?.window?.isVisible == true else { return }
-                self?.rebuildContent()
+                guard let self, let hostingView = self.hostingView else { return }
+                hostingView.rootView = self.makeRootView()
+                self.window?.title = self.windowTitle
             }
         }
     }
 
-    private func rebuildContent() {
-        let view = WelcomeView(openSetup: openSetup) { [weak self] in
-            UserDefaults.standard.set(true, forKey: Self.completedKey)
-            self?.close()
+    private var windowTitle: String {
+        (steps.contains(.done) ? "welcome.title" : "welcome.fan.setup_title").localized
+    }
+
+    private func makeRootView() -> WelcomeView {
+        WelcomeView(
+            model: model,
+            helperService: model.helperService,
+            loginManager: model.loginManager,
+            monitor: model.monitor,
+            steps: steps
+        ) { [weak self] in
+            guard let self else { return }
+            if self.steps.contains(.done) {
+                UserDefaults.standard.set(true, forKey: Self.completedKey)
+            }
+            self.close()
         }
-        let language = LocalizationManager.shared.language
-        let size: NSSize
-        if let cached = measuredSizes[language] {
-            size = cached
-        } else {
-            let measuring = NSHostingView(rootView: view)
-            measuring.sizingOptions = .intrinsicContentSize
-            if #available(macOS 14.0, *) { measuring.safeAreaRegions = [] }
-            let measured = measuring.fittingSize
-            guard measured.height.isFinite, measured.height > 0 else { return }
-            size = NSSize(width: 480, height: ceil(measured.height))
-            measuredSizes[language] = size
-        }
-        let hosting = NSHostingView(rootView: view)
+    }
+
+    private func makeHostingView() -> NSHostingView<WelcomeView> {
+        let hosting = NSHostingView(rootView: makeRootView())
         hosting.sizingOptions = []
         if #available(macOS 14.0, *) { hosting.safeAreaRegions = [] }
-        hosting.frame = NSRect(origin: .zero, size: size)
-
-        let targetWindow: NSWindow
-        if let window {
-            targetWindow = window
-        } else {
-            targetWindow = NSWindow(
-                contentRect: NSRect(origin: .zero, size: size),
-                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
-                backing: .buffered,
-                defer: false
-            )
-            targetWindow.titleVisibility = .hidden
-            targetWindow.titlebarAppearsTransparent = true
-            targetWindow.titlebarSeparatorStyle = .none
-            targetWindow.backgroundColor = .windowBackgroundColor
-            targetWindow.isReleasedWhenClosed = false
-            targetWindow.delegate = self
-            window = targetWindow
-        }
-        let oldFrame = targetWindow.frame
-        targetWindow.title = "welcome.title".localized
-        targetWindow.setFrame(
-            NSRect(x: oldFrame.minX, y: oldFrame.maxY - size.height, width: size.width, height: size.height),
-            display: true
-        )
+        hosting.frame = NSRect(origin: .zero, size: Self.contentSize)
         hostingView = hosting
-        targetWindow.contentView = WelcomeWindowSurface(content: hosting, size: size)
-        hosting.sizingOptions = []
+        return hosting
+    }
+
+    private func makeWindow() -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: Self.contentSize),
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.backgroundColor = .windowBackgroundColor
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        self.window = window
+        return window
     }
 
     func windowWillClose(_ notification: Notification) {
         languageSubscription = nil
         hostingView = nil
-        measuredSizes.removeAll()
         window?.contentView = nil
         window = nil
     }

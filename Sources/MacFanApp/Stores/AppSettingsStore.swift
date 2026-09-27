@@ -238,7 +238,7 @@ final class AppSettingsStore: ObservableObject {
         showsMemoryModule = defaults.bool(forKey: Key.showsMemoryModule)
         showsNetworkModule = defaults.bool(forKey: Key.showsNetworkModule)
 
-        moduleSpacing = ModuleSpacingLevel(rawValue: defaults.string(forKey: Key.moduleSpacing) ?? "") ?? .tight
+        moduleSpacing = ModuleSpacingLevel(rawValue: defaults.string(forKey: Key.moduleSpacing) ?? "") ?? .together
         cpuGraphWidth = ModuleGraphWidth(rawValue: defaults.string(forKey: Key.cpuGraphWidth) ?? "") ?? .medium
         memoryGraphWidth = ModuleGraphWidth(rawValue: defaults.string(forKey: Key.memoryGraphWidth) ?? "") ?? .medium
         cpuColorMode = ModuleColorMode(rawValue: defaults.string(forKey: Key.cpuColorMode) ?? "") ?? .multicolor
@@ -263,9 +263,9 @@ final class AppSettingsStore: ObservableObject {
 
     var enabledModules: [SystemModuleKind] {
         var modules: [SystemModuleKind] = []
+        if showsNetworkModule { modules.append(.network) }
         if showsCPUModule { modules.append(.cpu) }
         if showsMemoryModule { modules.append(.memory) }
-        if showsNetworkModule { modules.append(.network) }
         return modules
     }
 

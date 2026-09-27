@@ -76,6 +76,14 @@ held the app at ~80% of one core. Keep these rules:
 - After touching menu bar UI, verify idle cost with `sample <pid>` — seeing
   `NSStatusItem _updateReplicants` high in the profile means the item redraws
   too often. Idle target: a few percent of one core.
+- Hard rule (2nd bite of the glyph-growth pattern, 2026-09-27): no
+  `.contentTransition(.numericText())` or other per-frame text morphs in
+  status item labels. The item renders SwiftUI text on the CPU and each
+  in-between frame leaves CoreGraphics glyph bitmaps behind (Full mode grew
+  ~1 MB/s). Prove memory with two `footprint <pid>` reads 90 s apart in Full.
+- Never enumerate SMC keys per poll: readers that cache key discovery must
+  live with the pooled client (`SMCPool`); a fresh `TemperatureReader` per
+  tick held idle CPU at ~11% of a core on M1 instead of ~3%.
 
 ## Settings Window Layout (learned 2026-07-04)
 
@@ -106,6 +114,11 @@ make ci-check
 
 - `make ci-check` runs lint, `swift build`, and `swift test`.
 - Use `./scripts/build_and_run.sh stage` / `run` for the GUI app bundle.
+- Hard rule: the staged app binary must record the toolchain SDK
+  (`vtool -show-build dist/MacGauge.app/Contents/MacOS/MacGauge` shows
+  `sdk` equal to `xcrun --show-sdk-version`). Xcode 27 SwiftPM stamps the
+  deployment target instead, and macOS then draws the app without Liquid
+  Glass; `stage_bundle` rewrites it with `vtool`, so never drop that step.
 - Use `make install-dev` for a signed local install to `~/Applications`.
 - Use `make format` / `make lint` before commits; optional Lefthook via
   `make hooks-install`.
