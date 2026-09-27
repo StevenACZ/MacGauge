@@ -6,6 +6,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-27
+
 ### Added
 
 - The first launch walks you through setup one step at a time: allow fan control, then open at login. An animated picture shows the exact switch to turn on in System Settings, in your Mac's language, and the window moves on by itself once macOS approves. Every step can be skipped.
