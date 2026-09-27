@@ -106,6 +106,11 @@ make ci-check
 
 - `make ci-check` runs lint, `swift build`, and `swift test`.
 - Use `./scripts/build_and_run.sh stage` / `run` for the GUI app bundle.
+- Hard rule: the staged app binary must record the toolchain SDK
+  (`vtool -show-build dist/MacGauge.app/Contents/MacOS/MacGauge` shows
+  `sdk` equal to `xcrun --show-sdk-version`). Xcode 27 SwiftPM stamps the
+  deployment target instead, and macOS then draws the app without Liquid
+  Glass; `stage_bundle` rewrites it with `vtool`, so never drop that step.
 - Use `make install-dev` for a signed local install to `~/Applications`.
 - Use `make format` / `make lint` before commits; optional Lefthook via
   `make hooks-install`.
