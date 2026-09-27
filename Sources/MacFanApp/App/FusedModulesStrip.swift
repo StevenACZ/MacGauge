@@ -128,8 +128,7 @@ final class FusedModulesStrip: NSObject, FanItemLeadingContent {
     }
 
     func handleClick(in button: NSStatusBarButton) -> Bool {
-        guard let event = NSApp.currentEvent else { return false }
-        let x = hostingView.convert(event.locationInWindow, from: nil).x
+        guard let x = clickX(in: button) else { return false }
         // The fan starts half a gap past the strip; anything beyond is its.
         guard x <= hostingView.bounds.maxX + ModuleSpacingLevel.fusedModuleGap / 2 else { return false }
 
@@ -150,6 +149,22 @@ final class FusedModulesStrip: NSObject, FanItemLeadingContent {
         popover.show(relativeTo: anchorRect(for: clicked, in: button), of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
         return true
+    }
+
+    /// From the pointer, not the event: since macOS 27 the menu bar agent
+    /// forwards every status item click located at the button's center.
+    private func clickX(in button: NSStatusBarButton) -> CGFloat? {
+        guard let window = button.window else { return nil }
+        let mouse = NSEvent.mouseLocation
+        let pointInWindow: NSPoint
+        if NSMouseInRect(mouse, window.frame, false) {
+            pointInWindow = window.convertPoint(fromScreen: mouse)
+        } else if let event = NSApp.currentEvent {
+            pointInWindow = event.locationInWindow
+        } else {
+            return nil
+        }
+        return hostingView.convert(pointInWindow, from: nil).x
     }
 
     /// Segment whose horizontal range is nearest to the click; clicks in the

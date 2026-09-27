@@ -6,6 +6,12 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-09-27
+
+### Fixed
+
+- On macOS 27, clicking the Together block opens the module you clicked. Before, every click opened RAM, even on Network, CPU or the fan.
+
 ## [1.7.0] - 2026-09-27
 
 ### Added
