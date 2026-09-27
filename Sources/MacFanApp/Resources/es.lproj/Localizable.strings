@@ -91,7 +91,8 @@
 "settings.display.modules.visible" = "Mostrar en la barra de menús";
 "settings.display.modules.visible.caption" = "Haz clic en un módulo para mostrarlo u ocultarlo. Cada uno abre su propio detalle.";
 "settings.display.modules.spacing" = "Separación";
-"settings.display.modules.spacing.caption" = "Cuánto aire deja cada módulo en la barra de menús. Juntos los fusiona en un solo bloque, con clic por módulo igual.";
+"settings.display.modules.spacing.caption" = "Cuánto aire dejan los módulos en la barra de menús. Juntos (recomendado) los fusiona en un solo bloque, con clic por módulo igual.";
+"settings.display.modules.reorder_tip" = "Mantén ⌘ y arrastra cualquier ícono de MacGauge en la barra de menús para dejarlo donde quieras. En Juntos los módulos se mueven como un bloque; con los otros espaciados ordenas cada uno.";
 "settings.display.modules.graph" = "Largo de gráfica";
 "settings.display.modules.graph.caption" = "Largo de la gráfica de este módulo.";
 "settings.display.modules.color" = "Estilo de color";

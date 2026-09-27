@@ -91,7 +91,8 @@
 "settings.display.modules.visible" = "Show in the menu bar";
 "settings.display.modules.visible.caption" = "Click a module to show or hide it. Each one opens its own detail.";
 "settings.display.modules.spacing" = "Spacing";
-"settings.display.modules.spacing.caption" = "How much breathing room every module keeps in the menu bar. Together fuses them into one block, with clicks still per module.";
+"settings.display.modules.spacing.caption" = "How much breathing room the modules keep in the menu bar. Together (recommended) fuses them into one block, with clicks still per module.";
+"settings.display.modules.reorder_tip" = "Hold ⌘ and drag any MacGauge icon in the menu bar to place it where you like. Together moves the modules as one block; the other spacings let you order each one.";
 "settings.display.modules.graph" = "Graph length";
 "settings.display.modules.graph.caption" = "Length of this module's chart.";
 "settings.display.modules.color" = "Color style";

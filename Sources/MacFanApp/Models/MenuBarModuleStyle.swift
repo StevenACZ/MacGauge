@@ -4,9 +4,9 @@ import Foundation
 /// System modules available in the menu bar, in their fixed left-to-right
 /// order.
 enum SystemModuleKind: String, CaseIterable, Identifiable {
+    case network
     case cpu
     case memory
-    case network
 
     var id: String { rawValue }
 
@@ -32,18 +32,18 @@ enum ModuleSpacingLevel: String, CaseIterable, Identifiable {
     case regular
     case roomy
 
+    static let fusedModuleGap: CGFloat = 6
+
     var id: String { rawValue }
 
     var padding: CGFloat {
         switch self {
-        case .together:
+        case .together, .tight:
             return 0
-        case .tight:
-            return 1
         case .regular:
-            return 2
+            return 1
         case .roomy:
-            return 6
+            return 3
         }
     }
 

@@ -59,13 +59,7 @@ final class MenuBarModulesCoordinator {
         fusedController = nil
 
         // Creation order fixes the default left-to-right order to
-        // CPU · RAM · NET, always left of the fan item.
-        if modules.contains(.network), networkController == nil {
-            networkController = makeNetworkController()
-        } else if !modules.contains(.network) {
-            networkController = nil
-        }
-
+        // NET · CPU · RAM, always left of the fan item.
         if modules.contains(.memory), memoryController == nil {
             memoryController = makeMemoryController()
         } else if !modules.contains(.memory) {
@@ -76,6 +70,12 @@ final class MenuBarModulesCoordinator {
             cpuController = makeCPUController()
         } else if !modules.contains(.cpu) {
             cpuController = nil
+        }
+
+        if modules.contains(.network), networkController == nil {
+            networkController = makeNetworkController()
+        } else if !modules.contains(.network) {
+            networkController = nil
         }
     }
 

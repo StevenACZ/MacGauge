@@ -14,9 +14,9 @@ struct ModulesSection: View {
 
     private var moduleToggles: [ModuleToggle] {
         [
+            ModuleToggle(module: .network, titleKey: "settings.display.module_network", isOn: $settings.showsNetworkModule),
             ModuleToggle(module: .cpu, titleKey: "settings.display.module_cpu", isOn: $settings.showsCPUModule),
             ModuleToggle(module: .memory, titleKey: "settings.display.module_memory", isOn: $settings.showsMemoryModule),
-            ModuleToggle(module: .network, titleKey: "settings.display.module_network", isOn: $settings.showsNetworkModule),
         ]
     }
 
@@ -60,6 +60,8 @@ struct ModulesSection: View {
             ) { level in
                 SpacingSample(level: level)
             }
+
+            ReorderTip()
         }
         .animation(Theme.Anim.smooth, value: settings.enabledModules)
     }
@@ -116,16 +118,37 @@ private struct SpacingSample: View {
 
     private var gap: CGFloat {
         switch level {
-        case .together: return 1.5
-        case .tight: return 4
-        case .regular: return 7
-        case .roomy: return 11
+        case .together: return 3
+        case .tight: return 6
+        case .regular: return 7.5
+        case .roomy: return 10
         }
     }
 }
 
+private struct ReorderTip: View {
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "command")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+            Text("settings.display.modules.reorder_tip".localized)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Theme.accent.opacity(0.08))
+        )
+    }
+}
+
 /// All enabled modules side by side with the chosen spacing, approximating
-/// how the menu bar lays them out (Together fuses them with hairline gaps).
+/// how the menu bar lays them out (Together fuses them with small gaps).
 struct SimulatedModulesBarPreview: View {
     @ObservedObject var simulator: ModulePreviewSimulator
     @ObservedObject var settings: AppSettingsStore
@@ -138,7 +161,7 @@ struct SimulatedModulesBarPreview: View {
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 2)
         } else {
-            HStack(spacing: settings.moduleSpacing == .together ? 2 : 8) {
+            HStack(spacing: settings.moduleSpacing == .together ? ModuleSpacingLevel.fusedModuleGap : 14) {
                 ForEach(modules) { module in
                     segment(for: module)
                         .padding(.horizontal, settings.moduleSpacing.padding)

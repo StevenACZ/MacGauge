@@ -71,7 +71,7 @@ struct ModuleSegmentFramesKey: PreferenceKey {
 }
 
 /// All enabled modules fused into one status item (Together spacing): the
-/// same per-module labels laid side by side with a hairline gap, so even the
+/// same per-module labels laid side by side with a small gap, so even the
 /// system's own gap between separate items disappears. Each segment reports
 /// its frame so the controller routes clicks to the right detail popover.
 struct FusedModulesStatusLabel: View {
@@ -82,7 +82,7 @@ struct FusedModulesStatusLabel: View {
     private static let coordinateSpace = "fused-modules"
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: ModuleSpacingLevel.fusedModuleGap) {
             ForEach(modules) { module in
                 segment(for: module)
                     .background(
@@ -193,7 +193,7 @@ struct NetworkModuleSegment: View {
     let animated: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .trailing, spacing: 0) {
             rateRow(symbol: "arrow.up", rate: upload, tint: upTint)
             rateRow(symbol: "arrow.down", rate: download, tint: downTint)
         }
@@ -203,24 +203,29 @@ struct NetworkModuleSegment: View {
     private func rateRow(symbol: String, rate: Double?, tint: Color) -> some View {
         // Idle arrows dim so a glance shows which direction is moving data.
         let isActive = (rate ?? 0) >= 1_024
-        return HStack(spacing: 2) {
-            Image(systemName: symbol)
-                .font(.system(size: 6.5, weight: .bold))
-                .foregroundStyle(tint)
-                .shadow(color: AppearancePalette.menuBarHalo, radius: 1)
-                .opacity(isActive ? 1 : 0.4)
-                .animation(animated ? Theme.Anim.smooth : nil, value: isActive)
-                .animation(animated ? Theme.Anim.smooth : nil, value: tint)
-            ZStack(alignment: .leading) {
+        let text = AppFormatters.byteRateCompact(rate)
+        return ZStack(alignment: .trailing) {
+            HStack(spacing: 2) {
+                Image(systemName: symbol)
+                    .font(.system(size: 6.5, weight: .bold))
                 Text(verbatim: "888 MB/s")
-                    .hidden()
-                Text(AppFormatters.byteRateCompact(rate))
+            }
+            .hidden()
+            HStack(spacing: 2) {
+                Image(systemName: symbol)
+                    .font(.system(size: 6.5, weight: .bold))
+                    .foregroundStyle(tint)
+                    .shadow(color: AppearancePalette.menuBarHalo, radius: 1)
+                    .opacity(isActive ? 1 : 0.4)
+                    .animation(animated ? Theme.Anim.smooth : nil, value: isActive)
+                    .animation(animated ? Theme.Anim.smooth : nil, value: tint)
+                Text(text)
                     .contentTransition(.numericText())
                     .lineLimit(1)
             }
-            .font(.system(size: 8.5, weight: .medium))
-            .monospacedDigit()
-            .animation(animated ? Theme.Anim.smooth : nil, value: AppFormatters.byteRateCompact(rate))
         }
+        .font(.system(size: 8.5, weight: .medium))
+        .monospacedDigit()
+        .animation(animated ? Theme.Anim.smooth : nil, value: text)
     }
 }

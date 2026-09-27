@@ -11,6 +11,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - MacGauge adopts the macOS 26 Liquid Glass design. The Settings tabs and the Close button sit in glass controls at the top of the window, and the main actions use glass buttons. Toggles, sliders, menus and window corners follow the new system look. macOS 13 to 15 keep the previous look.
 - Settings has a new look: a taller window with the tabs in the toolbar, and pictures instead of drop-down menus. You now pick color styles, graph length, spacing and fan mode by clicking a tile that previews the result.
 - Settings › Display: every sidebar section gets its own colored icon, and you show or hide menu bar modules by clicking their tiles.
+- New installs show the menu bar modules Together by default, in the order Network, CPU, RAM, with a little more room between them. Tight, Normal and Roomy sit closer than before, and network rates line up on the right so the gaps stay even.
+- Settings › Display › Modules explains how to hold ⌘ and drag MacGauge's icons to move them and set their order.
 - Settings › Control: Manual and Curve are tiles that show your own target speed or curve, the manual speed has a bigger readout with a smoother slider, and the curve editor is taller.
 
 ### Fixed
