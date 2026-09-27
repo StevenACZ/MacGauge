@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.7.2] - 2026-09-27
+
+### Fixed
+
+- The automatic updates caption in Settings > General tells the truth: MacGauge checks GitHub Releases every 30 minutes and when your Mac wakes, not once a day.
 
 ## [1.7.1] - 2026-09-27
 

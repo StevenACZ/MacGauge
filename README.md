@@ -70,7 +70,7 @@ Download the latest notarized DMG from
 MacGauge to Applications.
 
 After the first install, MacGauge keeps itself up to date: it checks GitHub
-Releases once a day and offers new versions as a one-click install from the
+Releases every 30 minutes and when your Mac wakes, and offers new versions as a one-click install from the
 menu bar popover (EdDSA-signed updates via Sparkle).
 
 ## Build from source

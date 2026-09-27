@@ -3,7 +3,7 @@ import Foundation
 import Sparkle
 import os
 
-/// In-app updates via Sparkle. The scheduled daily check only surfaces a
+/// In-app updates via Sparkle. The scheduled check only surfaces a
 /// pending update (popover card + Settings status); downloading, installing,
 /// and relaunching happen when the user clicks Install, with progress
 /// mirrored in `phase`. Scheduled-check failures stay silent; only a
