@@ -66,4 +66,13 @@ extension View {
     func cardChrome(radius: CGFloat, fill: Color, stroke: Color) -> some View {
         modifier(CardChrome(radius: radius, fill: fill, stroke: stroke))
     }
+
+    @ViewBuilder
+    func prominentActionStyle() -> some View {
+        if #available(macOS 26.0, *) {
+            buttonStyle(.glassProminent)
+        } else {
+            buttonStyle(.borderedProminent)
+        }
+    }
 }

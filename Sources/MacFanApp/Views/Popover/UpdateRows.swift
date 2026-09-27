@@ -152,7 +152,7 @@ private struct UpdateCardButton: View {
                 .padding(.vertical, 6)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.borderedProminent)
+        .prominentActionStyle()
         .tint(Theme.accent)
     }
 }

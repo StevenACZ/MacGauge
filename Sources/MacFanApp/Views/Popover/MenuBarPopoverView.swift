@@ -48,6 +48,7 @@ struct MenuBarPopoverView: View {
         .frame(width: Theme.Layout.panelWidth)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color(nsColor: .windowBackgroundColor))
+        .tint(Theme.accent)
         .animation(Theme.Anim.mode, value: settings.controlMode)
         .animation(Theme.Anim.mode, value: model.controlContested)
         .animation(Theme.Anim.mode, value: model.curveSuspended)
@@ -371,24 +372,25 @@ struct StatusBanner: View {
     var action: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(alignment: .firstTextBaseline, spacing: 9) {
             if showsProgress {
                 ProgressView()
                     .controlSize(.small)
             } else {
                 Image(systemName: icon)
             }
-            Text(message)
-                .font(.callout)
-                .lineLimit(4)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .buttonStyle(.borderless)
-                    .font(.callout.weight(.semibold))
-                    .disabled(actionDisabled)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(message)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let actionTitle, let action {
+                    Button(actionTitle, action: action)
+                        .buttonStyle(.borderless)
+                        .font(.callout.weight(.semibold))
+                        .disabled(actionDisabled)
+                }
             }
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

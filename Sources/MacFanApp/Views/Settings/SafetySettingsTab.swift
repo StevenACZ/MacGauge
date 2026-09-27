@@ -215,7 +215,7 @@ private struct HelperStatusCard: View {
                 } label: {
                     Label(actionTitle, systemImage: actionIcon)
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentActionStyle()
                 .disabled(actionDisabled)
             }
         }

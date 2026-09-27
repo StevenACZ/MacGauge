@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             centerSettingsWindow(window)
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            clearInitialFocus(of: window)
             return
         }
 
@@ -82,6 +83,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowController = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+        clearInitialFocus(of: window)
+    }
+
+    /// Every tab stays mounted, so AppKit would hand the keyboard to the first
+    /// text field of a hidden tab and typed digits would edit it unseen.
+    private func clearInitialFocus(of window: NSWindow) {
+        DispatchQueue.main.async {
+            window.makeFirstResponder(nil)
+        }
     }
 
     private func makeSettingsContent(tab: SettingsTab) -> NSViewController {

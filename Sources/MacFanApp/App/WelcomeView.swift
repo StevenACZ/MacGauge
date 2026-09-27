@@ -45,12 +45,9 @@ struct WelcomeView: View {
                 Text("welcome.start".localized)
                     .font(.callout.weight(.semibold))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 10))
-                    .foregroundStyle(.white)
-                    .contentShape(RoundedRectangle(cornerRadius: 10))
             }
-            .buttonStyle(.plain)
+            .prominentActionStyle()
+            .controlSize(.large)
             .keyboardShortcut(.defaultAction)
         }
         .padding(.horizontal, 24)

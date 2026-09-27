@@ -150,11 +150,10 @@ final class StatusItemController: NSObject {
         ]
         let title = NSAttributedString(string: " \(temperature)", attributes: attributes)
         if let button = statusItem.button {
-            // The monitor ticks every second; skip the title reassignment and
-            // the fitting-size pass when nothing visible changed.
+            // The monitor ticks every second; skip the title reassignment when
+            // nothing visible changed.
             if !button.attributedTitle.isEqual(title) {
                 button.attributedTitle = title
-                statusItem.length = min(ceil(button.fittingSize.width), 84)
             }
             let image = FanIconRenderer.image(color: color, rotation: rotation)
             if button.image !== image {

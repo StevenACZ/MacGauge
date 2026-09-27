@@ -8,6 +8,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- MacGauge adopts the macOS 26 Liquid Glass design. The Settings tabs and the Close button sit in glass controls at the top of the window, and the main actions use glass buttons. Toggles, sliders, menus and window corners follow the new system look. macOS 13 to 15 keep the previous look.
 - Settings has a new look: a taller window with the tabs in the toolbar, and pictures instead of drop-down menus. You now pick color styles, graph length, spacing and fan mode by clicking a tile that previews the result.
 - Settings › Display: every sidebar section gets its own colored icon, and you show or hide menu bar modules by clicking their tiles.
 - Settings › Control: Manual and Curve are tiles that show your own target speed or curve, the manual speed has a bigger readout with a smoother slider, and the curve editor is taller.
@@ -16,6 +17,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - The menu bar stays readable over light, dark and mid-tone wallpapers such as a daytime sky, in both light and dark appearance. The CPU and RAM titles take the chart color instead of a faint gray, charts sit on a darker plate, titles and network arrows get a soft outline, and dark tints are brightened to stand out.
 - The fan temperature colors adapt to the menu bar the same way, and the Gray style is a readable neutral instead of disappearing into the wallpaper.
+- Opening Settings no longer gives the keyboard to a text field on a hidden tab, so typing can't change a temperature threshold by accident.
+- The popover's helper notice shows the full instructions with its button underneath, and the Manual/Curve switch uses the app's teal accent.
 
 ## [1.6.5] - 2026-09-18
 
