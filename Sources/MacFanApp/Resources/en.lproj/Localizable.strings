@@ -228,7 +228,7 @@
 
 /* In-app updates (Sparkle) */
 "settings.general.auto_updates" = "Check for updates automatically";
-"settings.general.auto_updates.caption" = "Checks GitHub Releases once a day. Nothing is sent.";
+"settings.general.auto_updates.caption" = "Checks GitHub Releases every 30 minutes and when your Mac wakes. Nothing about your Mac is sent.";
 "settings.general.updates" = "Updates";
 "settings.general.updates.current" = "MacGauge v%@";
 "settings.general.updates.available" = "Version %@ is available";
