@@ -106,9 +106,8 @@ final class FanMonitor: ObservableObject {
 
     nonisolated private static func readSnapshot(using pool: SMCPool) -> FanSnapshot {
         do {
-            return try pool.withClient { smc in
+            return try pool.withClient { smc, temperatureReader in
                 let fanController = FanController(smc: smc)
-                let temperatureReader = TemperatureReader(smc: smc)
                 let fans = try fanController.allFans()
                 return FanSnapshot(
                     model: SystemInfo.hardwareModel,
@@ -174,18 +173,22 @@ extension FanSnapshot {
 
 final class SMCPool: @unchecked Sendable {
     private var client: SMCClient?
+    // Lives with the client so the temperature key discovery, thousands of
+    // kernel calls on Macs without the preferred keys, runs once per client
+    // instead of on every poll.
+    private var temperatureReader: TemperatureReader?
     private let lock = NSLock()
 
-    func withClient<T>(_ body: (SMCClient) throws -> T) throws -> T {
+    func withClient<T>(_ body: (SMCClient, TemperatureReader) throws -> T) throws -> T {
         let reused = try clientOrReuse()
         do {
-            return try body(reused)
+            return try body(reused.client, reused.temperatureReader)
         } catch let error as SMCError {
             switch error {
             case .ioKit, .openFailed, .driverNotFound:
                 invalidate()
                 let fresh = try clientOrReuse()
-                return try body(fresh)
+                return try body(fresh.client, fresh.temperatureReader)
             default:
                 throw error
             }
@@ -195,18 +198,23 @@ final class SMCPool: @unchecked Sendable {
     func invalidate() {
         lock.lock()
         client = nil
+        temperatureReader = nil
         lock.unlock()
     }
 
-    private func clientOrReuse() throws -> SMCClient {
+    private func clientOrReuse() throws -> (client: SMCClient, temperatureReader: TemperatureReader) {
         lock.lock()
-        let existing = client
+        if let client, let temperatureReader {
+            lock.unlock()
+            return (client, temperatureReader)
+        }
         lock.unlock()
-        if let existing { return existing }
         let new = try SMCClient()
+        let reader = TemperatureReader(smc: new)
         lock.lock()
         client = new
+        temperatureReader = reader
         lock.unlock()
-        return new
+        return (new, reader)
     }
 }

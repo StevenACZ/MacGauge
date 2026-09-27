@@ -25,6 +25,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The fan temperature colors adapt to the menu bar the same way, and the Gray style is a readable neutral instead of disappearing into the wallpaper.
 - Opening Settings no longer gives the keyboard to a text field on a hidden tab, so typing can't change a temperature threshold by accident.
 - The popover's helper notice shows the full instructions with its button underneath, and the Manual/Curve switch uses the app's teal accent.
+- MacGauge uses far less CPU on Macs whose temperature sensors have other names, such as M1 models. It now looks for the sensors once instead of on every reading.
+- Full mode no longer grows its memory while it runs. The rolling digits in the menu bar left drawing memory behind at about 1 MB per second, so the numbers now change in place.
 
 ## [1.6.5] - 2026-09-18
 

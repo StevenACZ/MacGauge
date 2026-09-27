@@ -154,15 +154,16 @@ struct PercentModuleSegment: View {
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(color)
                     .shadow(color: AppearancePalette.menuBarHalo, radius: 1)
+                // No rolling digits here: the status item draws text on the
+                // CPU, and every in-between frame of a numericText transition
+                // left glyph bitmaps behind, about 1 MB/s in Full mode.
                 ZStack {
                     Text(verbatim: "100%")
                         .hidden()
                     Text(percent.map { "\(Int($0.rounded()))%" } ?? "--%")
-                        .contentTransition(.numericText())
                 }
                 .font(.system(size: 10.5, weight: .semibold))
                 .monospacedDigit()
-                .animation(animated ? Theme.Anim.smooth : nil, value: percent.map { Int($0.rounded()) })
             }
 
             SparklineChart(
@@ -220,12 +221,10 @@ struct NetworkModuleSegment: View {
                     .animation(animated ? Theme.Anim.smooth : nil, value: isActive)
                     .animation(animated ? Theme.Anim.smooth : nil, value: tint)
                 Text(text)
-                    .contentTransition(.numericText())
                     .lineLimit(1)
             }
         }
         .font(.system(size: 8.5, weight: .medium))
         .monospacedDigit()
-        .animation(animated ? Theme.Anim.smooth : nil, value: text)
     }
 }
