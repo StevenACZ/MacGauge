@@ -18,6 +18,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings › Display › Modules previews the fan item at the end of the bar, and explains how to hold ⌘ and drag MacGauge's icons to move them and set their order.
 - Settings › Control: the Manual and Curve choices are compact rows that take far less height.
 - Settings › Control: Manual and Curve show your own target speed or curve, the manual speed has a bigger readout with a smoother slider, and the curve editor is taller.
+- In Full mode the menu bar fan turns slowly when your Mac is calm and speeds up as the fans, CPU or temperature climb, up to a fast spin under heavy load.
 
 ### Fixed
 

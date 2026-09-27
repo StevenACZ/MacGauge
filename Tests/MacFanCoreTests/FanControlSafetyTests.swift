@@ -184,47 +184,60 @@ private func makeFan(index: Int = 0, minRPM: Double?, maxRPM: Double?) -> FanInf
     }
 }
 
-@Test func fanAnimationSpeedFollowsEffectiveRPM() {
+private func fan(current: Double?, target: Double? = nil, min: Double?, max: Double?) -> FanInfo {
+    FanInfo(index: 0, name: nil, currentRPM: current, minRPM: min, maxRPM: max, targetRPM: target, mode: nil, modeKey: nil)
+}
+
+@Test func fanAnimationTurnsSlowlyWhenTheMacIsCalm() {
     let rules = FanAnimationRules()
 
-    #expect(rules.rotationDegreesPerSecond(currentRPM: 1_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000) == nil)
+    #expect(rules.rotationDegreesPerSecond(fan: nil, cpuPercent: nil, temperatureCelsius: nil) == FanAnimationRules.restingDegreesPerSecond)
+    #expect(
+        rules.rotationDegreesPerSecond(fan: fan(current: 0, min: 1_000, max: 5_000), cpuPercent: 0, temperatureCelsius: 38)
+            == FanAnimationRules.restingDegreesPerSecond
+    )
+}
 
-    let low = rules.rotationDegreesPerSecond(currentRPM: 1_500, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000)
-    let mid = rules.rotationDegreesPerSecond(currentRPM: 3_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000)
-    let high = rules.rotationDegreesPerSecond(currentRPM: 5_000, targetRPM: nil, minRPM: 1_000, maxRPM: 5_000)
+@Test func fanAnimationSpeedsUpWithLoad() {
+    let rules = FanAnimationRules()
 
-    #expect(low != nil && mid != nil && high != nil)
-    if let low, let mid, let high {
-        #expect(low > 0)
-        #expect(low < mid)
-        #expect(mid < high)
-        #expect(high == 400)
+    let calm = rules.rotationDegreesPerSecond(fan: nil, cpuPercent: 10, temperatureCelsius: 40)
+    let busy = rules.rotationDegreesPerSecond(fan: nil, cpuPercent: 50, temperatureCelsius: 40)
+    let stressed = rules.rotationDegreesPerSecond(fan: nil, cpuPercent: 100, temperatureCelsius: 40)
+
+    #expect(calm > FanAnimationRules.restingDegreesPerSecond)
+    #expect(calm < busy)
+    #expect(busy < stressed)
+    #expect(stressed == FanAnimationRules.maximumDegreesPerSecond)
+}
+
+@Test func fanAnimationFollowsTheBusiestSignal() {
+    let rules = FanAnimationRules()
+
+    let hotButIdle = rules.rotationDegreesPerSecond(fan: nil, cpuPercent: 5, temperatureCelsius: 90)
+    let fanFlatOut = rules.rotationDegreesPerSecond(fan: fan(current: 5_000, min: 1_000, max: 5_000), cpuPercent: 5, temperatureCelsius: 40)
+    let fanFromTarget = rules.rotationDegreesPerSecond(
+        fan: fan(current: nil, target: 5_000, min: 1_000, max: 5_000),
+        cpuPercent: nil,
+        temperatureCelsius: nil
+    )
+
+    #expect(hotButIdle == FanAnimationRules.maximumDegreesPerSecond)
+    #expect(fanFlatOut == FanAnimationRules.maximumDegreesPerSecond)
+    #expect(fanFromTarget == FanAnimationRules.maximumDegreesPerSecond)
+}
+
+@Test func fanAnimationIgnoresUnusableFanLimits() {
+    let rules = FanAnimationRules()
+    let resting = FanAnimationRules.restingDegreesPerSecond
+
+    for unusableMaximum in [nil, 0.0] {
+        let fanWithoutRange = fan(current: 3_000, min: 1_000, max: unusableMaximum)
+        #expect(rules.rotationDegreesPerSecond(fan: fanWithoutRange, cpuPercent: nil, temperatureCelsius: nil) == resting)
     }
-}
-
-@Test func fanAnimationUsesTargetRPMWhenCurrentRPMIsUnavailable() {
-    let rules = FanAnimationRules()
-
-    #expect(rules.rotationDegreesPerSecond(currentRPM: nil, targetRPM: 5_000, minRPM: 1_000, maxRPM: 5_000) == 400)
-}
-
-@Test func fanAnimationRestsWithoutUsableMaximum() {
-    let rules = FanAnimationRules()
-
-    #expect(rules.rotationDegreesPerSecond(currentRPM: 3_000, targetRPM: nil, minRPM: 1_000, maxRPM: nil) == nil)
-    #expect(rules.rotationDegreesPerSecond(currentRPM: 3_000, targetRPM: nil, minRPM: 1_000, maxRPM: 0) == nil)
-}
-
-@Test func fanAnimationToleratesInvertedLimits() {
-    let rules = FanAnimationRules()
-
-    #expect(rules.rotationDegreesPerSecond(currentRPM: 5_000, targetRPM: nil, minRPM: 6_000, maxRPM: 5_000) == nil)
-    #expect(rules.rotationDegreesPerSecond(currentRPM: 5_500, targetRPM: nil, minRPM: 6_000, maxRPM: 5_000) == 400)
-}
-
-@Test func fanAnimationRestsAtOrBelowNormalizedThreshold() {
-    let rules = FanAnimationRules()
-
-    #expect(rules.rotationDegreesPerSecond(currentRPM: 200, targetRPM: nil, minRPM: nil, maxRPM: 5_000) == nil)
-    #expect(rules.rotationDegreesPerSecond(currentRPM: 201, targetRPM: nil, minRPM: nil, maxRPM: 5_000) != nil)
+    #expect(
+        rules.rotationDegreesPerSecond(fan: fan(current: 5_500, min: 6_000, max: 5_000), cpuPercent: nil, temperatureCelsius: nil)
+            == FanAnimationRules.maximumDegreesPerSecond
+    )
+    #expect(rules.rotationDegreesPerSecond(fan: nil, cpuPercent: .nan, temperatureCelsius: .infinity) == resting)
 }

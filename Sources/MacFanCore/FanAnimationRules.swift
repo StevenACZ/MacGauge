@@ -1,20 +1,35 @@
 import Foundation
 
 public struct FanAnimationRules: Sendable {
+    public static let restingDegreesPerSecond: Double = 45
+    public static let maximumDegreesPerSecond: Double = 720
+
     public init() {}
 
-    /// Continuous angular speed for the menu bar fan icon, derived from the
-    /// fan's position inside its RPM range. `nil` means the fan is effectively
-    /// stopped and the icon should rest. The exponent keeps low speeds calm
-    /// while still reaching a fast spin near the maximum.
-    public func rotationDegreesPerSecond(currentRPM: Double?, targetRPM: Double?, minRPM: Double?, maxRPM: Double?) -> Double? {
-        guard let maxRPM, maxRPM > 0 else { return nil }
-        guard let rpm = currentRPM ?? targetRPM, rpm.isFinite, rpm > 0 else { return nil }
+    public func rotationDegreesPerSecond(fan: FanInfo?, cpuPercent: Double?, temperatureCelsius: Double?) -> Double {
+        let load = max(fanLoad(fan), cpuLoad(cpuPercent), heatLoad(temperatureCelsius))
+        let range = Self.maximumDegreesPerSecond - Self.restingDegreesPerSecond
+        return Self.restingDegreesPerSecond + range * pow(load, 1.4)
+    }
 
-        let minimum = minRPM.map { max(0, min($0, maxRPM)) } ?? 0
-        let normalized = max(0, min(1, (rpm - minimum) / max(1, maxRPM - minimum)))
-        guard normalized > 0.04 else { return nil }
+    func fanLoad(_ fan: FanInfo?) -> Double {
+        guard let fan, let maxRPM = fan.maxRPM, maxRPM > 0 else { return 0 }
+        guard let rpm = fan.currentRPM ?? fan.targetRPM, rpm.isFinite, rpm > 0 else { return 0 }
+        let minimum = fan.minRPM.map { max(0, min($0, maxRPM)) } ?? 0
+        return clamped((rpm - minimum) / max(1, maxRPM - minimum))
+    }
 
-        return 20 + 380 * pow(normalized, 1.6)
+    func cpuLoad(_ percent: Double?) -> Double {
+        guard let percent, percent.isFinite else { return 0 }
+        return clamped(percent / 100)
+    }
+
+    func heatLoad(_ celsius: Double?) -> Double {
+        guard let celsius, celsius.isFinite else { return 0 }
+        return clamped((celsius - 50) / 40)
+    }
+
+    private func clamped(_ value: Double) -> Double {
+        max(0, min(1, value))
     }
 }

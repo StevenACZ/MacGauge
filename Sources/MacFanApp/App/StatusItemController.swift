@@ -64,6 +64,15 @@ final class StatusItemController: NSObject {
             }
             .store(in: &cancellables)
 
+        model.systemStats.$snapshot
+            .map(\.cpuPercent)
+            .removeDuplicates()
+            .sink { [weak self] cpuPercent in
+                guard let self else { return }
+                self.updateAnimation(snapshot: self.model.monitor.snapshot, cpuPercent: cpuPercent)
+            }
+            .store(in: &cancellables)
+
         Publishers.MergeMany(
             model.settings.$temperatureUnit.map { _ in () }.eraseToAnyPublisher(),
             model.settings.$normalColorHex.map { _ in () }.eraseToAnyPublisher(),
@@ -279,8 +288,11 @@ final class StatusItemController: NSObject {
         updateAnimation(snapshot: snapshot)
     }
 
-    private func updateAnimation(snapshot: FanSnapshot, mode: PerformanceMode? = nil) {
-        let fan = snapshot.fan
+    private func updateAnimation(
+        snapshot: FanSnapshot,
+        mode: PerformanceMode? = nil,
+        cpuPercent: Double?? = nil
+    ) {
         // Every frame that lands a new image makes AppKit re-snapshot the
         // status item (several ms each), so the continuous spin is a Full
         // luxury; Efficient keeps the icon still and lets color carry state.
@@ -292,11 +304,10 @@ final class StatusItemController: NSObject {
         targetRotationSpeed =
             spins
             ? animationRules.rotationDegreesPerSecond(
-                currentRPM: fan?.currentRPM,
-                targetRPM: fan?.targetRPM,
-                minRPM: fan?.minRPM,
-                maxRPM: fan?.maxRPM
-            ) ?? 0
+                fan: snapshot.fan,
+                cpuPercent: cpuPercent ?? model.systemStats.snapshot.cpuPercent,
+                temperatureCelsius: snapshot.temperatureCelsius
+            )
             : 0
 
         if targetRotationSpeed > 0 || rotationSpeed > 0 {
@@ -304,10 +315,27 @@ final class StatusItemController: NSObject {
         }
     }
 
+    /// Slow spins need fewer frames to stay smooth, and each frame costs a
+    /// status item redraw.
+    private static func frameInterval(forSpeed speed: Double) -> TimeInterval {
+        switch speed {
+        case ..<90: return 1.0 / 15.0
+        case ..<180: return 1.0 / 20.0
+        default: return 1.0 / 30.0
+        }
+    }
+
     private func startAnimationTimerIfNeeded() {
-        guard animationTimer == nil, !displayAsleep else { return }
-        lastFrameTime = nil
-        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+        guard !displayAsleep else { return }
+        let interval = Self.frameInterval(forSpeed: max(targetRotationSpeed, rotationSpeed))
+        if let animationTimer {
+            guard animationTimer.timeInterval != interval else { return }
+            animationTimer.invalidate()
+            self.animationTimer = nil
+        } else {
+            lastFrameTime = nil
+        }
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.stepAnimationFrame()
             }
@@ -330,7 +358,7 @@ final class StatusItemController: NSObject {
         let elapsed = min(max(now - (lastFrameTime ?? now), 0), 0.1)
         lastFrameTime = now
 
-        let blend = 1 - exp(-elapsed * 4)
+        let blend = 1 - exp(-elapsed * 1.5)
         rotationSpeed += (targetRotationSpeed - rotationSpeed) * blend
 
         if targetRotationSpeed <= 0, rotationSpeed < 4 {

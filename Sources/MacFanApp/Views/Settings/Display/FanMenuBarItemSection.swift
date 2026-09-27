@@ -144,13 +144,11 @@ struct FanMenuBarItemLivePreview: View {
     private var previewDegreesPerSecond: Double {
         // Mirrors the real status item: Efficient keeps the icon still.
         guard settings.animateFanIcon, settings.performanceMode == .full else { return 0 }
-        let fan = monitor.snapshot.fan
         return animationRules.rotationDegreesPerSecond(
-            currentRPM: fan?.currentRPM,
-            targetRPM: fan?.targetRPM,
-            minRPM: fan?.minRPM,
-            maxRPM: fan?.maxRPM
-        ) ?? 0
+            fan: monitor.snapshot.fan,
+            cpuPercent: nil,
+            temperatureCelsius: monitor.snapshot.temperatureCelsius
+        )
     }
 }
 
