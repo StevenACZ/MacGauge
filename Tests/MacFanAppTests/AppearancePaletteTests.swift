@@ -54,7 +54,7 @@ final class AppearancePaletteTests: XCTestCase {
     func testDarkMenuBarLiftsDarkTintsToTheFloor() {
         for hex in ["#5E5CE6", "#0A84FF", "#FF453A"] {
             let lifted = AppearancePalette.menuBarVariant(of: NSColor(hexString: hex)!, isDark: true)
-            XCTAssertEqual(AppearancePalette.relativeLuminance(of: lifted), 0.3, accuracy: 0.01, hex)
+            XCTAssertEqual(AppearancePalette.relativeLuminance(of: lifted), 0.42, accuracy: 0.01, hex)
         }
     }
 
@@ -77,7 +77,7 @@ final class AppearancePaletteTests: XCTestCase {
         let color = AppearancePalette.menuBarAdapted(NSColor(hexString: "#5E5CE6")!)
         let onDarkBar = resolve(color, in: .vibrantDark)
         let onLightBar = resolve(color, in: .vibrantLight)
-        XCTAssertGreaterThan(AppearancePalette.relativeLuminance(of: onDarkBar), 0.29)
+        XCTAssertGreaterThan(AppearancePalette.relativeLuminance(of: onDarkBar), 0.41)
         XCTAssertLessThanOrEqual(AppearancePalette.relativeLuminance(of: onLightBar), 0.19)
     }
 

@@ -9,7 +9,10 @@ enum AppearancePalette {
     private static let achromaticSaturationLimit: CGFloat = 0.1
     /// Luminance floor for tints on a white-glyph menu bar: macOS 26 draws the
     /// bar straight on the wallpaper, so dark tints vanish on mid-tone photos.
-    private static let darkMenuBarLuminanceFloor: Double = 0.3
+    private static let darkMenuBarLuminanceFloor: Double = 0.42
+
+    static let menuBarChartPlate = dynamic(light: Color.black.opacity(0.1), dark: Color.black.opacity(0.3))
+    static let menuBarHalo = dynamic(light: Color.white.opacity(0.7), dark: Color.black.opacity(0.55))
 
     static let processBarTrack = dynamic(light: Color.primary.opacity(0.16), dark: Color.primary.opacity(0.07))
     static let sliderKnobStroke = dynamic(light: Color.black.opacity(0.22), dark: Color.black.opacity(0.08))

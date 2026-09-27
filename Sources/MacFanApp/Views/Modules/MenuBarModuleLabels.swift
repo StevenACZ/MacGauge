@@ -153,6 +153,7 @@ struct PercentModuleSegment: View {
                 Text(title)
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(color)
+                    .shadow(color: AppearancePalette.menuBarHalo, radius: 1)
                 ZStack {
                     Text(verbatim: "100%")
                         .hidden()
@@ -175,7 +176,7 @@ struct PercentModuleSegment: View {
                 animated: animated
             )
             .frame(width: graphWidth, height: 15)
-            .background(Color.primary.opacity(0.13))
+            .background(AppearancePalette.menuBarChartPlate)
             .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
             .animation(animated ? Theme.Anim.smooth : nil, value: color)
         }
@@ -206,6 +207,7 @@ struct NetworkModuleSegment: View {
             Image(systemName: symbol)
                 .font(.system(size: 6.5, weight: .bold))
                 .foregroundStyle(tint)
+                .shadow(color: AppearancePalette.menuBarHalo, radius: 1)
                 .opacity(isActive ? 1 : 0.4)
                 .animation(animated ? Theme.Anim.smooth : nil, value: isActive)
                 .animation(animated ? Theme.Anim.smooth : nil, value: tint)

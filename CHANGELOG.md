@@ -14,7 +14,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- The menu bar stays readable over light and mid-tone wallpapers in both light and dark appearance. The CPU and RAM titles take the chart color instead of a faint gray, charts sit on a subtle plate, and dark tints are brightened just enough to stand out.
+- The menu bar stays readable over light, dark and mid-tone wallpapers such as a daytime sky, in both light and dark appearance. The CPU and RAM titles take the chart color instead of a faint gray, charts sit on a darker plate, titles and network arrows get a soft outline, and dark tints are brightened to stand out.
 - The fan temperature colors adapt to the menu bar the same way, and the Gray style is a readable neutral instead of disappearing into the wallpaper.
 
 ## [1.6.5] - 2026-09-18

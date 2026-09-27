@@ -145,7 +145,7 @@ struct SampleSparkline: View {
                 .stroke(style, style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round))
         }
         .frame(width: width, height: 15)
-        .background(Color.primary.opacity(0.13))
+        .background(AppearancePalette.menuBarChartPlate)
         .clipShape(RoundedRectangle(cornerRadius: 2.5, style: .continuous))
     }
 }
@@ -161,6 +161,7 @@ struct SamplePercentModule: View {
                 Text(title)
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(style)
+                    .shadow(color: AppearancePalette.menuBarHalo, radius: 1)
                 Text(verbatim: "64%")
                     .font(.system(size: 10.5, weight: .semibold))
                     .monospacedDigit()
