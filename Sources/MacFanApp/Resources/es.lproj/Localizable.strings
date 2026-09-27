@@ -16,8 +16,8 @@
 /* Banners */
 "banner.contested" = "Las RPM del ventilador no coinciden con el objetivo solicitado";
 "banner.fanless" = "Esta Mac tiene enfriamiento pasivo y no cuenta con ventiladores controlables.";
-"banner.action.open_login_items" = "Abrir Ítems de inicio";
-"banner.action.authorize" = "Autorizar";
+"banner.action.show_me_how" = "Muéstrame cómo";
+"banner.action.set_up" = "Configurar";
 "banner.action.fix" = "Reparar";
 "banner.curve_suspended" = "Curva en pausa: macOS vuelve a controlar los ventiladores.";
 "banner.action.resume_curve" = "Reanudar curva";
@@ -132,7 +132,6 @@
 "settings.safety.restore.caption" = "Devuelve los ventiladores al control automático del sistema de inmediato, como si MacGauge no estuviera corriendo.";
 "settings.safety.restore_automatic" = "Restaurar automático ahora";
 "settings.safety.fix_helper" = "Reparar asistente";
-"settings.safety.authorize" = "Autorizar";
 
 /* Color presets (accessibility) */
 "color.white" = "Blanco";
@@ -156,7 +155,7 @@
 "helper.status.checking" = "Comprobando el asistente…";
 "helper.status.ready" = "Asistente listo";
 "helper.status.needs_authorization" = "Autoriza el asistente para habilitar el control de ventiladores";
-"helper.status.needs_approval" = "El control de ventiladores necesita el asistente en segundo plano de MacGauge.\nActívalo en Configuración del Sistema → General → Ítems de inicio y extensiones → Actividad de apps en segundo plano → MacGauge.";
+"helper.status.needs_approval" = "El control de ventiladores espera tu aprobación en Configuración del Sistema.";
 "helper.status.unavailable" = "El asistente no responde; se está recuperando automáticamente";
 "helper.status.stale" = "El asistente está desactualizado; se está recargando automáticamente";
 "helper.status.reloading" = "Recargando el asistente…";
@@ -245,13 +244,39 @@
 "settings.general.updates.release_notes" = "Ver notas de la versión";
 
 "welcome.title" = "Bienvenido a MacGauge";
-"welcome.subtitle" = "Tu Mac, de un vistazo.";
-"welcome.monitoring.title" = "El monitoreo está listo";
-"welcome.monitoring.body" = "Consulta CPU, memoria, red y las lecturas disponibles de los ventiladores en la barra de menús. No necesitas autorizar el control de ventiladores.";
-"welcome.optional.title" = "Control de ventiladores · Opcional";
-"welcome.optional.body" = "¿Quieres ajustar los ventiladores? Revisa el estado del servicio y los pasos en Seguridad. La autorización de macOS solo es necesaria para controlarlos.";
-"welcome.optional.action" = "Revisar configuración…";
-"welcome.start" = "Empezar a monitorear";
+"welcome.subtitle" = "Una configuración rápida y listo.";
+"welcome.step_count" = "Paso %d de %d";
+"welcome.continue" = "Continuar";
+"welcome.skip" = "Omitir";
+"welcome.not_now" = "Ahora no";
+"welcome.close" = "Cerrar";
+"welcome.done_button" = "Listo";
+"welcome.fan.setup_title" = "Activa el control de ventiladores";
+"welcome.fan.setup_subtitle" = "Un interruptor en Configuración del Sistema y MacGauge podrá manejar tus ventiladores.";
+"welcome.fan.title" = "Control de ventiladores";
+"welcome.fan.body" = "MacGauge controla los ventiladores con un pequeño asistente, y macOS te pide permitirlo una vez. El monitoreo ya funciona sin él.";
+"welcome.fan.what_happens" = "Haz clic en Permitir control de ventiladores. Se abrirá Configuración del Sistema: activa MacGauge en “%@” e ingresa tu contraseña.";
+"welcome.fan.waiting" = "En Configuración del Sistema, activa MacGauge en “%@”. Esta ventana se actualiza en cuanto lo hagas.";
+"welcome.fan.working" = "Comprobando el asistente…";
+"welcome.fan.ready" = "El control de ventiladores está activo.";
+"welcome.fan.allow" = "Permitir control de ventiladores";
+"welcome.fan.open_settings" = "Abrir Configuración del Sistema";
+"welcome.login.title" = "Abrir al iniciar sesión";
+"welcome.login.body" = "Mantén MacGauge en la barra de menús cada vez que enciendas tu Mac. Puedes cambiarlo después en Configuración → General.";
+"welcome.login.enable" = "Abrir al iniciar sesión";
+"welcome.login.enabled" = "MacGauge se abrirá al iniciar sesión.";
+"welcome.done.title" = "Todo listo";
+"welcome.done.body" = "MacGauge vive en tu barra de menús. Algunas cosas útiles:";
+"welcome.done.fan" = "Haz clic en el ventilador de la barra de menús para ver modos, velocidad y temperatura.";
+"welcome.done.modules" = "Elige qué lecturas mostrar en Configuración → Pantalla.";
+"welcome.done.drag" = "Mantén ⌘ y arrastra cualquier ítem para moverlo en la barra de menús.";
+"guide.login_items" = "Ítems de inicio y extensiones";
+"guide.background_activity" = "Actividad de apps en segundo plano";
+"guide.open_at_login" = "Abrir al iniciar sesión";
+"guide.login_accessibility" = "Configuración del Sistema, Ítems de inicio. MacGauge aparece en %@ cuando se abre al iniciar sesión.";
+"guide.password" = "Contraseña";
+"guide.accessibility" = "Configuración del Sistema, Ítems de inicio. Activa MacGauge en %@ e ingresa tu contraseña.";
+"welcome.start" = "Empezar a usar MacGauge";
 "welcome.reopen" = "Mostrar bienvenida…";
 
 /* Update card */

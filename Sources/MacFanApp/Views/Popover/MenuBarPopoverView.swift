@@ -305,9 +305,9 @@ struct MenuBarPopoverView: View {
         switch helperService.state {
         case .unknown, .ready, .reloading:
             return nil
-        case .needsApproval:
-            return { model.openLoginItemsSettings() }
-        case .needsAuthorization, .stale, .unavailable, .failed:
+        case .needsApproval, .needsAuthorization:
+            return { model.showFanControlGuide() }
+        case .stale, .unavailable, .failed:
             return { model.authorizeHelper() }
         }
     }
@@ -339,9 +339,9 @@ struct MenuBarPopoverView: View {
         case .unknown, .ready, .reloading:
             return nil
         case .needsApproval:
-            return "banner.action.open_login_items".localized
+            return "banner.action.show_me_how".localized
         case .needsAuthorization:
-            return "banner.action.authorize".localized
+            return "banner.action.set_up".localized
         case .stale, .unavailable, .failed:
             return "banner.action.fix".localized
         }

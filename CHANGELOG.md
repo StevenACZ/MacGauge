@@ -6,6 +6,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- The first launch walks you through setup one step at a time: allow fan control, then open at login. An animated picture shows the exact switch to turn on in System Settings, in your Mac's language, and the window moves on by itself once macOS approves. Every step can be skipped.
+
 ### Changed
 
 - MacGauge adopts the macOS 26 Liquid Glass design. The Settings tabs and the Close button sit in glass controls at the top of the window, and the main actions use glass buttons. Toggles, sliders, menus and window corners follow the new system look. macOS 13 to 15 keep the previous look.
@@ -19,6 +23,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings › Control: the Manual and Curve choices are compact rows that take far less height.
 - Settings › Control: Manual and Curve show your own target speed or curve, the manual speed has a bigger readout with a smoother slider, and the curve editor is taller.
 - In Full mode the menu bar fan turns slowly when your Mac is calm and speeds up as the fans, CPU or temperature climb, up to a fast spin under heavy load.
+- When fan control still waits for your approval, the popover and Safety settings open that same guide instead of sending you to System Settings without directions.
 
 ### Fixed
 

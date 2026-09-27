@@ -42,7 +42,12 @@ struct SafetySettingsTab: View {
                 actionIcon: actionIcon,
                 actionDisabled: model.isWriting,
                 action: {
-                    showsApprovalNotice ? model.openLoginItemsSettings() : model.authorizeHelper()
+                    switch helperService.state {
+                    case .needsAuthorization, .needsApproval:
+                        model.showFanControlGuide()
+                    default:
+                        model.authorizeHelper()
+                    }
                 }
             )
 
@@ -52,13 +57,6 @@ struct SafetySettingsTab: View {
             }
         }
         .animation(Theme.Anim.mode, value: helperService.state)
-    }
-
-    private var showsApprovalNotice: Bool {
-        HelperApprovalNotice.isVisible(
-            state: helperService.state,
-            fanControlAvailable: !model.monitor.snapshot.isFanless
-        )
     }
 
     private var helperDetail: String {
@@ -85,11 +83,11 @@ struct SafetySettingsTab: View {
         case .ready, .reloading, .unknown:
             return nil
         case .needsApproval:
-            return "banner.action.open_login_items".localized
+            return "banner.action.show_me_how".localized
         case .stale, .unavailable, .failed:
             return "settings.safety.fix_helper".localized
         case .needsAuthorization:
-            return "settings.safety.authorize".localized
+            return "banner.action.set_up".localized
         }
     }
 

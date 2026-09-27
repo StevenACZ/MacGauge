@@ -23,6 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.presentSettings = { [weak self] tab in
             self?.showSettings(tab: tab)
         }
+        model.presentFanControlGuide = { [weak self] in
+            self?.showWelcome(fanControlOnly: true)
+        }
         model.start()
         UpdateManager.shared.start()
         let statusController = StatusItemController(model: model)
@@ -47,13 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
-    private func showWelcome() {
+    private func showWelcome(fanControlOnly: Bool = false) {
         if welcomeWindowController == nil {
-            welcomeWindowController = WelcomeWindowController { [weak self] in
-                self?.showSettings(tab: .safety)
-            }
+            welcomeWindowController = WelcomeWindowController(model: model)
         }
-        welcomeWindowController?.showWelcome()
+        welcomeWindowController?.show(fanControlOnly: fanControlOnly)
     }
 
     func showAbout() {
