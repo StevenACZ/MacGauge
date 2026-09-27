@@ -10,6 +10,7 @@ import SwiftUI
 @MainActor
 final class MenuBarModulesCoordinator {
     private let model: AppModel
+    private let fanAutosaveName: String
     private let processMonitor = ProcessStatsMonitor()
     private let networkInfoMonitor = NetworkInfoMonitor()
 
@@ -19,8 +20,9 @@ final class MenuBarModulesCoordinator {
     private var fusedController: FusedModulesStatusItemController?
     private var cancellables = Set<AnyCancellable>()
 
-    init(model: AppModel) {
+    init(model: AppModel, fanAutosaveName: String) {
         self.model = model
+        self.fanAutosaveName = fanAutosaveName
 
         Publishers.CombineLatest4(
             model.settings.$showsCPUModule.removeDuplicates(),
@@ -58,21 +60,22 @@ final class MenuBarModulesCoordinator {
         }
         fusedController = nil
 
-        // Creation order fixes the default left-to-right order to
-        // NET · CPU · RAM, always left of the fan item.
         if modules.contains(.memory), memoryController == nil {
+            placeNextToFan("MacFan.module.memory", rank: 1)
             memoryController = makeMemoryController()
         } else if !modules.contains(.memory) {
             memoryController = nil
         }
 
         if modules.contains(.cpu), cpuController == nil {
+            placeNextToFan("MacFan.module.cpu", rank: 2)
             cpuController = makeCPUController()
         } else if !modules.contains(.cpu) {
             cpuController = nil
         }
 
         if modules.contains(.network), networkController == nil {
+            placeNextToFan("MacFan.module.network", rank: 3)
             networkController = makeNetworkController()
         } else if !modules.contains(.network) {
             networkController = nil
@@ -88,6 +91,7 @@ final class MenuBarModulesCoordinator {
         if let fusedController {
             fusedController.setModules(modules)
         } else {
+            placeNextToFan(FusedModulesStatusItemController.autosaveName, rank: 1)
             fusedController = FusedModulesStatusItemController(
                 model: model,
                 networkInfoMonitor: networkInfoMonitor,
@@ -97,6 +101,22 @@ final class MenuBarModulesCoordinator {
                 }
             )
         }
+    }
+
+    /// macOS forgets a status item's position once the item is removed, so a
+    /// recreated module item would land left of every other app's item. A
+    /// missing position is seeded just left of the fan, higher rank further
+    /// left, keeping NET · CPU · RAM · fan together until the user moves them.
+    private func placeNextToFan(_ autosaveName: String, rank: Double) {
+        let defaults = UserDefaults.standard
+        let key = Self.positionKey(autosaveName)
+        let fanKey = Self.positionKey(fanAutosaveName)
+        guard defaults.object(forKey: key) == nil, defaults.object(forKey: fanKey) != nil else { return }
+        defaults.set(defaults.double(forKey: fanKey) + rank, forKey: key)
+    }
+
+    private static func positionKey(_ autosaveName: String) -> String {
+        "NSStatusItem Preferred Position \(autosaveName)"
     }
 
     private func rebuildModuleViews() {

@@ -10,6 +10,9 @@ final class StatusItemController: NSObject {
     private let model: AppModel
     private var cancellables = Set<AnyCancellable>()
     private var animationTimer: Timer?
+
+    var autosaveName: String { statusItem.autosaveName }
+
     private var rotation: CGFloat = 0
     /// Current animated speed in degrees per second; eases toward
     /// `targetRotationSpeed` every frame so speed changes look fluid.

@@ -10,6 +10,8 @@ import SwiftUI
 /// label reports back from SwiftUI layout.
 @MainActor
 final class FusedModulesStatusItemController: NSObject {
+    static let autosaveName = "MacFan.modules"
+
     private let model: AppModel
     private let networkInfoMonitor: NetworkInfoMonitor
     /// Injected by the coordinator so the detail-view construction lives in
@@ -34,7 +36,7 @@ final class FusedModulesStatusItemController: NSObject {
         self.modules = modules
         self.makeDetail = makeDetail
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.autosaveName = "MacFan.modules"
+        statusItem.autosaveName = Self.autosaveName
 
         super.init()
 

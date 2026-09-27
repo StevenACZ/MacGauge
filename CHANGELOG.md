@@ -13,6 +13,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings › Display: every sidebar section gets its own colored icon, and you show or hide menu bar modules by clicking their tiles.
 - New installs show the menu bar modules Together by default, in the order Network, CPU, RAM, with a little more room between them. Network rates line up on the right so the gaps stay even.
 - MacGauge's menu bar items sit closer to each other, so Tight, Normal and Roomy take much less room. A menu bar spacing you set for the whole system still wins.
+- The modules land right next to the fan item, so Network, CPU, RAM and the fan stay together instead of being split by other apps' icons. Once you move them with ⌘-drag, MacGauge keeps your placement.
 - Settings › Display › Modules previews the fan item at the end of the bar, and explains how to hold ⌘ and drag MacGauge's icons to move them and set their order.
 - Settings › Control: the Manual and Curve choices are compact rows that take far less height.
 - Settings › Control: Manual and Curve show your own target speed or curve, the manual speed has a bigger readout with a smoother slider, and the curve editor is taller.
