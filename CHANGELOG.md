@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- `make install-dev` installs to `/Applications` and removes the old copy in `~/Applications`, so menu bar managers can keep MacGauge's icons visible.
+
 ## [1.7.2] - 2026-09-27
 
 ### Fixed

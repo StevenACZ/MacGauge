@@ -16,7 +16,7 @@ help:
 	@printf "  make build         Build SwiftPM release binaries\n"
 	@printf "  make test          Run SwiftPM tests\n"
 	@printf "  make stage         Stage the menu bar app bundle via scripts/build_and_run.sh\n"
-	@printf "  make install-dev   Install signed app bundle to ~/Applications\n"
+	@printf "  make install-dev   Install signed app bundle to /Applications\n"
 	@printf "  make notarized-dmg Build, notarize, and staple the release DMG\n"
 	@printf "  make appcast       Zip the notarized app, EdDSA-sign it, and write appcast.xml\n"
 	@printf "  make ci-check      Local gate: lint + build + test\n"
