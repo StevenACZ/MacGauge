@@ -82,7 +82,7 @@ make stage            # builds dist/MacGauge.app (ad-hoc signed)
 ./scripts/build_and_run.sh run
 ```
 
-For a signed local install to `~/Applications` (requires an Apple Development
+For a signed local install to `/Applications` (requires an Apple Development
 identity in your keychain):
 
 ```sh

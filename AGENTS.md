@@ -119,7 +119,8 @@ make ci-check
   `sdk` equal to `xcrun --show-sdk-version`). Xcode 27 SwiftPM stamps the
   deployment target instead, and macOS then draws the app without Liquid
   Glass; `stage_bundle` rewrites it with `vtool`, so never drop that step.
-- Use `make install-dev` for a signed local install to `~/Applications`.
+- Use `make install-dev` for a signed local install to `/Applications`; menu bar
+  managers can keep the icons visible only for apps there.
 - Use `make format` / `make lint` before commits; optional Lefthook via
   `make hooks-install`.
 - Preserve CLI verification with read-only and dry-run commands.

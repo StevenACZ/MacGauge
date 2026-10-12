@@ -6,7 +6,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_DST="$HOME/Applications/MacGauge.app"
+APP_DST="/Applications/MacGauge.app"
 LEGACY_APP="$HOME/Applications/MacFan.app"
 
 cd "$ROOT"
@@ -43,3 +43,6 @@ fi
 
 CDHASH="$(sed -n 's/^CDHash=//p' <<<"$SIGNING_DETAILS" | head -1)"
 echo "install-dev: installed CDHash=${CDHASH:-unknown} to $APP_DST"
+
+# A copy left in ~/Applications would race this one for the menu bar.
+rm -rf "$HOME/Applications/MacGauge.app"
