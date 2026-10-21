@@ -207,10 +207,6 @@
 "module.apps.show_less" = "Show less";
 "module.memory.used" = "Used";
 "module.memory.free" = "Available";
-"module.memory.pressure" = "Pressure";
-"module.memory.pressure.normal" = "Normal";
-"module.memory.pressure.elevated" = "Elevated";
-"module.memory.pressure.high" = "High";
 "module.memory.of_total" = "%@ of %@";
 "module.network.interface" = "Interface";
 "module.network.local_ip" = "Local IP";

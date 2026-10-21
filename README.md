@@ -40,8 +40,8 @@ explicit approval: a one-time helper authorization in the app, or deliberate
   write and retries when the system reverts it.
 - Optional menu bar modules (off by default) for CPU, memory, and network,
   each with a compact live chart and a detail popover: usage history, chip and
-  core layout, top apps by CPU/memory, memory pressure, interface and IP info,
-  and session traffic totals.
+  core layout, top apps by CPU/memory, used and available memory, interface
+  and IP info, and session traffic totals.
 - Per-module customization with live simulated previews: spacing (down to
   Together, one block with the fan that ⌘-drag moves as a whole), graph
   length, and color styles including custom

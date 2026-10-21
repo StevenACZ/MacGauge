@@ -67,16 +67,12 @@ final class FusedModulesStrip: NSObject, FanItemLeadingContent {
     func rebuildViews() {
         hostingView.rootView = makeLabel()
         for (module, popover) in popovers where popover.contentViewController != nil {
-            (popover.contentViewController as? NSHostingController<AnyView>)?.rootView = detailRoot(module)
+            (popover.contentViewController as? PopoverHostingController)?.setContent(makeDetail(module))
         }
         host?.leadingContentDidResize()
     }
 
     // MARK: - Views
-
-    private func detailRoot(_ module: SystemModuleKind) -> AnyView {
-        AnyView(makeDetail(module).background(Color(nsColor: .windowBackgroundColor)))
-    }
 
     private func makeLabel() -> AnyView {
         AnyView(
@@ -143,9 +139,7 @@ final class FusedModulesStrip: NSObject, FanItemLeadingContent {
         if clicked == .network {
             networkInfoMonitor.refresh()
         }
-        let controller = NSHostingController(rootView: detailRoot(clicked))
-        controller.sizingOptions = [.preferredContentSize]
-        popover.contentViewController = controller
+        PopoverHostingController.install(makeDetail(clicked), in: popover)
         popover.show(relativeTo: anchorRect(for: clicked, in: button), of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
         return true

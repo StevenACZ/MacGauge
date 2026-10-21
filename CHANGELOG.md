@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.4] - 2026-10-20
+
+### Changed
+
+- Show more in the CPU and RAM popovers unrolls the list like a drawer: the apps stay in place and the popover grows and shrinks with the list, instead of the list jumping and the rows overlapping.
+- The CPU popover opens at its final size while it measures the first sample, so it no longer grows a moment later.
+- When a new sample reorders the top apps, each row updates in place instead of rows sliding through each other.
+
+### Removed
+
+- The Pressure row in the RAM popover; the percentage and used memory already tell the same story.
+
 ## [1.7.3] - 2026-10-12
 
 ### Changed
