@@ -7,8 +7,6 @@ struct SystemLoadSnapshot: Sendable {
     var memoryPercent: Double?
     var memoryUsedBytes: UInt64?
     var memoryTotalBytes: UInt64 = ProcessInfo.processInfo.physicalMemory
-    /// Raw kern.memorystatus_vm_pressure_level reading (1/2/4), if available.
-    var memoryPressureSysctlLevel: Int?
     var downloadBytesPerSecond: Double?
     var uploadBytesPerSecond: Double?
     /// Bytes moved since monitoring began (survives module toggles).
@@ -68,7 +66,6 @@ final class SystemStatsMonitor: ObservableObject {
         next.cpuPercent = sampled.cpuPercent ?? snapshot.cpuPercent
         next.memoryPercent = sampled.memoryPercent ?? snapshot.memoryPercent
         next.memoryUsedBytes = sampled.memoryUsedBytes ?? snapshot.memoryUsedBytes
-        next.memoryPressureSysctlLevel = sampled.memoryPressureSysctlLevel ?? snapshot.memoryPressureSysctlLevel
         next.downloadBytesPerSecond = sampled.downloadBytesPerSecond ?? snapshot.downloadBytesPerSecond
         next.uploadBytesPerSecond = sampled.uploadBytesPerSecond ?? snapshot.uploadBytesPerSecond
         snapshot = next
@@ -146,7 +143,6 @@ private final class SystemLoadSampler: @unchecked Sendable {
                 totalBytes: snapshot.memoryTotalBytes
             )
         }
-        snapshot.memoryPressureSysctlLevel = Self.readMemoryPressureLevel()
 
         if let counters = Self.readNetworkCounters() {
             let readAt = Date()
@@ -215,15 +211,6 @@ private final class SystemLoadSampler: @unchecked Sendable {
         let appPages = internalPages - min(internalPages, UInt64(stats.purgeable_count))
         let usedPages = appPages + UInt64(stats.wire_count) + UInt64(stats.compressor_page_count)
         return usedPages * pageSize
-    }
-
-    private static func readMemoryPressureLevel() -> Int? {
-        var level: UInt32 = 0
-        var size = MemoryLayout<UInt32>.size
-        guard sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0 else {
-            return nil
-        }
-        return Int(level)
     }
 
     private static func readNetworkCounters() -> (received: UInt64, sent: UInt64)? {

@@ -82,12 +82,8 @@ final class MetricStatusItemController: NSObject {
     func rebuildViews() {
         statusItem.button?.setAccessibilityTitle(configuration.makeAccessibilityTitle())
         labelHostingView?.rootView = wrappedLabel()
-        (popover.contentViewController as? NSHostingController<AnyView>)?.rootView = detailRoot()
+        (popover.contentViewController as? PopoverHostingController)?.setContent(configuration.makeDetail())
         updateLength()
-    }
-
-    private func detailRoot() -> AnyView {
-        AnyView(configuration.makeDetail().background(Color(nsColor: .windowBackgroundColor)))
     }
 
     private func wrappedLabel() -> AnyView {
@@ -114,9 +110,7 @@ final class MetricStatusItemController: NSObject {
             button.bounce()
             UpdateManager.shared.popoverDidOpen()
             configuration.onPopoverOpen?()
-            let detailController = NSHostingController(rootView: detailRoot())
-            detailController.sizingOptions = [.preferredContentSize]
-            popover.contentViewController = detailController
+            PopoverHostingController.install(configuration.makeDetail(), in: popover)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }

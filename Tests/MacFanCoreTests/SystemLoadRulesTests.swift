@@ -46,19 +46,6 @@ import Testing
     #expect(SystemLoadRules.byteRate(previousBytes: 1_000, currentBytes: 3_000, elapsedSeconds: 0) == nil)
 }
 
-@Test func memoryPressurePrefersKernelLevelOverPercent() {
-    #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: 1, usedPercent: 95) == .normal)
-    #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: 2, usedPercent: 10) == .elevated)
-    #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: 4, usedPercent: 10) == .high)
-}
-
-@Test func memoryPressureFallsBackToPercentWithoutKernelLevel() {
-    #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: nil, usedPercent: 50) == .normal)
-    #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: 0, usedPercent: 80) == .elevated)
-    #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: nil, usedPercent: 95) == .high)
-    #expect(SystemLoadRules.memoryPressureLevel(sysctlLevel: nil, usedPercent: nil) == .normal)
-}
-
 @Test func customLoadBandUsesConfiguredThresholds() {
     #expect(SystemLoadRules.loadBand(forPercent: nil, normalUpperPercent: 10, hotLowerPercent: 60) == .normal)
     #expect(SystemLoadRules.loadBand(forPercent: 9.9, normalUpperPercent: 10, hotLowerPercent: 60) == .normal)

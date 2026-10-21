@@ -83,36 +83,97 @@ struct TopAppsCard: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             if hasSampled, !apps.isEmpty {
-                ForEach(apps.prefix(rowLimit)) { usage in
-                    AppUsageRow(
-                        usage: usage,
-                        valueText: valueText(usage),
-                        fraction: fraction(usage),
-                        tint: tint
-                    )
+                // Rows are keyed by rank, not process: a new ranking updates
+                // each row in place instead of sliding rows through each other.
+                RevealStack(visibleRows: Double(rowLimit), spacing: 8) {
+                    ForEach(Array(apps.prefix(ProcessStatsMonitor.expandedCount).enumerated()), id: \.offset) {
+                        index,
+                        usage in
+                        AppUsageRow(
+                            usage: usage,
+                            valueText: valueText(usage),
+                            fraction: fraction(usage),
+                            tint: tint
+                        )
+                        .accessibilityHidden(index >= rowLimit)
+                    }
                 }
+                .clipped()
                 if apps.count > ProcessStatsMonitor.collapsedCount {
                     ShowMoreButton(isExpanded: $isExpanded)
                 }
             } else {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("module.apps.collecting".localized)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 8)
+                collectingPlaceholder
             }
         }
-        .animation(Theme.Anim.content, value: apps.map(\.pid))
-        .animation(Theme.Anim.content, value: isExpanded)
     }
 
     private var rowLimit: Int {
         isExpanded ? ProcessStatsMonitor.expandedCount : ProcessStatsMonitor.collapsedCount
     }
+
+    /// Keeps the collapsed list's height while measuring, so the popover
+    /// opens at its final size instead of growing when the first sample lands.
+    private var collectingPlaceholder: some View {
+        VStack(spacing: 8) {
+            ForEach(0..<ProcessStatsMonitor.collapsedCount, id: \.self) { _ in
+                AppUsageRow(usage: .placeholder, valueText: " ", fraction: 0, tint: tint)
+            }
+            ShowMoreButton(isExpanded: .constant(false))
+        }
+        .hidden()
+        .overlay {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("module.apps.collecting".localized)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// Stacks every row top-down but is only as tall as its first `visibleRows`
+/// rows. The count animates through fractions, so "Show more" unrolls the
+/// list like a drawer: rows never move, the clipped edge does, and the
+/// height changes on every frame for the popover window to follow.
+struct RevealStack: Layout {
+    var visibleRows: Double
+    var spacing: CGFloat
+
+    var animatableData: Double {
+        get { visibleRows }
+        set { visibleRows = newValue }
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+        let heights = subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+        let shown = min(max(visibleRows, 0), Double(heights.count))
+        var height: CGFloat = 0
+        for (index, rowHeight) in heights.enumerated() where Double(index) < shown {
+            let step = rowHeight + (index > 0 ? spacing : 0)
+            height += step * CGFloat(min(1, shown - Double(index)))
+        }
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for subview in subviews {
+            let size = subview.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil))
+            subview.place(
+                at: CGPoint(x: bounds.minX, y: y),
+                proposal: ProposedViewSize(width: bounds.width, height: size.height)
+            )
+            y += size.height + spacing
+        }
+    }
+}
+
+extension AppResourceUsage {
+    fileprivate static let placeholder = AppResourceUsage(pid: 0, name: " ", icon: nil, cpuPercent: 0, memoryBytes: 0)
 }
 
 struct ModuleInfoRow: View {
@@ -237,12 +298,18 @@ struct ShowMoreButton: View {
 
     var body: some View {
         Button {
-            isExpanded.toggle()
+            // Animated at the source so the whole popover moves as one;
+            // a scoped .animation would only move the card's insides.
+            withAnimation(Theme.Anim.reveal) {
+                isExpanded.toggle()
+            }
         } label: {
             HStack(spacing: 4) {
                 Text(isExpanded ? "module.apps.show_less".localized : "module.apps.show_more".localized)
-                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .transaction { $0.animation = nil }
+                Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .semibold))
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
             }
             .font(.caption.weight(.medium))
             .foregroundStyle(.secondary)

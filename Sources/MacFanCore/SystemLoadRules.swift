@@ -16,13 +16,6 @@ public struct CPULoadTicks: Equatable, Sendable {
     }
 }
 
-/// Memory pressure band shown next to the RAM stats.
-public enum MemoryPressureLevel: Equatable, Sendable {
-    case normal
-    case elevated
-    case high
-}
-
 /// Coarse effort band for the load-tinted menu bar charts. Maps onto the
 /// same normal → medium → hot colors the fan temperature bands use.
 public enum LoadBand: Equatable, Sendable {
@@ -77,31 +70,6 @@ public enum SystemLoadRules {
         case ..<normalUpper:
             return .normal
         case ..<hotLower:
-            return .elevated
-        default:
-            return .high
-        }
-    }
-
-    /// Band from the kernel's own pressure level
-    /// (`kern.memorystatus_vm_pressure_level`: 1 normal, 2 warning,
-    /// 4 critical), falling back to used-percent thresholds when the sysctl
-    /// is unavailable.
-    public static func memoryPressureLevel(sysctlLevel: Int?, usedPercent: Double?) -> MemoryPressureLevel {
-        switch sysctlLevel {
-        case 1:
-            return .normal
-        case 2:
-            return .elevated
-        case 4:
-            return .high
-        default:
-            break
-        }
-        switch usedPercent ?? 0 {
-        case ..<75:
-            return .normal
-        case ..<90:
             return .elevated
         default:
             return .high

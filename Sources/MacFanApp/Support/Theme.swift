@@ -31,6 +31,8 @@ enum Theme {
         static let content = Animation.spring(duration: 0.35, bounce: 0.15)
         /// Conditional-row reveals in settings.
         static let smooth = Animation.smooth(duration: 0.25)
+        /// "Show more" unrolling the top apps list; the popover follows it.
+        static let reveal = Animation.spring(response: 0.3, dampingFraction: 1)
         static let easeOut = Animation.easeOut(duration: 0.2)
         /// Popover mode/content transitions.
         static let mode = Animation.spring(response: 0.28, dampingFraction: 0.86)
